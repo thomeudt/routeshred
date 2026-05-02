@@ -14,6 +14,49 @@ const KEYCLOAK_CONFIG = {
 let keycloakClient = null;
 let keycloakInitPromise = null;
 
+const AUTH_STORAGE_KEY = 'routeshred.auth.tokens';
+
+function readStoredTokens() {
+  try {
+    const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+
+    const token = typeof parsed.token === 'string' ? parsed.token : '';
+    const refreshToken = typeof parsed.refreshToken === 'string' ? parsed.refreshToken : '';
+    const idToken = typeof parsed.idToken === 'string' ? parsed.idToken : '';
+    if (!token || !refreshToken) {
+      return null;
+    }
+
+    return { token, refreshToken, idToken };
+  } catch (_) {
+    return null;
+  }
+}
+
+function writeStoredTokens(tokens) {
+  try {
+    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(tokens));
+  } catch (_) {
+    // Ignore storage write failures.
+  }
+}
+
+function clearStoredTokens() {
+  try {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  } catch (_) {
+    // Ignore storage removal failures.
+  }
+}
+
 function getKeycloakClient() {
   if (!KEYCLOAK_ENABLED) {
     return null;
@@ -48,12 +91,14 @@ export function AuthProvider({ children }) {
         // Cache the init promise – React StrictMode runs effects twice in dev.
         // A second init() call on the same instance would fail (code already consumed from URL).
         if (!keycloakInitPromise) {
+          const storedTokens = readStoredTokens();
           keycloakInitPromise = client.init({
             // Do not run automatic SSO checks on load in multi-proxy setups.
             // This avoids browser-dependent hangs on Keycloak's 3p-cookies check pages.
             // Login remains explicit via the login button.
             checkLoginIframe: false,
-            pkceMethod: 'S256'
+            pkceMethod: 'S256',
+            ...(storedTokens || {})
           });
         }
         const isAuthenticated = await keycloakInitPromise;
@@ -66,6 +111,16 @@ export function AuthProvider({ children }) {
         setToken(client.token || null);
         setUser(client.tokenParsed || null);
 
+        if (isAuthenticated && client.token && client.refreshToken) {
+          writeStoredTokens({
+            token: client.token,
+            refreshToken: client.refreshToken,
+            idToken: client.idToken || ''
+          });
+        } else if (!isAuthenticated) {
+          clearStoredTokens();
+        }
+
         client.onTokenExpired = async () => {
           try {
             await client.updateToken(30);
@@ -73,11 +128,19 @@ export function AuthProvider({ children }) {
             setToken(client.token || null);
             setUser(client.tokenParsed || null);
             setAuthenticated(Boolean(client.authenticated));
+            if (client.authenticated && client.token && client.refreshToken) {
+              writeStoredTokens({
+                token: client.token,
+                refreshToken: client.refreshToken,
+                idToken: client.idToken || ''
+              });
+            }
           } catch (_) {
             if (!mounted) return;
             setAuthenticated(false);
             setToken(null);
             setUser(null);
+            clearStoredTokens();
           }
         };
       } catch (_) {
@@ -86,6 +149,7 @@ export function AuthProvider({ children }) {
           setToken(null);
           setUser(null);
         }
+        clearStoredTokens();
       } finally {
         if (mounted) {
           setInitialized(true);
@@ -130,6 +194,7 @@ export function AuthProvider({ children }) {
         setAuthenticated(false);
         setToken(null);
         setUser(null);
+        clearStoredTokens();
         if (config.headers) {
           delete config.headers.Authorization;
           delete config.headers.authorization;
@@ -161,6 +226,7 @@ export function AuthProvider({ children }) {
           setAuthenticated(false);
           setToken(null);
           setUser(null);
+          clearStoredTokens();
         }
 
         return Promise.reject(error);
@@ -186,6 +252,7 @@ export function AuthProvider({ children }) {
     logout: async () => {
       if (!KEYCLOAK_ENABLED) return;
       const client = getKeycloakClient();
+      clearStoredTokens();
       await client.logout({ redirectUri: window.location.origin });
     }
   }), [authenticated, initialized, token, user]);
