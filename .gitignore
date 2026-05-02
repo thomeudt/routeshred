@@ -94,6 +94,10 @@ backend/data/tmp/
 backend/data/temp/
 backend/data/uploads/
 
+brouter-data/segments4/
+
+
+
 
 # -----------------------------------------------------------------------------
 # BRouter data

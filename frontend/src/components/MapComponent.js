@@ -50,6 +50,9 @@ function MapInstanceBinder({ mapRef }) {
 
   useEffect(() => {
     mapRef.current = map;
+    return () => {
+      mapRef.current = null;
+    };
   }, [map, mapRef]);
 
   return null;
