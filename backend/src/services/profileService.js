@@ -43,7 +43,13 @@ async function readUserProfile(sub, userInfo = {}) {
       ...data
     };
   } catch (_) {
-    return defaultProfileFromUser(userInfo);
+    const profile = defaultProfileFromUser(userInfo);
+    await fs.writeFile(filePath, JSON.stringify(profile, null, 2), { encoding: 'utf8', flag: 'wx' }).catch((error) => {
+      if (error && error.code !== 'EEXIST') {
+        throw error;
+      }
+    });
+    return profile;
   }
 }
 
