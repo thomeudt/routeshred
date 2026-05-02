@@ -31,6 +31,7 @@ const BROUTER_SEGMENTS_DIR = process.env.BROUTER_SEGMENTS_DIR
 const BROUTER_SEGMENTS_BASE_URL = process.env.BROUTER_SEGMENTS_BASE_URL
   || 'https://brouter.de/brouter/segments4';
 const BROUTER_AUTO_FETCH_SEGMENTS = String(process.env.BROUTER_AUTO_FETCH_SEGMENTS || 'true') !== 'false';
+const BROUTER_FALLBACK_TO_OSRM = String(process.env.BROUTER_FALLBACK_TO_OSRM || 'false') === 'true';
 const DEBUG_OPTIONAL_LOOKUPS = String(process.env.DEBUG_OPTIONAL_LOOKUPS || 'false') === 'true';
 const OPTIONAL_ROUTE_LOOKUPS_ENABLED = String(process.env.OPTIONAL_ROUTE_LOOKUPS_ENABLED || 'false') === 'true';
 const RAILWAY_SAFETY_ENABLED = String(process.env.RAILWAY_SAFETY_ENABLED || (OPTIONAL_ROUTE_LOOKUPS_ENABLED ? 'true' : 'false')) === 'true';
@@ -963,8 +964,11 @@ async function requestRoute(profile, points, options = {}) {
     try {
       return await requestRouteBrouter(points, options);
     } catch (error) {
-      // Keep the app usable if local BRouter is not available.
       const reason = error.message || 'unknown error';
+      if (!BROUTER_FALLBACK_TO_OSRM) {
+        throw new Error(`BRouter failed: ${reason}`);
+      }
+
       console.warn(`BRouter failed, falling back to OSRM: ${reason}`);
       fellBackFromBrouter = true;
       brouterFallbackReason = reason;
@@ -997,6 +1001,7 @@ function getRoutingEngineInfo() {
     configuredEngine: ROUTING_ENGINE,
     osrmApi: OSRM_API,
     brouterApi: BROUTER_API,
+    brouterFallbackToOsrm: BROUTER_FALLBACK_TO_OSRM,
     optionalLookups: {
       railwaySafety: RAILWAY_SAFETY_ENABLED,
       preferenceGuidance: PREFERENCE_GUIDANCE_ENABLED,

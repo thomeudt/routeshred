@@ -28,6 +28,7 @@ services:
       - OSRM_API=${OSRM_API:-http://router.project-osrm.org}
       - ROUTING_ENGINE=brouter
       - BROUTER_API=http://brouter:17777/brouter
+      - BROUTER_FALLBACK_TO_OSRM=false
       - BROUTER_CUSTOM_PROFILES_DIR=/app/brouter-data/customprofiles
       - BROUTER_SEGMENTS_DIR=/app/brouter-data/segments4
       - ROUTESHRED_CACHE_DIR=/app/data/cache
