@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { FiArrowRight, FiCheck, FiClock, FiEdit2, FiFlag, FiGlobe, FiInstagram, FiMap, FiMapPin, FiMessageSquare, FiPlus, FiSearch, FiShare2, FiTrash2, FiUsers, FiX } from 'react-icons/fi';
 import { useAuth } from '../auth/AuthProvider';
@@ -166,7 +166,7 @@ function GroupRidesPanel() {
       .sort((a, b) => String(b.startAt || b.updatedAt || '').localeCompare(String(a.startAt || a.updatedAt || '')));
   }, [rides, rideChallengeFilter, rideFilterQuery, showPastRides]);
 
-  const loadRides = async () => {
+  const loadRides = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -211,11 +211,11 @@ function GroupRidesPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [groupRideTarget, token]);
 
   useEffect(() => {
     loadRides();
-  }, [token, groupRideTarget]);
+  }, [loadRides]);
 
   const handleCreate = async () => {
     if (!token || !draft.title.trim()) {

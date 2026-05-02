@@ -30,6 +30,10 @@ const BROUTER_SEGMENTS_BASE_URL = process.env.BROUTER_SEGMENTS_BASE_URL
   || 'https://brouter.de/brouter/segments4';
 const BROUTER_AUTO_FETCH_SEGMENTS = String(process.env.BROUTER_AUTO_FETCH_SEGMENTS || 'true') !== 'false';
 const DEBUG_OPTIONAL_LOOKUPS = String(process.env.DEBUG_OPTIONAL_LOOKUPS || 'false') === 'true';
+const OPTIONAL_ROUTE_LOOKUPS_ENABLED = String(process.env.OPTIONAL_ROUTE_LOOKUPS_ENABLED || 'false') === 'true';
+const RAILWAY_SAFETY_ENABLED = String(process.env.RAILWAY_SAFETY_ENABLED || (OPTIONAL_ROUTE_LOOKUPS_ENABLED ? 'true' : 'false')) === 'true';
+const PREFERENCE_GUIDANCE_ENABLED = String(process.env.PREFERENCE_GUIDANCE_ENABLED || (OPTIONAL_ROUTE_LOOKUPS_ENABLED ? 'true' : 'false')) === 'true';
+const CYCLEWAY_AFFINITY_ENABLED = String(process.env.CYCLEWAY_AFFINITY_ENABLED || (OPTIONAL_ROUTE_LOOKUPS_ENABLED ? 'true' : 'false')) === 'true';
 const OVERPASS_CACHE_TTL_MS = Number(process.env.OVERPASS_CACHE_TTL_MS || 7 * 24 * 60 * 60 * 1000);
 const WIND_SPEED_ENABLED = String(process.env.WIND_SPEED_ENABLED || 'true') !== 'false';
 const WIND_API = process.env.WIND_API || 'https://api.open-meteo.com/v1/forecast';
@@ -93,7 +97,9 @@ async function getRoute(start, end, options = {}) {
     }
 
     // Safety filter: avoid crossing railway tracks away from known rail crossings.
-    const railwaySafetyData = await loadRailwaySafetyData(routePoints);
+    const railwaySafetyData = RAILWAY_SAFETY_ENABLED
+      ? await loadRailwaySafetyData(routePoints)
+      : { available: false, railSegments: [], crossingPoints: [] };
     const baseRailPartition = partitionRoutesByRailwaySafety(baseCandidates, railwaySafetyData);
     const filteredBaseCandidates = baseRailPartition.safeRoutes.length
       ? baseRailPartition.safeRoutes
@@ -104,7 +110,7 @@ async function getRoute(start, end, options = {}) {
 
     // Optional cycleway orientation for scenic/offroad preferences.
     let guidedRoute = null;
-    if (effectivePreference === 'scenic' || effectivePreference === 'offroad') {
+    if (PREFERENCE_GUIDANCE_ENABLED && (effectivePreference === 'scenic' || effectivePreference === 'offroad')) {
       const viaPoints = await findPreferenceWaypoints(start, end, bikeType, preference);
       for (const viaPoint of viaPoints) {
         try {
@@ -141,16 +147,18 @@ async function getRoute(start, end, options = {}) {
     );
 
     // Active preference of OSM cycle infrastructure in corridor between start/end.
-    const cycleRanked = await selectByCyclewayAffinity(
-      filteredBaseCandidates,
-      guidedRoute,
-      start,
-      end,
-      bikeType,
-      effectivePreference,
-      rideType,
-      hasIntermediateVias
-    );
+    const cycleRanked = CYCLEWAY_AFFINITY_ENABLED
+      ? await selectByCyclewayAffinity(
+        filteredBaseCandidates,
+        guidedRoute,
+        start,
+        end,
+        bikeType,
+        effectivePreference,
+        rideType,
+        hasIntermediateVias
+      )
+      : null;
 
     if (cycleRanked) {
       selected = cycleRanked;
@@ -951,7 +959,13 @@ function getRoutingEngineInfo() {
   return {
     configuredEngine: ROUTING_ENGINE,
     osrmApi: OSRM_API,
-    brouterApi: BROUTER_API
+    brouterApi: BROUTER_API,
+    optionalLookups: {
+      railwaySafety: RAILWAY_SAFETY_ENABLED,
+      preferenceGuidance: PREFERENCE_GUIDANCE_ENABLED,
+      cyclewayAffinity: CYCLEWAY_AFFINITY_ENABLED,
+      windSpeed: WIND_SPEED_ENABLED
+    }
   };
 }
 
