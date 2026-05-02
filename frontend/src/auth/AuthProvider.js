@@ -13,7 +13,6 @@ const KEYCLOAK_CONFIG = {
 
 let keycloakClient = null;
 let keycloakInitPromise = null;
-let reauthInProgress = false;
 
 function getKeycloakClient() {
   if (!KEYCLOAK_ENABLED) {
@@ -79,14 +78,6 @@ export function AuthProvider({ children }) {
             setAuthenticated(false);
             setToken(null);
             setUser(null);
-            if (!reauthInProgress) {
-              reauthInProgress = true;
-              try {
-                await client.login({ redirectUri: window.location.href });
-              } catch (_) {
-                reauthInProgress = false;
-              }
-            }
           }
         };
       } catch (_) {
@@ -166,19 +157,10 @@ export function AuthProvider({ children }) {
         const isAuthError = status === 401
           && (message.includes('invalid or expired access token') || message.includes('bearer token required'));
 
-        if (isAuthError && !reauthInProgress) {
-          const client = getKeycloakClient();
-          if (client) {
-            reauthInProgress = true;
-            setAuthenticated(false);
-            setToken(null);
-            setUser(null);
-            try {
-              await client.login({ redirectUri: window.location.href });
-            } catch (_) {
-              reauthInProgress = false;
-            }
-          }
+        if (isAuthError) {
+          setAuthenticated(false);
+          setToken(null);
+          setUser(null);
         }
 
         return Promise.reject(error);

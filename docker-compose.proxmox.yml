@@ -104,7 +104,6 @@ services:
       - KC_PROXY=edge
       - KC_PROXY_HEADERS=xforwarded
       - KC_HTTP_RELATIVE_PATH=/auth
-      - KC_HOSTNAME=${PUBLIC_HOSTNAME}
       - KC_HOSTNAME_URL=${PUBLIC_BASE_URL}/auth
       - KC_HOSTNAME_STRICT=false
       - KC_HOSTNAME_STRICT_HTTPS=true
