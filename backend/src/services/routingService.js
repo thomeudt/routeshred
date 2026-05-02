@@ -165,7 +165,18 @@ async function getRoute(start, end, options = {}) {
     }
 
     if (!selected) {
-      throw new Error('No route found after preference selection');
+      const fallbackCandidate = pickBrouterFallbackRoute(filteredBaseCandidates);
+      if (fallbackCandidate) {
+        fallbackCandidate._shapeWarning = {
+          ...(fallbackCandidate._shapeWarning || {}),
+          reason: fallbackCandidate._shapeWarning?.reason || 'preference-selection-relaxed',
+          shapePenalty: Number(getRouteShapePenalty(fallbackCandidate).toFixed(3)),
+          maxOutAndBackKm: Number((Number(fallbackCandidate && fallbackCandidate._maxOutAndBackKm) || 0).toFixed(2))
+        };
+        selected = { route: fallbackCandidate, strategy: 'brouter-relaxed-best' };
+      } else {
+        throw new Error('No route found after preference selection');
+      }
     }
 
     // Hard guardrail: routes with explicit vias must not detour excessively.
@@ -231,7 +242,7 @@ async function getRoute(start, end, options = {}) {
       timestamp: new Date().toISOString()
     };
   } catch (error) {
-    console.error('OSRM routing error:', error.message);
+    console.error(`${ROUTING_ENGINE.toUpperCase()} routing error:`, error.message);
     throw new Error(`Routing failed: ${error.message}`);
   }
 }
@@ -2569,6 +2580,22 @@ function pickPreferredRoute(candidates, guidedRoute, preference, rideType = 'z2'
   const sorted = [...fallbackCandidates].sort((a, b) => routeRank(a) - routeRank(b));
   const alt = sorted[1] || sorted[0];
   return alt ? { route: alt, strategy: `${preference}-alternative` } : null;
+}
+
+function pickBrouterFallbackRoute(candidates) {
+  if (ROUTING_ENGINE !== 'brouter' || !Array.isArray(candidates) || !candidates.length) {
+    return null;
+  }
+
+  return candidates
+    .slice()
+    .sort((a, b) => {
+      const aPenalty = getRouteShapePenalty(a);
+      const bPenalty = getRouteShapePenalty(b);
+      const aDistance = Number(a && a.distance) || Number.POSITIVE_INFINITY;
+      const bDistance = Number(b && b.distance) || Number.POSITIVE_INFINITY;
+      return aPenalty - bPenalty || aDistance - bDistance;
+    })[0] || null;
 }
 
 async function findPreferenceWaypoints(start, end, bikeType, preference) {
