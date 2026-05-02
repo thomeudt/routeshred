@@ -10,13 +10,13 @@ const {
   getBikeProfileContent,
   updateBikeProfileContent
 } = require('../services/routingService');
-const { requireAuth, optionalAuth } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 
 /**
  * GET /api/routing/profiles
  * List available bike profiles from BRouter customprofiles.
  */
-router.get('/profiles', optionalAuth, async (req, res) => {
+router.get('/profiles', requireAuth, async (req, res) => {
   try {
     const user = req.auth && req.auth.user ? req.auth.user : {};
     res.json({ profiles: await getBikeProfiles(user) });
@@ -92,7 +92,7 @@ router.post('/profiles', requireAuth, async (req, res) => {
  * Find optimal bike route between two points
  * Body: { start: [lat, lon], end: [lat, lon], waypoints: [[lat, lon], ...], bikeType: '<brouter-profile-id>', preference: 'fastest' | 'scenic' | 'offroad' }
  */
-router.post('/route', async (req, res) => {
+router.post('/route', requireAuth, async (req, res) => {
   try {
     const {
       start, end,
@@ -119,7 +119,7 @@ router.post('/route', async (req, res) => {
  * POST /api/routing/analyze
  * Analyze route for terrain, elevation, surface type
  */
-router.post('/analyze', async (req, res) => {
+router.post('/analyze', requireAuth, async (req, res) => {
   try {
     const { coordinates } = req.body;
 

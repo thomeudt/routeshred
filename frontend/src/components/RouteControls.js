@@ -279,8 +279,14 @@ function RouteControls() {
   useEffect(() => {
     let mounted = true;
     const loadEngine = async () => {
+      if (authEnabled && (!authenticated || !token)) {
+        return;
+      }
+
       try {
-        const response = await fetch('/api/health');
+        const response = await fetch('/api/health', {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined
+        });
         const data = await response.json();
         const configured = data && data.routing ? data.routing.configuredEngine : null;
         if (mounted && configured) setEngine(String(configured).toUpperCase());
@@ -290,13 +296,13 @@ function RouteControls() {
     };
     loadEngine();
     return () => { mounted = false; };
-  }, []);
+  }, [authEnabled, authenticated, token]);
 
   useEffect(() => {
-    if (!bikeProfiles.length) {
+    if (!bikeProfiles.length && (!authEnabled || (authenticated && token))) {
       loadBikeProfiles(token);
     }
-  }, [bikeProfiles.length, loadBikeProfiles, token]);
+  }, [authEnabled, authenticated, bikeProfiles.length, loadBikeProfiles, token]);
 
   useEffect(() => {
     if (authEnabled && authenticated && token) {

@@ -15,6 +15,14 @@ let keycloakClient = null;
 let keycloakInitPromise = null;
 let reauthInProgress = false;
 
+function hasPublicDeepLink() {
+  const params = new URLSearchParams(window.location.search);
+  return Boolean(
+    String(params.get('sharedRoute') || '').trim()
+    || String(params.get('groupRide') || '').trim()
+  );
+}
+
 function getKeycloakClient() {
   if (!KEYCLOAK_ENABLED) {
     return null;
@@ -49,11 +57,14 @@ export function AuthProvider({ children }) {
         // Cache the init promise – React StrictMode runs effects twice in dev.
         // A second init() call on the same instance would fail (code already consumed from URL).
         if (!keycloakInitPromise) {
+          const publicDeepLink = hasPublicDeepLink();
           keycloakInitPromise = client.init({
-            onLoad: 'check-sso',
+            onLoad: publicDeepLink ? 'check-sso' : 'login-required',
             checkLoginIframe: false,
             pkceMethod: 'S256',
-            silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`
+            ...(publicDeepLink
+              ? { silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html` }
+              : {})
           });
         }
         const isAuthenticated = await keycloakInitPromise;
