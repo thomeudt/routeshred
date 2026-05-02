@@ -262,8 +262,6 @@ function RouteControls() {
   const [gpxImportError, setGpxImportError] = useState('');
   const [gpxImportSuccess, setGpxImportSuccess] = useState('');
   const [routeName, setRouteName] = useState('');
-  const [selectedPersonaId, setSelectedPersonaId] = useState('coffee');
-  const [controlMode, setControlMode] = useState('persona');
   const gpxInputRef = useRef(null);
   const {
     startPoint, endPoint,
@@ -491,27 +489,9 @@ function RouteControls() {
   const selectedProfileLabel = selectedProfile ? selectedProfile.label : '';
   const selectedProfileOwned = Boolean(selectedProfile && selectedProfile.owned);
   const isOwnedSelectedProfile = Boolean(canManageProfiles && selectedProfile && selectedProfile.owned);
-  const activePersonaId = selectedPersonaId;
-  const activePersona = RIDE_PERSONAS.find((persona) => persona.id === selectedPersonaId) || null;
+  const activePersona = RIDE_PERSONAS.find((p) => p.rideType === rideType && p.preference === preference) || null;
+  const activePersonaId = activePersona ? activePersona.id : null;
   const activePersonaLabel = activePersona ? t(`route.personas.${activePersona.id}.label`) : '';
-
-  useEffect(() => {
-    if (controlMode !== 'persona') {
-      return;
-    }
-
-    const selectedPersona = RIDE_PERSONAS.find((persona) => persona.id === selectedPersonaId);
-    if (!selectedPersona) {
-      return;
-    }
-
-    if (selectedPersona.rideType !== rideType) {
-      setRideType(selectedPersona.rideType);
-    }
-    if (selectedPersona.preference !== preference) {
-      setPreference(selectedPersona.preference);
-    }
-  }, [controlMode, selectedPersonaId, rideType, preference, setRideType, setPreference]);
 
   useEffect(() => {
     if (!newProfileBaseId && selectedProfileId) {
@@ -1173,12 +1153,6 @@ function RouteControls() {
                   ))}
                 </select>
               </div>
-              <div className="bike-model-tag">
-                {selectedProfile.source === 'brouter'
-                  ? t('route.brouterProfile')
-                  : t('route.routingProfile')}
-              </div>
-              <small className="setup-system-meta">{t('route.engine')}: {engine}</small>
             </div>
 
             <details className="profile-tools">
@@ -1310,7 +1284,6 @@ function RouteControls() {
             <h3 className="setup-section-title">{t('route.setupSections.user')}</h3>
 
             <div className="control-group">
-              <label>{t('route.riderProfile.title')}</label>
               <div className="rider-profile-inputs">
                 <label>
                   <span><FiZap size={12} /> {t('route.riderProfile.ftp')}</span>
@@ -1327,7 +1300,7 @@ function RouteControls() {
                   </div>
                 </label>
                 <label>
-                  <span>{t('route.riderProfile.weight')}</span>
+                  <span><FiActivity size={12} /> {t('route.riderProfile.weight')}</span>
                   <div className="rider-input">
                     <input
                       type="number"
@@ -1363,28 +1336,6 @@ function RouteControls() {
             <h3 className="setup-section-title">{t('route.setupSections.training')}</h3>
 
             <div className="control-group">
-              <label>{t('route.trainingControl.title')}</label>
-              <div className="training-control-toggle">
-                <button
-                  type="button"
-                  className={controlMode === 'persona' ? 'active' : ''}
-                  onClick={() => setControlMode('persona')}
-                >
-                  <FiCompass size={12} />
-                  {t('route.trainingControl.persona')}
-                </button>
-                <button
-                  type="button"
-                  className={controlMode === 'training' ? 'active' : ''}
-                  onClick={() => setControlMode('training')}
-                >
-                  <FiZap size={12} />
-                  {t('route.trainingControl.trainingType')}
-                </button>
-              </div>
-            </div>
-
-            <div className="control-group">
               <label>{t('route.personas.title')}</label>
               <div className="persona-buttons">
                 {RIDE_PERSONAS.map((persona) => {
@@ -1394,9 +1345,8 @@ function RouteControls() {
                     key={persona.id}
                     type="button"
                     className={`persona-btn persona-${persona.id}${activePersonaId === persona.id ? ' active' : ''}`}
-                    onClick={() => setSelectedPersonaId(persona.id)}
-                    disabled={controlMode !== 'persona'}
-                    title={t(`route.personas.${persona.id}.label`)}
+                    onClick={() => { setRideType(persona.rideType); setPreference(persona.preference); }}
+                    title={t(`route.personas.${persona.id}.sub`)}
                   >
                     <PersonaIcon className="persona-icon" size={16} />
                     <span className="persona-label">{t(`route.personas.${persona.id}.label`)}</span>
@@ -1421,7 +1371,6 @@ function RouteControls() {
                     key={id}
                     className={`ride-type-btn${rideType === id ? ' active' : ''}`}
                     onClick={() => setRideType(id)}
-                    disabled={controlMode !== 'training'}
                     title={t(`rideTypes.${id}.subtitle`)}
                   >
                     <RideTypeIcon className="rt-icon" size={14} />
