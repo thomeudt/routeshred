@@ -1,0 +1,103 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5050:5050"
+    environment:
+      - NODE_ENV=development
+      - PORT=5050
+      - OSRM_API=http://router.project-osrm.org
+      - ROUTING_ENGINE=${ROUTING_ENGINE:-osrm}
+      - BROUTER_API=${BROUTER_API:-http://host.docker.internal:17777/brouter}
+      - ROUTESHRED_CACHE_DIR=/app/data/cache
+      - ROUTESHRED_PROFILE_DIR=/app/data/profiles
+      - ROUTESHRED_ROUTES_DIR=/app/data/routes
+      - KEYCLOAK_ENABLED=${KEYCLOAK_ENABLED:-true}
+      - KEYCLOAK_URL=${KEYCLOAK_URL:-http://keycloak:8080}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-routeshred}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-routeshred-frontend}
+    volumes:
+      - ./backend/src:/app/src
+      - ./data/cache:/app/data/cache
+      - ./data/profiles:/app/data/profiles
+      - ./data/routes:/app/data/routes
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=/api
+      - REACT_APP_TILE_URL=${REACT_APP_TILE_URL:-https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=007b5abe80db44699c19474ee8d9500b}
+      - REACT_APP_TILE_ATTRIBUTION=${REACT_APP_TILE_ATTRIBUTION:-&copy; OpenCycleMap}
+      - REACT_APP_KEYCLOAK_ENABLED=${REACT_APP_KEYCLOAK_ENABLED:-true}
+      - REACT_APP_KEYCLOAK_URL=${REACT_APP_KEYCLOAK_URL:-http://localhost:8080}
+      - REACT_APP_KEYCLOAK_REALM=${REACT_APP_KEYCLOAK_REALM:-routeshred}
+      - REACT_APP_KEYCLOAK_CLIENT_ID=${REACT_APP_KEYCLOAK_CLIENT_ID:-routeshred-frontend}
+    volumes:
+      - ./frontend/src:/app/src
+    depends_on:
+      - backend
+    command: npm run dev
+
+  # Optional: Self-hosted OSRM instance
+  # osrm:
+  #   image: osrm/osrm-backend
+  #   ports:
+  #     - "5001:5000"
+  #   volumes:
+  #     - ./data:/data
+  #   command: osrm-routed --algorithm mld /data/germany-latest.osm.pbf
+
+  # Local BRouter service for dev mode bike-optimized routing.
+  brouter:
+    build:
+      context: https://github.com/abrensch/brouter.git#v1.7.9
+    image: routeshred-brouter:1.7.9
+    ports:
+      - "17777:17777"
+    volumes:
+      - ./brouter-data/segments4:/segments4
+      - ./brouter-data/customprofiles:/customprofiles
+      # Make all custom profiles available by profile id via REST API.
+      - ./brouter-data/customprofiles:/profiles2
+    restart: unless-stopped
+
+  keycloak-db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=keycloak
+      - POSTGRES_USER=${KC_DB_USER}
+      - POSTGRES_PASSWORD=${KC_DB_PASSWORD}
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    command: start-dev --import-realm
+    ports:
+      - "8080:8080"
+    environment:
+      - KC_DB=postgres
+      - KC_DB_URL_HOST=keycloak-db
+      - KC_DB_URL_DATABASE=keycloak
+      - KC_DB_USERNAME=${KC_DB_USER}
+      - KC_DB_PASSWORD=${KC_DB_PASSWORD}
+      - KC_HTTP_ENABLED=true
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+    depends_on:
+      - keycloak-db
+    volumes:
+      - ./docs/keycloak/routeshred-realm.json:/opt/keycloak/data/import/routeshred-realm.json:ro
+      - ./docs/keycloak/themes:/opt/keycloak/themes:ro
+    restart: unless-stopped
+
+volumes:
+  osm_data:
+  keycloak_db_data:

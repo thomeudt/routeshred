@@ -1,0 +1,201 @@
+:root {
+  --rs-primary: #13293d;
+  --rs-primary-dark: #0b1f30;
+  --rs-accent: #ff6a3d;
+  --rs-accent-warm: #f4c95d;
+  --rs-bg: #eef2f5;
+  --rs-surface: #ffffff;
+  --rs-border: #d8e0e8;
+  --rs-text: #13293d;
+  --rs-text-soft: #516173;
+  --rs-focus: rgba(255, 106, 61, 0.35);
+  --rs-font-display: "Barlow Condensed", "Avenir Next Condensed", "Arial Narrow", sans-serif;
+  --rs-font-body: "Barlow", "Avenir Next", "Segoe UI", sans-serif;
+}
+
+body {
+  font-family: var(--rs-font-body);
+  background:
+    radial-gradient(circle at 12% 4%, rgba(255, 106, 61, 0.2), transparent 30%),
+    radial-gradient(circle at 86% 2%, rgba(19, 41, 61, 0.1), transparent 32%),
+    linear-gradient(180deg, #f6f9fc 0%, var(--rs-bg) 58%);
+  color: var(--rs-text);
+}
+
+.login-pf body,
+body.login-pf {
+  background:
+    radial-gradient(circle at 12% 4%, rgba(255, 106, 61, 0.2), transparent 30%),
+    radial-gradient(circle at 86% 2%, rgba(19, 41, 61, 0.1), transparent 32%),
+    linear-gradient(180deg, #f6f9fc 0%, var(--rs-bg) 58%);
+}
+
+.card-pf {
+  width: min(100%, 460px);
+  margin-inline: auto;
+  border: 1px solid var(--rs-border);
+  border-radius: 0;
+  box-shadow: 0 12px 34px rgba(11, 31, 48, 0.12);
+  background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+}
+
+#kc-content {
+  width: min(100%, 460px);
+  margin-inline: auto;
+}
+
+#kc-header-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 7px;
+  border: 1px solid color-mix(in srgb, var(--rs-border) 72%, white);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(245, 248, 251, 0.95) 100%);
+  font-family: var(--rs-font-display);
+  font-size: 34px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--rs-text);
+}
+
+#kc-header-wrapper::before {
+  content: "RS";
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid color-mix(in srgb, var(--rs-accent) 46%, var(--rs-primary));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--rs-accent) 32%, white) 0%, color-mix(in srgb, var(--rs-surface) 90%, white) 100%);
+  color: var(--rs-primary-dark);
+  font-family: var(--rs-font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+#kc-header-wrapper::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -5px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--rs-accent) 0%, color-mix(in srgb, var(--rs-accent-warm) 60%, var(--rs-accent)) 35%, var(--rs-primary) 100%);
+  transform-origin: left center;
+  animation: rsBrandSweep 1400ms ease-out both;
+}
+
+@keyframes rsBrandSweep {
+  from {
+    opacity: 0;
+    transform: scaleX(0.1);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+#kc-page-title {
+  font-family: var(--rs-font-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 24px;
+}
+
+#kc-content-wrapper {
+  color: var(--rs-text-soft);
+}
+
+.pf-c-form-control,
+input[type="text"],
+input[type="password"],
+input[type="email"] {
+  border-radius: 0;
+  border-color: var(--rs-border);
+  min-height: 42px;
+}
+
+.pf-c-form-control:focus,
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus {
+  border-color: var(--rs-accent);
+  box-shadow: 0 0 0 3px var(--rs-focus);
+}
+
+#kc-form-buttons input,
+#kc-login {
+  border-radius: 0;
+  border: 1px solid #cc5b36;
+  background: linear-gradient(135deg, var(--rs-accent) 0%, #ff875d 100%);
+  color: #101722;
+  font-family: var(--rs-font-body);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: filter 140ms ease;
+}
+
+#kc-form-buttons input:hover,
+#kc-login:hover {
+  filter: brightness(1.05);
+}
+
+#kc-form-options a,
+#kc-registration-container a,
+#kc-info-wrapper a {
+  color: var(--rs-primary);
+  font-weight: 700;
+}
+
+#kc-form-options a:hover,
+#kc-registration-container a:hover,
+#kc-info-wrapper a:hover {
+  color: var(--rs-primary-dark);
+}
+
+.alert {
+  border-radius: 0;
+}
+
+@media (max-width: 768px) {
+  #kc-content,
+  .card-pf {
+    width: 100%;
+  }
+
+  #kc-header-wrapper {
+    font-size: 26px;
+    padding: 5px 9px 6px;
+    gap: 8px;
+  }
+
+  #kc-header-wrapper::before {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  #kc-page-title {
+    font-size: 20px;
+  }
+
+  .card-pf {
+    box-shadow: 0 8px 24px rgba(11, 31, 48, 0.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  #kc-header-wrapper::after {
+    animation: none;
+  }
+}

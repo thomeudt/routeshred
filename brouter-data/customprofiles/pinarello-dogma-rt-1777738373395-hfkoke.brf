@@ -1,0 +1,211 @@
+# pinarello-dogma.brf
+# Custom BRouter profile for a Pinarello Dogma road racing bike.
+# Rider: 87 kg, FTP 250 W
+#
+# Key characteristics:
+#   - Strictly avoids unpaved, gravel, and dirt surfaces
+#   - Prefers smooth tarmac and dedicated cycling infrastructure
+#   - Race-geometry physics: very low drag, 25mm road tires
+#   - Accepts climbs efficiently (road racers are climbers too)
+#   - Avoids motorways, trunk roads and Bundesstrassen/primary roads
+
+---context:global
+
+assign validForBikes true
+assign turnInstructionMode          1
+assign turnInstructionRoundabouts   true
+assign considerTurnRestrictions     true
+assign correctMisplacedViaPoints    true
+assign correctMisplacedViaPointsDistance 1200
+assign pass1coefficient 4
+
+assign allow_steps    false
+assign allow_ferries  true
+assign allow_motorways false
+
+assign consider_traffic true
+assign consider_elevation true
+
+# Kinematic model
+# 87 kg rider + 8 kg Dogma = 95 kg total
+assign totalMass = 95
+# Average output at ~80% FTP (200 W) — used by BRouter for time estimates
+assign bikerPower = 180
+# Road race position: top-tube/drops aerodynamics
+assign S_C_x      = 0.200
+# Continental GP5000 25c: Crr ≈ 0.0035
+assign C_r        = 0.0035
+assign maxSpeed   = 62
+
+# Elevation handling — road racers take climbs, no special penalty
+assign downhillcost   0
+assign downhillcutoff 1.5
+assign uphillcost     0
+assign uphillcutoff   1.5
+
+assign use_proposed_cycleroutes false
+
+---context:way
+
+# -- Surface classification --------------------------------------------------
+
+assign ispaved
+  or surface=asphalt or surface=concrete or surface=paved
+  or surface=paving_stones or surface=sett
+  or smoothness=excellent smoothness=good
+
+assign isfinegravel
+  or surface=fine_gravel surface=compacted
+
+assign iscycleinfra
+  or highway=cycleway
+    or bicycle=designated
+      or cycleway=track|opposite_track|lane|opposite_lane|shared_lane
+        or route_bicycle_icn=yes or route_bicycle_ncn=yes
+        or route_bicycle_rcn=yes route_bicycle_lcn=yes
+
+assign isunpaved
+  not or ispaved or isfinegravel
+     or surface= smoothness=
+
+# -- Road surface quality penalty (Pinarello Dogma = very sensitive) --------
+
+assign surfacepenalty
+  switch ispaved         1.0
+  switch isfinegravel    6.0   # racing bike on fine gravel is borderline OK
+  switch isunpaved       30.0  # gravel/dirt = strongly avoid
+                         2.0   # unknown surface, moderate penalty
+
+# -- Access / bike access logic ---------------------------------------------
+
+assign defaultaccess
+  switch access=
+    switch or highway=motorway or highway=motorway_link motorroad=yes
+      false
+      true
+    switch or access=private access=no
+      false
+      true
+
+assign bikeaccess
+  switch bicycle=
+    switch bicycle_road=yes true
+      switch vehicle=
+        switch highway=footway false defaultaccess
+        not vehicle=private|no
+    not or bicycle=private or bicycle=no or bicycle=dismount bicycle=use_sidepath
+
+assign footaccess
+  or bicycle=dismount
+    switch foot= defaultaccess
+      not or foot=private or foot=no foot=use_sidepath
+
+assign accesspenalty
+  switch bikeaccess 0
+    switch footaccess 5
+      switch highway=footway|pedestrian 6 10000
+
+# -- One-way handling -------------------------------------------------------
+
+assign badoneway
+  switch reversedirection=yes
+    switch oneway:bicycle=yes true
+      switch oneway= junction=roundabout
+                     oneway=yes|true|1
+    oneway=-1
+
+assign hascycleway
+  not and or cycleway= cycleway=no|none
+          or cycleway:left=no|  cycleway:right=no|
+
+assign onewaypenalty
+  switch badoneway
+    switch or hascycleway oneway:bicycle=no 0
+      switch not footaccess 100
+        switch junction=roundabout|circular 60
+          switch highway=primary|primary_link 50
+            switch highway=secondary|secondary_link 30 6
+    0
+
+# -- Traffic estimation -----------------------------------------------------
+
+assign trafficpenalty
+  switch consider_traffic
+    switch hascycleway 0
+      switch estimated_traffic_class=|1|2 0
+        switch estimated_traffic_class=3 0.3
+          switch estimated_traffic_class=4 0.7
+            switch estimated_traffic_class=5 1.2
+              switch estimated_traffic_class=6|7 2.0 0
+    0
+
+# -- Core cost factor -------------------------------------------------------
+
+assign turncost switch junction=roundabout 0 90
+
+assign costfactor
+  switch and highway= not route=ferry 10000
+  switch or highway=proposed highway=abandoned 10000
+  min 9999
+  add max onewaypenalty accesspenalty
+  add trafficpenalty
+
+  multiply surfacepenalty
+
+  switch or highway=motorway highway=motorway_link
+    switch allow_motorways 1.5 10000
+  switch or highway=trunk highway=trunk_link 14.0
+  switch or highway=primary highway=primary_link 3.8
+  switch or highway=secondary highway=secondary_link 1.35
+  switch or highway=tertiary highway=tertiary_link 0.95
+  switch    highway=unclassified   switch isunpaved 15 1.1
+  switch    highway=residential    switch isunpaved 15 0.95
+  switch    highway=living_street  switch isunpaved 15 1.0
+  switch    highway=service        switch isunpaved 15 1.1
+  switch    highway=cycleway       switch ispaved 0.55 0.9
+  switch    highway=pedestrian     switch hascycleway 1.3 6.0
+  switch    highway=steps          switch allow_steps 80 10000
+  switch    route=ferry            switch allow_ferries 5 10000
+  switch    highway=bridleway      8.0
+  switch or highway=track or highway=path or highway=road highway=footway
+    switch and iscycleinfra ispaved 0.78
+    switch and iscycleinfra isfinegravel 1.35
+    switch tracktype=grade1        switch isunpaved 8   1.5
+    switch tracktype=grade2        switch isunpaved 20  8.0
+    switch tracktype=grade3        25.0
+    switch tracktype=grade4        40.0
+    switch tracktype=grade5        50.0
+    switch ispaved                 2.5
+    switch isfinegravel            8.0
+                                   30.0
+  8.0
+
+# -- Voice hint priorities --------------------------------------------------
+
+assign priorityclassifier
+  if      highway=motorway                then 30
+  else if highway=trunk                   then 28
+  else if highway=primary                 then 26
+  else if highway=secondary               then 24
+  else if highway=tertiary                then 22
+  else if highway=unclassified            then 20
+  else if highway=residential             then 18
+  else if highway=living_street           then 16
+  else if highway=service                 then 14
+  else if highway=cycleway                then 12
+  else if highway=path                    then 10
+  else if highway=track                   then  8
+  else if highway=footway                 then  6
+  else 0
+
+---context:node
+
+assign defaultpenalty 0
+
+---context:relation
+
+assign onewayweight 0.05
+
+---context:global
+
+assign turncostbase 90

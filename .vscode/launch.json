@@ -1,0 +1,7 @@
+[
+  {
+    "label": "Install dependencies",
+    "description": "Install npm packages",
+    "detail": "npm install"
+  }
+]

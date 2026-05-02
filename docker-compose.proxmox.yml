@@ -1,0 +1,113 @@
+services:
+  reverse-proxy:
+    image: caddy:2.8-alpine
+    container_name: routeshred-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - PUBLIC_HOSTNAME=${PUBLIC_HOSTNAME}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+      - keycloak
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: routeshred-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=5050
+      - OSRM_API=${OSRM_API:-http://router.project-osrm.org}
+      - ROUTING_ENGINE=${ROUTING_ENGINE:-brouter}
+      - BROUTER_API=http://brouter:17777/brouter
+      - ROUTESHRED_CACHE_DIR=/app/data/cache
+      - ROUTESHRED_PROFILE_DIR=/app/data/profiles
+      - ROUTESHRED_ROUTES_DIR=/app/data/routes
+      - KEYCLOAK_ENABLED=${KEYCLOAK_ENABLED:-true}
+      - KEYCLOAK_URL=http://keycloak:8080/auth
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-routeshred}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-routeshred-frontend}
+    volumes:
+      - ./data/cache:/app/data/cache
+      - ./data/profiles:/app/data/profiles
+      - ./data/routes:/app/data/routes
+    depends_on:
+      - brouter
+      - keycloak
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: /api
+        REACT_APP_KEYCLOAK_ENABLED: "true"
+        REACT_APP_KEYCLOAK_URL: ${PUBLIC_BASE_URL}/auth
+        REACT_APP_KEYCLOAK_REALM: ${KEYCLOAK_REALM:-routeshred}
+        REACT_APP_KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-routeshred-frontend}
+        REACT_APP_TILE_URL: ${REACT_APP_TILE_URL:-https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=007b5abe80db44699c19474ee8d9500b}
+        REACT_APP_TILE_ATTRIBUTION: ${REACT_APP_TILE_ATTRIBUTION:-&copy; OpenCycleMap}
+    container_name: routeshred-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  brouter:
+    build:
+      context: https://github.com/abrensch/brouter.git#v1.7.9
+    image: routeshred-brouter:1.7.9
+    container_name: routeshred-brouter
+    restart: unless-stopped
+    volumes:
+      - ./brouter-data/segments4:/segments4
+      - ./brouter-data/customprofiles:/customprofiles
+      - ./brouter-data/customprofiles:/profiles2
+
+  keycloak-db:
+    image: postgres:16-alpine
+    container_name: routeshred-keycloak-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=keycloak
+      - POSTGRES_USER=${KC_DB_USER}
+      - POSTGRES_PASSWORD=${KC_DB_PASSWORD}
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: routeshred-keycloak
+    restart: unless-stopped
+    command: start --import-realm
+    environment:
+      - KC_DB=postgres
+      - KC_DB_URL_HOST=keycloak-db
+      - KC_DB_URL_DATABASE=keycloak
+      - KC_DB_USERNAME=${KC_DB_USER}
+      - KC_DB_PASSWORD=${KC_DB_PASSWORD}
+      - KC_HTTP_ENABLED=true
+      - KC_PROXY=edge
+      - KC_HTTP_RELATIVE_PATH=/auth
+      - KC_HOSTNAME=${PUBLIC_HOSTNAME}
+      - KC_HOSTNAME_STRICT=false
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+    depends_on:
+      - keycloak-db
+    volumes:
+      - ./docs/keycloak/routeshred-realm.json:/opt/keycloak/data/import/routeshred-realm.json:ro
+      - ./docs/keycloak/themes:/opt/keycloak/themes:ro
+
+volumes:
+  caddy_data:
+  caddy_config:
+  keycloak_db_data:
