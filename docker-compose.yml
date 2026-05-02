@@ -13,6 +13,7 @@ services:
       - BROUTER_API=${BROUTER_API:-http://host.docker.internal:17777/brouter}
       - ROUTESHRED_CACHE_DIR=/app/data/cache
       - ROUTESHRED_PROFILE_DIR=/app/data/profiles
+      - ROUTESHRED_ROUTES_DIR=/app/data/routes
       - KEYCLOAK_ENABLED=${KEYCLOAK_ENABLED:-true}
       - KEYCLOAK_URL=${KEYCLOAK_URL:-http://keycloak:8080}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-routeshred}
@@ -21,6 +22,7 @@ services:
       - ./backend/src:/app/src
       - ./data/cache:/app/data/cache
       - ./data/profiles:/app/data/profiles
+      - ./data/routes:/app/data/routes
     command: npm run dev
 
   frontend:

@@ -22,6 +22,11 @@ export const useRouteStore = create((set, get) => ({
   rideType: 'z2',
   riderProfile: { ftp: 250, weight: 87 },
   includeReturnTrip: false,
+  savedRoutes: [],
+  savedRoutesLoading: false,
+  savedRoutesError: null,
+  activeSavedRouteId: null,
+  routeSaveState: 'idle',
   loading: false,
   error: null,
 
@@ -142,6 +147,7 @@ export const useRouteStore = create((set, get) => ({
     endLabel: '',
     waypoints: [],
     includeReturnTrip: false,
+    activeSavedRouteId: null,
     loading: false,
     error: null
   }),
@@ -224,6 +230,168 @@ export const useRouteStore = create((set, get) => ({
         error: error.response?.data?.message || t('route.errors.calculateFailed'),
         loading: false
       });
+    }
+  },
+
+  loadSavedRoutes: async (token) => {
+    if (!token) {
+      set({ savedRoutes: [], savedRoutesLoading: false, savedRoutesError: null });
+      return;
+    }
+
+    set({ savedRoutesLoading: true, savedRoutesError: null });
+    try {
+      const response = await axios.get(`${API_BASE}/routes`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      set({
+        savedRoutes: Array.isArray(response.data?.routes) ? response.data.routes : [],
+        savedRoutesLoading: false
+      });
+    } catch (error) {
+      set({
+        savedRoutesLoading: false,
+        savedRoutesError: error.response?.data?.message || t('route.saved.errors.loadFailed')
+      });
+    }
+  },
+
+  saveCurrentRoute: async (token, name = '') => {
+    const state = get();
+    if (!token || !state.route) {
+      set({ routeSaveState: 'error', savedRoutesError: t('route.saved.errors.noRoute') });
+      return;
+    }
+
+    const defaultName = [
+      state.startLabel || t('route.start'),
+      state.endLabel || t('route.end')
+    ].filter(Boolean).join(' → ');
+
+    set({ routeSaveState: 'saving', savedRoutesError: null });
+    try {
+      const payload = {
+        id: state.activeSavedRouteId || undefined,
+        name: name || defaultName,
+        startPoint: state.startPoint,
+        startLabel: state.startLabel,
+        endPoint: state.endPoint,
+        endLabel: state.endLabel,
+        waypoints: state.waypoints,
+        bikeType: state.bikeType,
+        preference: state.preference,
+        rideType: state.rideType,
+        riderProfile: state.riderProfile,
+        includeReturnTrip: state.includeReturnTrip,
+        route: state.route,
+        returnRoute: state.returnRoute
+      };
+      const endpoint = state.activeSavedRouteId
+        ? axios.put(`${API_BASE}/routes/${state.activeSavedRouteId}`, payload, { headers: { Authorization: `Bearer ${token}` } })
+        : axios.post(`${API_BASE}/routes`, payload, { headers: { Authorization: `Bearer ${token}` } });
+      const response = await endpoint;
+      const savedRoute = response.data?.route;
+      set({ activeSavedRouteId: savedRoute?.id || state.activeSavedRouteId, routeSaveState: 'saved' });
+      await get().loadSavedRoutes(token);
+      setTimeout(() => {
+        if (get().routeSaveState === 'saved') {
+          set({ routeSaveState: 'idle' });
+        }
+      }, 1200);
+    } catch (error) {
+      set({
+        routeSaveState: 'error',
+        savedRoutesError: error.response?.data?.message || t('route.saved.errors.saveFailed')
+      });
+    }
+  },
+
+  loadSavedRoute: async (token, routeId) => {
+    if (!token || !routeId) {
+      return;
+    }
+
+    set({ savedRoutesLoading: true, savedRoutesError: null });
+    try {
+      const response = await axios.get(`${API_BASE}/routes/${routeId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const savedRoute = response.data?.route;
+      if (!savedRoute) {
+        throw new Error(t('route.saved.errors.loadFailed'));
+      }
+
+      set({
+        activeSavedRouteId: savedRoute.id,
+        startPoint: savedRoute.startPoint,
+        startLabel: savedRoute.startLabel || '',
+        endPoint: savedRoute.endPoint,
+        endLabel: savedRoute.endLabel || '',
+        waypoints: Array.isArray(savedRoute.waypoints) ? savedRoute.waypoints : [],
+        bikeType: savedRoute.bikeType,
+        preference: savedRoute.preference,
+        rideType: savedRoute.rideType,
+        riderProfile: savedRoute.riderProfile || get().riderProfile,
+        includeReturnTrip: Boolean(savedRoute.includeReturnTrip),
+        route: savedRoute.route || null,
+        returnRoute: savedRoute.returnRoute || null,
+        savedRoutesLoading: false,
+        error: null
+      });
+    } catch (error) {
+      set({
+        savedRoutesLoading: false,
+        savedRoutesError: error.response?.data?.message || t('route.saved.errors.loadFailed')
+      });
+    }
+  },
+
+  deleteSavedRoute: async (token, routeId) => {
+    if (!token || !routeId) {
+      return;
+    }
+
+    set({ savedRoutesError: null });
+    try {
+      await axios.delete(`${API_BASE}/routes/${routeId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      set((state) => ({
+        savedRoutes: state.savedRoutes.filter((savedRoute) => savedRoute.id !== routeId),
+        activeSavedRouteId: state.activeSavedRouteId === routeId ? null : state.activeSavedRouteId
+      }));
+    } catch (error) {
+      set({ savedRoutesError: error.response?.data?.message || t('route.saved.errors.deleteFailed') });
+    }
+  },
+
+  renameSavedRoute: async (token, routeId, name) => {
+    const cleanName = String(name || '').trim();
+    if (!token || !routeId || !cleanName) {
+      return;
+    }
+
+    set({ savedRoutesError: null });
+    try {
+      const response = await axios.patch(
+        `${API_BASE}/routes/${routeId}`,
+        { name: cleanName },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const renamed = response.data?.route;
+      set((state) => ({
+        savedRoutes: state.savedRoutes.map((savedRoute) => (
+          savedRoute.id === routeId
+            ? {
+              ...savedRoute,
+              name: renamed?.name || cleanName,
+              updatedAt: renamed?.updatedAt || new Date().toISOString()
+            }
+            : savedRoute
+        ))
+      }));
+    } catch (error) {
+      set({ savedRoutesError: error.response?.data?.message || t('route.saved.errors.renameFailed') });
     }
   },
 

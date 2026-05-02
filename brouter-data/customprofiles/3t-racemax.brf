@@ -17,8 +17,8 @@ assign validForBikes true
 assign turnInstructionMode          1
 assign turnInstructionRoundabouts   true
 assign considerTurnRestrictions     true
-assign correctMisplacedViaPoints    false
-assign correctMisplacedViaPointsDistance 400
+assign correctMisplacedViaPoints    true
+assign correctMisplacedViaPointsDistance 1200
 assign pass1coefficient 4
 
 assign allow_steps    false

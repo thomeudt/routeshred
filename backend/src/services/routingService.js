@@ -152,8 +152,18 @@ async function getRoute(start, end, options = {}) {
       }
     }
 
-    if (selected.route && selected.route._unsafeRailCrossings > 0) {
-      throw new Error('No route without unsafe railway crossing found');
+    if (selected.route && selected.route._unsafeRailCrossings > 0 && !baseRailPartition.safeRoutes.length) {
+      // Railway data can be incomplete; if no fully safe candidate exists, prefer minimal-risk route.
+      const leastUnsafe = baseCandidates
+        .slice()
+        .sort((a, b) => {
+          const aUnsafe = Number(a && a._unsafeRailCrossings) || 0;
+          const bUnsafe = Number(b && b._unsafeRailCrossings) || 0;
+          return aUnsafe - bUnsafe || (a.distance || Number.POSITIVE_INFINITY) - (b.distance || Number.POSITIVE_INFINITY);
+        })[0];
+      if (leastUnsafe) {
+        selected = { route: leastUnsafe, strategy: 'railway-relaxed-min-risk' };
+      }
     }
 
     const route = selected.route;
@@ -176,6 +186,13 @@ async function getRoute(start, end, options = {}) {
       engineUsed: String(route._engine || ROUTING_ENGINE).toUpperCase(),
       fallbackUsed: Boolean(route._fallbackFrom),
       fallbackFrom: route._fallbackFrom ? String(route._fallbackFrom).toUpperCase() : null,
+      fallbackReason: route._fallbackReason || null,
+      shapeWarning: route._shapeWarning || null,
+      railwaySafety: {
+        available: Boolean(railwaySafetyData && railwaySafetyData.available),
+        unsafeCrossings: Number(route && route._unsafeRailCrossings) || 0,
+        strictSafeRouteAvailable: Boolean(baseRailPartition.safeRoutes.length)
+      },
       powerZone: computePowerZone(rideType, ftp, route.duration),
       timestamp: new Date().toISOString()
     };
@@ -340,14 +357,17 @@ function computePowerZone(rideType, ftp, durationSeconds) {
 
 async function requestRoute(profile, points, options = {}) {
   let fellBackFromBrouter = false;
+  let brouterFallbackReason = null;
 
   if (ROUTING_ENGINE === 'brouter') {
     try {
       return await requestRouteBrouter(points, options);
     } catch (error) {
       // Keep the app usable if local BRouter is not available.
-      console.warn(`BRouter unavailable, falling back to OSRM: ${error.message}`);
+      const reason = error.message || 'unknown error';
+      console.warn(`BRouter failed, falling back to OSRM: ${reason}`);
       fellBackFromBrouter = true;
+      brouterFallbackReason = reason;
     }
   }
 
@@ -358,7 +378,7 @@ async function requestRoute(profile, points, options = {}) {
       steps: true,
       geometries: 'geojson',
       annotations: 'duration,distance,speed',
-      alternatives: options.alternatives ? 3 : false,
+      alternatives: (options.alternatives || fellBackFromBrouter) ? 3 : false,
       continue_straight: options.continue_straight ? true : false
     },
     timeout: 15000
@@ -366,11 +386,7 @@ async function requestRoute(profile, points, options = {}) {
 
   const data = response.data || {};
   data.routes = Array.isArray(data.routes)
-    ? data.routes.map((route) => ({
-      ...route,
-      _engine: 'osrm',
-      _fallbackFrom: fellBackFromBrouter ? 'brouter' : null
-    }))
+    ? data.routes.map((route) => normalizeOsrmRoute(route, options.routeContext, fellBackFromBrouter, brouterFallbackReason))
     : [];
 
   return data;
@@ -392,13 +408,15 @@ async function requestRouteBrouter(points, options = {}) {
 
   const alternatives = options.alternatives ? [0, 1, 2] : [0];
   const routes = [];
+  const errors = [];
+  const profile = resolveBrouterProfile(options);
 
   for (const alternativeidx of alternatives) {
     try {
       const response = await axios.get(BROUTER_API, {
         params: {
           lonlats: points.map((p) => `${p[1]},${p[0]}`).join('|'),
-          profile: resolveBrouterProfile(options),
+          profile,
           alternativeidx,
           format: 'geojson'
         },
@@ -409,17 +427,19 @@ async function requestRouteBrouter(points, options = {}) {
         ? response.data.features[0]
         : null;
       if (!feature || !feature.geometry || !Array.isArray(feature.geometry.coordinates)) {
+        errors.push(`alt ${alternativeidx}: empty GeoJSON response`);
         continue;
       }
 
       routes.push(normalizeBrouterFeature(feature, options.routeContext));
     } catch (error) {
+      errors.push(`alt ${alternativeidx}: ${formatBrouterError(error)}`);
       // Try next alternative candidate.
     }
   }
 
   if (!routes.length) {
-    throw new Error('BRouter returned no route');
+    throw new Error(`BRouter returned no route for profile ${profile}: ${errors.join('; ') || 'no details'}`);
   }
 
   const sortedRoutes = routes.sort((a, b) => (
@@ -428,8 +448,7 @@ async function requestRouteBrouter(points, options = {}) {
     || (a.distance - b.distance)
   ));
   const cleanRoutes = sortedRoutes.filter((route) => {
-    const shapeOk = getRouteShapePenalty(route) <= 0.12;
-    if (!shapeOk) {
+    if (!isRouteShapeAcceptable(route, options.preference, hasIntermediateVias)) {
       return false;
     }
 
@@ -437,7 +456,7 @@ async function requestRouteBrouter(points, options = {}) {
     if (hasIntermediateVias) {
       const maxOutAndBackKm = Number(route && route._maxOutAndBackKm) || 0;
       const spurScore = Number(route && route._outAndBackSpurScore) || 0;
-      if (maxOutAndBackKm > 0.22 || spurScore > 0.42) {
+      if (maxOutAndBackKm > 0.18 || spurScore > 0.34) {
         return false;
       }
     }
@@ -449,14 +468,15 @@ async function requestRouteBrouter(points, options = {}) {
     return { routes: cleanRoutes };
   }
 
-  // Do not hard-fail to OSRM if all BRouter candidates exceed the heuristic.
-  // Keep the best BRouter route and let later scoring/selection choose safely.
   if (DEBUG_OPTIONAL_LOOKUPS) {
     console.warn(
-      `BRouter returned only high-shape-penalty routes; using best candidate (${getRouteShapePenalty(sortedRoutes[0]).toFixed(3)})`
+      `BRouter returned only high-shape-penalty routes; keeping best BRouter candidate (${getRouteShapePenalty(sortedRoutes[0]).toFixed(3)})`
     );
   }
 
+  // BRouter is still the safer engine for bike routing. A route that looks
+  // detour-heavy should stay editable in the app instead of silently falling
+  // back to OSRM, which can produce unsafe bike routes.
   const fallbackRoute = hasIntermediateVias
     ? [...sortedRoutes].sort((a, b) => {
       const aSpur = Number(a && a._maxOutAndBackKm) || 0;
@@ -465,7 +485,32 @@ async function requestRouteBrouter(points, options = {}) {
     })[0]
     : sortedRoutes[0];
 
+  fallbackRoute._shapeWarning = {
+    reason: 'detour-heavy',
+    shapePenalty: Number(getRouteShapePenalty(fallbackRoute).toFixed(3)),
+    maxOutAndBackKm: Number((Number(fallbackRoute && fallbackRoute._maxOutAndBackKm) || 0).toFixed(2))
+  };
+
   return { routes: [fallbackRoute] };
+}
+
+function normalizeOsrmRoute(route, routeContext = {}, fellBackFromBrouter = false, fallbackReason = null) {
+  const coordinates = route && route.geometry && Array.isArray(route.geometry.coordinates)
+    ? route.geometry.coordinates
+    : [];
+  const shapeScore = computeRouteShapeScore(coordinates, routeContext.requestedPoints);
+
+  return {
+    ...route,
+    _engine: 'osrm',
+    _fallbackFrom: fellBackFromBrouter ? 'brouter' : null,
+    _fallbackReason: fallbackReason,
+    _backtrackingScore: shapeScore.backtrackingScore,
+    _axisRegressionScore: shapeScore.axisRegressionScore,
+    _corridorDetourScore: shapeScore.corridorDetourScore,
+    _outAndBackSpurScore: shapeScore.outAndBackSpurScore,
+    _maxOutAndBackKm: shapeScore.maxOutAndBackKm
+  };
 }
 
 async function ensureBrouterSegments(points) {
@@ -514,6 +559,17 @@ async function ensureBrouterSegments(points) {
       console.warn(`BRouter segment fetch failed for ${tile}:`, error.message);
     }
   }
+}
+
+function formatBrouterError(error) {
+  if (error.response) {
+    const body = typeof error.response.data === 'string'
+      ? error.response.data.slice(0, 180).replace(/\s+/g, ' ')
+      : JSON.stringify(error.response.data || {}).slice(0, 180);
+    return `HTTP ${error.response.status}${body ? ` ${body}` : ''}`;
+  }
+
+  return error.message || 'unknown error';
 }
 
 function collectSegmentTiles(points) {
@@ -606,6 +662,60 @@ function getRouteShapePenalty(route) {
     (Number(route && route._corridorDetourScore) || 0) * 0.6,
     (Number(route && route._outAndBackSpurScore) || 0) * 0.9
   );
+}
+
+function getPreferredShapeLimit(preference, hasIntermediateVias = false) {
+  if (hasIntermediateVias) {
+    return preference === 'offroad' ? 0.1 : 0.08;
+  }
+
+  if (preference === 'fastest') {
+    return 0.08;
+  }
+
+  return preference === 'offroad' ? 0.16 : 0.14;
+}
+
+function getHardShapeLimit(preference, hasIntermediateVias = false) {
+  if (hasIntermediateVias) {
+    return preference === 'offroad' ? 0.18 : 0.14;
+  }
+
+  if (preference === 'fastest') {
+    return 0.16;
+  }
+
+  return preference === 'offroad' ? 0.3 : 0.24;
+}
+
+function isRouteShapeAcceptable(route, preference, hasIntermediateVias = false) {
+  if (!route) {
+    return false;
+  }
+
+  if (getRouteShapePenalty(route) > getPreferredShapeLimit(preference, hasIntermediateVias)) {
+    return false;
+  }
+
+  const maxOutAndBackKm = Number(route && route._maxOutAndBackKm) || 0;
+  if (hasIntermediateVias && maxOutAndBackKm > 0.18) {
+    return false;
+  }
+
+  return true;
+}
+
+function shouldRejectRouteShape(route, preference, hasIntermediateVias = false) {
+  if (!route) {
+    return true;
+  }
+
+  if (getRouteShapePenalty(route) > getHardShapeLimit(preference, hasIntermediateVias)) {
+    return true;
+  }
+
+  const maxOutAndBackKm = Number(route && route._maxOutAndBackKm) || 0;
+  return hasIntermediateVias ? maxOutAndBackKm > 0.35 : maxOutAndBackKm > 0.75;
 }
 
 function normalizeBrouterFeature(feature, routeContext = {}) {
@@ -927,6 +1037,7 @@ function toLocalVector(origin, point, reference) {
 }
 
 async function selectByCyclewayAffinity(baseCandidates, guidedRoute, start, end, bikeType, preference, rideType = 'z2', hasIntermediateVias = false) {
+  const bikeKind = getBikeKind(bikeType);
   const routePool = [...baseCandidates];
   if (guidedRoute) {
     routePool.push(guidedRoute);
@@ -953,7 +1064,8 @@ async function selectByCyclewayAffinity(baseCandidates, guidedRoute, start, end,
     const unsafeRailCrossings = Number(route && route._unsafeRailCrossings) || 0;
     return shapePenalty <= maxShapePenalty
       && detourFactor <= maxDetourFactor
-      && unsafeRailCrossings <= 0;
+      // Allow small uncertainty in OSM crossing tagging; hard-fail only on clearly unsafe routes.
+      && unsafeRailCrossings <= 1;
   });
 
   if (!eligibleRoutes.length) {
@@ -994,7 +1106,19 @@ async function selectByCyclewayAffinity(baseCandidates, guidedRoute, start, end,
     return null;
   }
 
-  if ((preference === 'scenic' || preference === 'offroad') && best.metrics.majorRoadCoverage > 0.18) {
+  const enforceParallelCyclePreference = preference === 'scenic' || preference === 'offroad' || bikeKind === 'gravel';
+  const maxMajorRoadCoverage = hasIntermediateVias
+    ? (bikeKind === 'gravel' ? 0.14 : 0.18)
+    : (bikeKind === 'gravel' ? 0.2 : 0.24);
+  const maxParallelCycleOpportunity = hasIntermediateVias
+    ? (bikeKind === 'gravel' ? 0.06 : 0.1)
+    : (bikeKind === 'gravel' ? 0.1 : 0.16);
+
+  if (enforceParallelCyclePreference && best.metrics.majorRoadCoverage > maxMajorRoadCoverage) {
+    return null;
+  }
+
+  if (enforceParallelCyclePreference && best.metrics.parallelCycleOpportunity > maxParallelCycleOpportunity) {
     return null;
   }
 
@@ -1087,29 +1211,62 @@ async function loadCyclewayNetwork(start, end, bikeType, preference) {
       'way["highway"~"track|path"]["surface"~"gravel|ground|dirt|fine_gravel|unpaved",i]';
   } else if (bikeKind === 'gravel') {
     filter =
-      'way["highway"~"cycleway|path|track"]["bicycle"!="no"]';
+      'way["highway"~"cycleway|path|track"]["bicycle"!="no"];'
+      + 'way["cycleway"~"track|opposite_track|lane|opposite_lane|shared_lane",i]["highway"~"primary|secondary|tertiary|unclassified|residential|service"]';
   } else {
     filter =
       'way["highway"="cycleway"];way["cycleway"];way["bicycle"~"designated|yes"]["highway"~"path|residential|service|track"]';
   }
 
   const query = `[out:json][timeout:20];(${filter}(${bbox}););out geom;`;
+  const relationQuery = `[out:json][timeout:20];relation["route"="bicycle"](${bbox});out body;`;
+  const relationWayQuery = `[out:json][timeout:20];relation["route"="bicycle"](${bbox});way(r);out geom;`;
 
   try {
     const elements = await fetchOverpassElements('cycleways', query, 20000);
+    const relationElements = await fetchOverpassElements('cycleway-relations', relationQuery, 20000)
+      .catch(() => []);
+    const relationWayElements = await fetchOverpassElements('cycleway-relation-ways', relationWayQuery, 20000)
+      .catch(() => []);
+
+    const relationPriorityByWayId = buildCycleRelationPriorityByWayId(relationElements);
+
+    const mergedWays = new Map();
+    for (const way of elements) {
+      if (way && way.type === 'way' && Number.isFinite(way.id)) {
+        mergedWays.set(way.id, way);
+      }
+    }
+    for (const way of relationWayElements) {
+      if (way && way.type === 'way' && Number.isFinite(way.id) && !mergedWays.has(way.id)) {
+        mergedWays.set(way.id, way);
+      }
+    }
 
     const networkPoints = [];
-    for (const way of elements) {
+    for (const way of mergedWays.values()) {
       if (!Array.isArray(way.geometry) || !way.geometry.length) {
         continue;
       }
       const tags = way.tags || {};
       const isOffroad = /gravel|ground|dirt|fine_gravel|unpaved/i.test(String(tags.surface || ''))
         || /track|path/i.test(String(tags.highway || ''));
+      const isGravelPreferred = /gravel|ground|dirt|fine_gravel|unpaved|compacted/i.test(String(tags.surface || ''))
+        || /track/i.test(String(tags.highway || ''));
+      const hasRoadCycleFacility = /track|opposite_track|lane|opposite_lane|shared_lane/i.test(String(tags.cycleway || ''));
+      const relationPriority = relationPriorityByWayId.get(way.id) || 0;
+      const cyclePriority = getCyclewayPriority(tags, relationPriority);
 
       for (let i = 0; i < way.geometry.length; i += 3) {
         const node = way.geometry[i];
-        networkPoints.push({ lat: node.lat, lon: node.lon, isOffroad });
+        networkPoints.push({
+          lat: node.lat,
+          lon: node.lon,
+          isOffroad,
+          isGravelPreferred,
+          hasRoadCycleFacility,
+          cyclePriority
+        });
       }
 
       if (networkPoints.length > 5000) {
@@ -1162,6 +1319,73 @@ function getMajorRoadWeight(roadClass) {
   }
 }
 
+function buildCycleRelationPriorityByWayId(relationElements) {
+  const priorityByWayId = new Map();
+  for (const relation of relationElements || []) {
+    if (!relation || relation.type !== 'relation') {
+      continue;
+    }
+    const tags = relation.tags || {};
+    if (String(tags.route || '').toLowerCase() !== 'bicycle') {
+      continue;
+    }
+    const relationPriority = getCycleRelationPriority(tags);
+    const members = Array.isArray(relation.members) ? relation.members : [];
+    for (const member of members) {
+      if (!member || member.type !== 'way' || !Number.isFinite(member.ref)) {
+        continue;
+      }
+      const current = priorityByWayId.get(member.ref) || 0;
+      if (relationPriority > current) {
+        priorityByWayId.set(member.ref, relationPriority);
+      }
+    }
+  }
+  return priorityByWayId;
+}
+
+function getCycleRelationPriority(tags) {
+  const network = String(tags.network || '').toLowerCase();
+  const state = String(tags.state || '').toLowerCase();
+  let base;
+  if (network === 'icn') {
+    base = 1.0;
+  } else if (network === 'ncn') {
+    base = 0.92;
+  } else if (network === 'rcn') {
+    base = 0.8;
+  } else if (network === 'lcn') {
+    base = 0.68;
+  } else {
+    base = 0.58;
+  }
+  if (state === 'proposed') {
+    base -= 0.12;
+  }
+  return Math.max(0.35, Math.min(1.0, base));
+}
+
+function getCyclewayPriority(tags, relationPriority = 0) {
+  const highway = String(tags.highway || '').toLowerCase();
+  const cycleway = String(tags.cycleway || '').toLowerCase();
+  const bicycle = String(tags.bicycle || '').toLowerCase();
+
+  let basePriority = 0.45;
+  if (highway === 'cycleway') {
+    basePriority = 1.0;
+  } else if (/track|opposite_track/.test(cycleway)) {
+    basePriority = 0.9;
+  } else if (/lane|opposite_lane|shared_lane/.test(cycleway)) {
+    basePriority = 0.78;
+  } else if (bicycle === 'designated') {
+    basePriority = 0.72;
+  } else if (/path|track/.test(highway) && bicycle !== 'no') {
+    basePriority = 0.66;
+  }
+
+  return Math.max(basePriority, relationPriority);
+}
+
 function scoreRouteCycleAffinity(route, networkPoints, majorRoadPoints, fastestDistance, bikeType, preference, rideType = 'z2') {
   const bikeKind = getBikeKind(bikeType);
   const coords = route && route.geometry && Array.isArray(route.geometry.coordinates)
@@ -1174,34 +1398,61 @@ function scoreRouteCycleAffinity(route, networkPoints, majorRoadPoints, fastestD
   const sampled = sampleRouteCoordinates(coords, 120);
   let cycleHits = 0;
   let offroadHits = 0;
+  let gravelHits = 0;
+  let cyclePrioritySum = 0;
   let majorRoadPenalty = 0;
+  let parallelCycleOpportunityPenalty = 0;
+
+  // Treat only very close proximity as truly being on cycle infra.
+  const onCycleThresholdKm = 0.045;
+  // "Parallel cycleway available" window next to major roads.
+  const parallelCycleThresholdKm = 0.18;
+  const majorRoadThresholdKm = 0.09;
 
   for (const coord of sampled) {
     const lat = coord[1];
     const lon = coord[0];
     const nearest = findNearestNetworkPointKm(lat, lon, networkPoints);
-    if (nearest && nearest.distanceKm <= 0.06) {
+    if (nearest && nearest.distanceKm <= onCycleThresholdKm) {
       cycleHits += 1;
+      cyclePrioritySum += Number(nearest.point.cyclePriority) || 0;
       if (nearest.point.isOffroad) {
         offroadHits += 1;
+      }
+      if (nearest.point.isGravelPreferred) {
+        gravelHits += 1;
       }
     }
 
     const nearestMajor = findNearestNetworkPointKm(lat, lon, majorRoadPoints);
-    if (nearestMajor && nearestMajor.distanceKm <= 0.1) {
+    if (nearestMajor && nearestMajor.distanceKm <= majorRoadThresholdKm) {
       majorRoadPenalty += nearestMajor.point.weight || 1;
+
+      // Penalize staying on/near major roads when a parallel bike facility is nearby,
+      // but the current line is not actually on bike infrastructure.
+      if (nearest && nearest.distanceKm > onCycleThresholdKm && nearest.distanceKm <= parallelCycleThresholdKm) {
+        const majorWeight = nearestMajor.point.weight || 1;
+        const proximityFactor = 1 - Math.min(1, nearest.distanceKm / parallelCycleThresholdKm);
+        parallelCycleOpportunityPenalty += majorWeight * Math.max(0.2, proximityFactor);
+      }
     }
   }
 
   const cycleCoverage = sampled.length ? cycleHits / sampled.length : 0;
+  const cyclePriorityCoverage = sampled.length ? cyclePrioritySum / sampled.length : 0;
   const offroadCoverage = sampled.length ? offroadHits / sampled.length : 0;
+  const gravelCoverage = sampled.length ? gravelHits / sampled.length : 0;
   const majorRoadCoverage = sampled.length ? majorRoadPenalty / sampled.length : 0;
+  const parallelCycleOpportunity = sampled.length ? parallelCycleOpportunityPenalty / sampled.length : 0;
   const detourFactor = (route.distance || fastestDistance) / Math.max(fastestDistance, 1);
 
-  const cycleWeight = preference === 'fastest' ? 55 : 95;
+  const cycleWeight = preference === 'fastest' ? 90 : 130;
+  const cyclePriorityWeight = preference === 'fastest' ? 110 : 170;
   const offroadWeight = (preference === 'offroad' || bikeKind === 'mtb') ? 80 : 20;
+  const gravelWeight = bikeKind === 'gravel' ? 75 : 0;
   const detourPenaltyWeight = preference === 'fastest' ? 120 : 50;
-  const majorRoadPenaltyWeight = preference === 'fastest' ? 190 : 240;
+  const majorRoadPenaltyWeight = preference === 'fastest' ? 230 : 300;
+  const parallelCycleOpportunityPenaltyWeight = preference === 'fastest' ? 340 : 420;
   const backtrackingPenaltyWeight = preference === 'fastest' ? 220 : 340;
 
   // Ride-type hill preference: SST/Threshold reward ascent; TT/Z2 treat it neutrally.
@@ -1212,8 +1463,11 @@ function scoreRouteCycleAffinity(route, networkPoints, majorRoadPoints, fastestD
 
   const totalScore =
     cycleCoverage * cycleWeight +
+    cyclePriorityCoverage * cyclePriorityWeight +
     offroadCoverage * offroadWeight -
+    gravelCoverage * gravelWeight -
     majorRoadCoverage * majorRoadPenaltyWeight -
+    parallelCycleOpportunity * parallelCycleOpportunityPenaltyWeight -
     (getRouteShapePenalty(route) || computeBacktrackingScore(coords)) * backtrackingPenaltyWeight -
     Math.max(0, detourFactor - 1) * detourPenaltyWeight +
     (Number(route && route._unsafeRailCrossings) || 0) * -1200 +
@@ -1222,8 +1476,11 @@ function scoreRouteCycleAffinity(route, networkPoints, majorRoadPoints, fastestD
   return {
     totalScore,
     cycleCoverage,
+    cyclePriorityCoverage,
     offroadCoverage,
+    gravelCoverage,
     majorRoadCoverage,
+    parallelCycleOpportunity,
     backtrackingScore: getRouteShapePenalty(route) || computeBacktrackingScore(coords),
     detourFactor,
     unsafeRailCrossings: Number(route && route._unsafeRailCrossings) || 0
@@ -1362,7 +1619,7 @@ function assessRouteRailwaySafety(route, railwaySafetyData) {
       const nearestCrossing = railwaySafetyData.crossingPoints.length
         ? findNearestNetworkPointKm(intersection[0], intersection[1], railwaySafetyData.crossingPoints)
         : null;
-      const isSafeCrossing = Boolean(nearestCrossing && nearestCrossing.distanceKm <= 0.06);
+      const isSafeCrossing = Boolean(nearestCrossing && nearestCrossing.distanceKm <= 0.09);
 
       if (!isSafeCrossing) {
         unsafeCrossings += 1;
@@ -1511,7 +1768,16 @@ function findNearestNetworkPointKm(lat, lon, networkPoints) {
 
 function pickPreferredRoute(candidates, guidedRoute, preference, rideType = 'z2', hasIntermediateVias = false) {
   const routeRank = (route) => (route.duration || 0) + (getRouteShapePenalty(route) || computeBacktrackingScore(route.geometry?.coordinates)) * 3000;
-  const fastest = candidates.reduce((acc, route) => {
+  const shapeSafeCandidates = candidates.filter((route) => isRouteShapeAcceptable(route, preference, hasIntermediateVias));
+  const fallbackCandidates = shapeSafeCandidates.length
+    ? shapeSafeCandidates
+    : candidates.filter((route) => !shouldRejectRouteShape(route, preference, hasIntermediateVias));
+
+  if (!fallbackCandidates.length) {
+    return null;
+  }
+
+  const fastest = fallbackCandidates.reduce((acc, route) => {
     if (!acc || routeRank(route) < routeRank(acc)) {
       return route;
     }
@@ -1522,7 +1788,7 @@ function pickPreferredRoute(candidates, guidedRoute, preference, rideType = 'z2'
     return fastest ? { route: fastest, strategy: 'fastest' } : null;
   }
 
-  if (guidedRoute && fastest) {
+  if (guidedRoute && fastest && isRouteShapeAcceptable(guidedRoute, preference, hasIntermediateVias)) {
     const detourFactor = guidedRoute.distance / Math.max(fastest.distance, 1);
     const maxDetour = hasIntermediateVias
       ? (preference === 'offroad' ? 1.2 : 1.15)
@@ -1541,7 +1807,7 @@ function pickPreferredRoute(candidates, guidedRoute, preference, rideType = 'z2'
   }
 
   // Fallback if no guided route is available: prefer a non-fastest alternative.
-  const sorted = [...candidates].sort((a, b) => routeRank(a) - routeRank(b));
+  const sorted = [...fallbackCandidates].sort((a, b) => routeRank(a) - routeRank(b));
   const alt = sorted[1] || sorted[0];
   return alt ? { route: alt, strategy: `${preference}-alternative` } : null;
 }

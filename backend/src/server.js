@@ -1,3 +1,5 @@
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -7,7 +9,9 @@ const exportRouter = require('./routes/export');
 const geocodeRouter = require('./routes/geocode');
 const authRouter = require('./routes/auth');
 const profileRouter = require('./routes/profile');
+const savedRoutesRouter = require('./routes/savedRoutes');
 const { getRoutingEngineInfo } = require('./services/routingService');
+const { getKeycloakConfig } = require('./services/keycloakService');
 
 const app = express();
 const PORT = process.env.PORT || 5050;
@@ -25,13 +29,19 @@ app.use('/api/export', exportRouter);
 app.use('/api/geocode', geocodeRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/profile', profileRouter);
+app.use('/api/routes', savedRoutesRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     message: 'Bike Route Planner API is running',
-    routing: getRoutingEngineInfo()
+    routing: getRoutingEngineInfo(),
+    auth: {
+      enabled: getKeycloakConfig().enabled,
+      realm: getKeycloakConfig().realm,
+      clientId: getKeycloakConfig().clientId
+    }
   });
 });
 

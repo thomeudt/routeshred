@@ -15,8 +15,8 @@ assign validForBikes true
 assign turnInstructionMode          1
 assign turnInstructionRoundabouts   true
 assign considerTurnRestrictions     true
-assign correctMisplacedViaPoints    false
-assign correctMisplacedViaPointsDistance 400
+assign correctMisplacedViaPoints    true
+assign correctMisplacedViaPointsDistance 1200
 assign pass1coefficient 4
 
 assign allow_steps    false
@@ -56,6 +56,13 @@ assign ispaved
 
 assign isfinegravel
   or surface=fine_gravel surface=compacted
+
+assign iscycleinfra
+  or highway=cycleway
+    or bicycle=designated
+      or cycleway=track|opposite_track|lane|opposite_lane|shared_lane
+        or route_bicycle_icn=yes or route_bicycle_ncn=yes
+        or route_bicycle_rcn=yes route_bicycle_lcn=yes
 
 assign isunpaved
   not or ispaved or isfinegravel
@@ -155,12 +162,14 @@ assign costfactor
   switch    highway=residential    switch isunpaved 15 0.95
   switch    highway=living_street  switch isunpaved 15 1.0
   switch    highway=service        switch isunpaved 15 1.1
-  switch    highway=cycleway       0.75
+  switch    highway=cycleway       switch ispaved 0.55 0.9
   switch    highway=pedestrian     switch hascycleway 1.3 6.0
   switch    highway=steps          switch allow_steps 80 10000
   switch    route=ferry            switch allow_ferries 5 10000
   switch    highway=bridleway      8.0
   switch or highway=track or highway=path or highway=road highway=footway
+    switch and iscycleinfra ispaved 0.78
+    switch and iscycleinfra isfinegravel 1.35
     switch tracktype=grade1        switch isunpaved 8   1.5
     switch tracktype=grade2        switch isunpaved 20  8.0
     switch tracktype=grade3        25.0

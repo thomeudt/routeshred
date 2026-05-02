@@ -16,6 +16,8 @@ import {
 } from 'react-icons/fi';
 import LocationInput from './LocationInput';
 import RouteTypeStats from './RouteTypeStats';
+import SavedRoutesPanel from './SavedRoutesPanel';
+import { useAuth } from '../auth/AuthProvider';
 import '../styles/RouteControls.css';
 
 const RIDE_TYPES = [
@@ -25,8 +27,12 @@ const RIDE_TYPES = [
   { id: 'threshold' },
 ];
 
+const PANEL_TABS = ['plan', 'library', 'setup'];
+
 function RouteControls() {
+  const { enabled: authEnabled, authenticated, token } = useAuth();
   const [engine, setEngine] = useState('unknown');
+  const [activeTab, setActiveTab] = useState('plan');
   const [dragWaypointId, setDragWaypointId] = useState(null);
   const [dragGapIndex, setDragGapIndex] = useState(null);
   const {
@@ -38,6 +44,7 @@ function RouteControls() {
     setStartPoint, setEndPoint, insertWaypoint, updateWaypoint, removeWaypoint, moveWaypoint,
     reverseRoute,
     calculateRoute, exportRoute, resetRoute,
+    loadSavedRoutes,
     loading, route, returnRoute
   } = useRouteStore();
 
@@ -63,6 +70,18 @@ function RouteControls() {
     }
   }, [bikeProfiles.length, loadBikeProfiles]);
 
+  useEffect(() => {
+    if (authEnabled && authenticated && token) {
+      loadSavedRoutes(token);
+    }
+  }, [authEnabled, authenticated, token, loadSavedRoutes]);
+
+  useEffect(() => {
+    if (activeTab === 'library' && (!authEnabled || !authenticated)) {
+      setActiveTab('plan');
+    }
+  }, [activeTab, authEnabled, authenticated]);
+
   const handleCalculate = () => { if (startPoint && endPoint) calculateRoute(); };
   const handleExportTCX = () => { if (route) exportRoute('tcx'); };
   const handleExportGPX = () => { if (route) exportRoute('gpx'); };
@@ -81,6 +100,7 @@ function RouteControls() {
   const selectedProfile = profileOptions.find((profile) => profile.id === bikeType) || profileOptions[0];
   const pz = route && route.powerZone;
   const isDraggingWaypoint = Boolean(dragWaypointId);
+  const visibleTabs = PANEL_TABS.filter((tab) => tab !== 'library' || (authEnabled && authenticated));
 
   const clearWaypointDrag = () => {
     setDragWaypointId(null);
@@ -148,329 +168,352 @@ function RouteControls() {
         <span className="engine-badge">{t('route.engine')}: {engine}</span>
       </div>
 
-      <div className="control-group">
-        <label>{t('route.locations.title')}</label>
-        <div className="location-stack">
-          <LocationInput
-            label={t('route.locations.start')}
-            value={startLabel}
-            point={startPoint}
-            onSelect={setStartPoint}
-            onClear={() => setStartPoint(null, '')}
-          />
-          <button
-            className={`waypoint-insert${dragGapIndex === 0 ? ' is-drop-target' : ''}${isDraggingWaypoint ? ' is-drag-mode' : ''}`}
-            type="button"
-            onClick={() => insertWaypoint(null, '', 0)}
-            onDragOver={(event) => handleWaypointGapDragOver(event, 0)}
-            onDrop={(event) => handleWaypointGapDrop(event, 0)}
-          >
-            {isDraggingWaypoint ? <FiMenu /> : <FiPlus />} {getWaypointGapLabel(0)}
-          </button>
-          {waypoints.map((waypoint, index) => (
-            <React.Fragment key={waypoint.id}>
-              <div className="waypoint-row">
-                <LocationInput
-                  label={`${t('route.locations.waypoint')} ${index + 1}`}
-                  value={waypoint.label}
-                  point={waypoint.point}
-                  onSelect={(point, label) => updateWaypoint(waypoint.id, point, label)}
-                  onClear={() => updateWaypoint(waypoint.id, null, '')}
-                />
-                <div className="waypoint-actions">
-                  <button
-                    className="waypoint-drag"
-                    type="button"
-                    draggable
-                    onDragStart={(event) => handleWaypointDragStart(event, waypoint.id)}
-                    onDragEnd={clearWaypointDrag}
-                    aria-label="Wegpunkt ziehen"
-                    title="Wegpunkt ziehen zum Umsortieren"
-                  >
-                    <FiMenu />
-                  </button>
-                  <button
-                    className="waypoint-move"
-                    type="button"
-                    onClick={() => moveWaypoint(index, index - 1)}
-                    disabled={index === 0}
-                    aria-label="Move waypoint up"
-                  >
-                    <FiArrowUp />
-                  </button>
-                  <button
-                    className="waypoint-move"
-                    type="button"
-                    onClick={() => moveWaypoint(index, index + 1)}
-                    disabled={index === waypoints.length - 1}
-                    aria-label="Move waypoint down"
-                  >
-                    <FiArrowDown />
-                  </button>
-                  <button
-                    className="waypoint-remove"
-                    type="button"
-                    onClick={() => removeWaypoint(waypoint.id)}
-                    aria-label={t('route.delete')}
-                  >
-                    <FiX />
-                  </button>
-                </div>
-              </div>
-              <button
-                className={`waypoint-insert${dragGapIndex === index + 1 ? ' is-drop-target' : ''}${isDraggingWaypoint ? ' is-drag-mode' : ''}`}
-                type="button"
-                onClick={() => insertWaypoint(null, '', index + 1)}
-                onDragOver={(event) => handleWaypointGapDragOver(event, index + 1)}
-                onDrop={(event) => handleWaypointGapDrop(event, index + 1)}
-              >
-                {isDraggingWaypoint ? <FiMenu /> : <FiPlus />} {getWaypointGapLabel(index + 1)}
-              </button>
-            </React.Fragment>
-          ))}
-          {waypoints.length > 0 && (
-            <small className="waypoint-hint">
-              Am Griff ziehen, dann in einer markierten Luecke ablegen.
-            </small>
-          )}
-          <div className="location-actions">
-            <button
-              className="btn-secondary btn-compact"
-              type="button"
-              onClick={reverseRoute}
-              disabled={!startPoint || !endPoint || loading}
-            >
-              <FiRepeat /> Route umkehren
-            </button>
-            <label className="return-toggle">
-              <input
-                type="checkbox"
-                checked={includeReturnTrip}
-                onChange={(event) => setIncludeReturnTrip(event.target.checked)}
-                disabled={!startPoint || !endPoint || loading}
-              />
-              <span>Rueckfahrt berechnen</span>
-            </label>
-          </div>
-          <LocationInput
-            label={t('route.locations.end')}
-            value={endLabel}
-            point={endPoint}
-            onSelect={setEndPoint}
-            onClear={() => setEndPoint(null, '')}
-          />
-        </div>
-      </div>
-
-      {/* Bike selection */}
-      <div className="control-group">
-        <label>{t('route.bike')}</label>
-        <div className="bike-profile-select">
-          <select
-            value={bikeType || selectedProfile.id}
-            onChange={(event) => setBikeType(event.target.value)}
-            disabled={!bikeProfiles.length}
-          >
-            {profileOptions.map((profile) => (
-              <option key={profile.id} value={profile.id}>
-                {profile.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="bike-model-tag">
-          {selectedProfile.source === 'brouter'
-            ? t('route.brouterProfile')
-            : t('route.routingProfile')}
-        </div>
-      </div>
-
-      {/* Ride type selection */}
-      <div className="control-group">
-        <label>{t('route.rideType')}</label>
-        <div className="ride-type-buttons">
-          {RIDE_TYPES.map(({ id }) => (
-            <button
-              key={id}
-              className={`ride-type-btn${rideType === id ? ' active' : ''}`}
-              onClick={() => setRideType(id)}
-            >
-              <span className="rt-label">{t(`rideTypes.${id}.label`)}</span>
-              <span className="rt-sub">{t(`rideTypes.${id}.subtitle`)}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Rider profile */}
-      <div className="control-group">
-        <label>{t('route.riderProfile.title')}</label>
-        <div className="rider-profile-inputs">
-          <label>
-            <span><FiZap size={12} /> {t('route.riderProfile.ftp')}</span>
-            <div className="rider-input">
-              <input
-                type="number"
-                min="50"
-                max="600"
-                step="1"
-                value={riderProfile.ftp}
-                onChange={(event) => handleRiderProfileChange('ftp', event.target.value)}
-              />
-              <small>W</small>
-            </div>
-          </label>
-          <label>
-            <span>{t('route.riderProfile.weight')}</span>
-            <div className="rider-input">
-              <input
-                type="number"
-                min="30"
-                max="180"
-                step="0.5"
-                value={riderProfile.weight}
-                onChange={(event) => handleRiderProfileChange('weight', event.target.value)}
-              />
-              <small>kg</small>
-            </div>
-          </label>
-        </div>
-      </div>
-
-      {/* Route preference (still useful for MTB / scenic override) */}
-      <div className="control-group">
-        <label>{t('route.style')}</label>
-        <div className="preference-buttons">
-          {['fastest', 'scenic', 'offroad'].map((id) => (
-            <button
-              key={id}
-              className={preference === id ? 'active' : ''}
-              onClick={() => setPreference(id)}
-            >
-              {t(`preferences.${id}`)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Waypoints */}
-      {startPoint && endPoint && (
-        <div className="route-info">
-          <p><FiMapPin /> {t('route.start')}: {startPoint[0].toFixed(4)}, {startPoint[1].toFixed(4)}</p>
-          {waypoints.filter((waypoint) => waypoint.point).map((waypoint, index) => (
-            <p key={waypoint.id}><FiMapPin /> {t('route.locations.waypoint')} {index + 1}: {waypoint.point[0].toFixed(4)}, {waypoint.point[1].toFixed(4)}</p>
-          ))}
-          <p><FiMapPin /> {t('route.end')}: {endPoint[0].toFixed(4)}, {endPoint[1].toFixed(4)}</p>
-        </div>
-      )}
-
-      <button
-        className="btn-primary"
-        onClick={handleCalculate}
-        disabled={!startPoint || !endPoint || loading}
+      <div
+        className="route-panel-tabs"
+        role="tablist"
+        aria-label={t('route.tabs.label')}
+        style={{ '--tab-count': visibleTabs.length }}
       >
-        <FiNavigation /> {t('route.calculate')}
-      </button>
-
-      {(startPoint || endPoint || route) && (
-        <button
-          className="btn-secondary btn-danger"
-          onClick={handleResetRoute}
-          disabled={loading}
-        >
-          <FiTrash2 /> {t('route.delete')}
-        </button>
-      )}
-
-      {/* Power zone target (pre-ride) */}
-      {rideType && riderProfile.ftp && !route && (
-        <PowerZonePreview rideType={rideType} ftp={riderProfile.ftp} />
-      )}
-
-      {/* Route stats + power zone (post-route) */}
-      {route && (
-        <div className="route-stats">
-          <h3>{t('route.stats')}</h3>
-          <div className="stat-item">
-            <span>{t('route.distance')}</span>
-            <strong>{(route.distance / 1000).toFixed(1)} km</strong>
-          </div>
-          <div className="stat-item">
-            <span>{t('route.duration')}</span>
-            <strong>{Math.round(route.duration / 60)} min</strong>
-          </div>
-          <div className="stat-item">
-            <span>{t('route.avgSpeed')}</span>
-            <strong>{((route.distance / route.duration) * 3.6).toFixed(1)} km/h</strong>
-          </div>
-          {route.ascent > 0 && (
-            <div className="stat-item">
-              <span>{t('route.elevation')}</span>
-              <strong>{route.ascent} m</strong>
-            </div>
-          )}
-          <div className="stat-item">
-            <span>{t('route.engine')}</span>
-            <strong>{route.engineUsed || engine}</strong>
-          </div>
-          {route.fallbackUsed && (
-            <div className="stat-item">
-              <span>{t('route.fallback')}</span>
-              <strong>{route.fallbackFrom} → {route.engineUsed}</strong>
-            </div>
-          )}
-          {returnRoute && (
-            <>
-              <div className="stat-item stat-item-return">
-                <span>Rueckfahrt Distanz</span>
-                <strong>{(returnRoute.distance / 1000).toFixed(1)} km</strong>
-              </div>
-              <div className="stat-item stat-item-return">
-                <span>Rueckfahrt Dauer</span>
-                <strong>{Math.round(returnRoute.duration / 60)} min</strong>
-              </div>
-              <div className="stat-item stat-item-return">
-                <span>Hin + Zurueck</span>
-                <strong>{((route.distance + returnRoute.distance) / 1000).toFixed(1)} km</strong>
-              </div>
-            </>
-          )}
-
-          {pz && (
-            <div className="power-zone-card" style={{ '--pz-color': pz.color }}>
-              <div className="pz-header">
-                <span className="pz-label">{pz.label}</span>
-              </div>
-              <div className="pz-watts">
-                <span className="pz-range">{pz.minWatts}–{pz.maxWatts} W</span>
-                <span className="pz-target">{pz.targetWatts} W {t('power.target')}</span>
-              </div>
-              <div className="pz-load">
-                <div className="pz-load-item">
-                  <span>{pz.estimatedKj} kJ</span>
-                  <small>{t('power.energy')}</small>
-                </div>
-                <div className="pz-load-divider" />
-                <div className="pz-load-item">
-                  <span>{pz.estimatedTss}</span>
-                  <small>TSS</small>
-                </div>
-              </div>
-            </div>
-          )}
-          <RouteTypeStats routeStats={route.routeStats} />
-        </div>
-      )}
-
-      {route && (
-        <div className="export-buttons">
-          <button className="btn-secondary" onClick={handleExportTCX}>
-            <FiDownload /> {t('route.exportTcx')}
+        {visibleTabs.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
+            className={activeTab === tab ? 'active' : ''}
+            onClick={() => setActiveTab(tab)}
+          >
+            {t(`route.tabs.${tab}`)}
           </button>
-          <button className="btn-secondary" onClick={handleExportGPX}>
-            <FiDownload /> {t('route.exportGpx')}
+        ))}
+      </div>
+
+      {activeTab === 'library' && authEnabled && authenticated && <SavedRoutesPanel />}
+
+      {activeTab === 'plan' && (
+        <>
+          <div className="control-group">
+            <label>{t('route.locations.title')}</label>
+            <div className="location-stack">
+              <LocationInput
+                label={t('route.locations.start')}
+                value={startLabel}
+                point={startPoint}
+                onSelect={setStartPoint}
+                onClear={() => setStartPoint(null, '')}
+              />
+              <button
+                className={`waypoint-insert${dragGapIndex === 0 ? ' is-drop-target' : ''}${isDraggingWaypoint ? ' is-drag-mode' : ''}`}
+                type="button"
+                onClick={() => insertWaypoint(null, '', 0)}
+                onDragOver={(event) => handleWaypointGapDragOver(event, 0)}
+                onDrop={(event) => handleWaypointGapDrop(event, 0)}
+              >
+                {isDraggingWaypoint ? <FiMenu /> : <FiPlus />} {getWaypointGapLabel(0)}
+              </button>
+              {waypoints.map((waypoint, index) => (
+                <React.Fragment key={waypoint.id}>
+                  <div className="waypoint-row">
+                    <LocationInput
+                      label={`${t('route.locations.waypoint')} ${index + 1}`}
+                      value={waypoint.label}
+                      point={waypoint.point}
+                      onSelect={(point, label) => updateWaypoint(waypoint.id, point, label)}
+                      onClear={() => updateWaypoint(waypoint.id, null, '')}
+                    />
+                    <div className="waypoint-actions">
+                      <button
+                        className="waypoint-drag"
+                        type="button"
+                        draggable
+                        onDragStart={(event) => handleWaypointDragStart(event, waypoint.id)}
+                        onDragEnd={clearWaypointDrag}
+                        aria-label="Wegpunkt ziehen"
+                        title="Wegpunkt ziehen zum Umsortieren"
+                      >
+                        <FiMenu />
+                      </button>
+                      <button
+                        className="waypoint-move"
+                        type="button"
+                        onClick={() => moveWaypoint(index, index - 1)}
+                        disabled={index === 0}
+                        aria-label="Move waypoint up"
+                      >
+                        <FiArrowUp />
+                      </button>
+                      <button
+                        className="waypoint-move"
+                        type="button"
+                        onClick={() => moveWaypoint(index, index + 1)}
+                        disabled={index === waypoints.length - 1}
+                        aria-label="Move waypoint down"
+                      >
+                        <FiArrowDown />
+                      </button>
+                      <button
+                        className="waypoint-remove"
+                        type="button"
+                        onClick={() => removeWaypoint(waypoint.id)}
+                        aria-label={t('route.delete')}
+                      >
+                        <FiX />
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    className={`waypoint-insert${dragGapIndex === index + 1 ? ' is-drop-target' : ''}${isDraggingWaypoint ? ' is-drag-mode' : ''}`}
+                    type="button"
+                    onClick={() => insertWaypoint(null, '', index + 1)}
+                    onDragOver={(event) => handleWaypointGapDragOver(event, index + 1)}
+                    onDrop={(event) => handleWaypointGapDrop(event, index + 1)}
+                  >
+                    {isDraggingWaypoint ? <FiMenu /> : <FiPlus />} {getWaypointGapLabel(index + 1)}
+                  </button>
+                </React.Fragment>
+              ))}
+              {waypoints.length > 0 && (
+                <small className="waypoint-hint">
+                  Am Griff ziehen, dann in einer markierten Luecke ablegen.
+                </small>
+              )}
+              <div className="location-actions">
+                <button
+                  className="btn-secondary btn-compact"
+                  type="button"
+                  onClick={reverseRoute}
+                  disabled={!startPoint || !endPoint || loading}
+                >
+                  <FiRepeat /> Route umkehren
+                </button>
+                <label className="return-toggle">
+                  <input
+                    type="checkbox"
+                    checked={includeReturnTrip}
+                    onChange={(event) => setIncludeReturnTrip(event.target.checked)}
+                    disabled={!startPoint || !endPoint || loading}
+                  />
+                  <span>Rueckfahrt berechnen</span>
+                </label>
+              </div>
+              <LocationInput
+                label={t('route.locations.end')}
+                value={endLabel}
+                point={endPoint}
+                onSelect={setEndPoint}
+                onClear={() => setEndPoint(null, '')}
+              />
+            </div>
+          </div>
+
+          {startPoint && endPoint && (
+            <div className="route-info">
+              <p><FiMapPin /> {t('route.start')}: {startPoint[0].toFixed(4)}, {startPoint[1].toFixed(4)}</p>
+              {waypoints.filter((waypoint) => waypoint.point).map((waypoint, index) => (
+                <p key={waypoint.id}><FiMapPin /> {t('route.locations.waypoint')} {index + 1}: {waypoint.point[0].toFixed(4)}, {waypoint.point[1].toFixed(4)}</p>
+              ))}
+              <p><FiMapPin /> {t('route.end')}: {endPoint[0].toFixed(4)}, {endPoint[1].toFixed(4)}</p>
+            </div>
+          )}
+
+          <button
+            className="btn-primary"
+            onClick={handleCalculate}
+            disabled={!startPoint || !endPoint || loading}
+          >
+            <FiNavigation /> {t('route.calculate')}
           </button>
-        </div>
+
+          {(startPoint || endPoint || route) && (
+            <button
+              className="btn-secondary btn-danger"
+              onClick={handleResetRoute}
+              disabled={loading}
+            >
+              <FiTrash2 /> {t('route.delete')}
+            </button>
+          )}
+
+          {route && (
+            <div className="route-stats">
+              <h3>{t('route.stats')}</h3>
+              <div className="stat-item">
+                <span>{t('route.distance')}</span>
+                <strong>{(route.distance / 1000).toFixed(1)} km</strong>
+              </div>
+              <div className="stat-item">
+                <span>{t('route.duration')}</span>
+                <strong>{Math.round(route.duration / 60)} min</strong>
+              </div>
+              <div className="stat-item">
+                <span>{t('route.avgSpeed')}</span>
+                <strong>{((route.distance / route.duration) * 3.6).toFixed(1)} km/h</strong>
+              </div>
+              {route.ascent > 0 && (
+                <div className="stat-item">
+                  <span>{t('route.elevation')}</span>
+                  <strong>{route.ascent} m</strong>
+                </div>
+              )}
+              <div className="stat-item">
+                <span>{t('route.engine')}</span>
+                <strong>{route.engineUsed || engine}</strong>
+              </div>
+              {route.fallbackUsed && (
+                <div className="stat-item">
+                  <span>{t('route.fallback')}</span>
+                  <strong>{route.fallbackFrom} → {route.engineUsed}</strong>
+                </div>
+              )}
+              {returnRoute && (
+                <>
+                  <div className="stat-item stat-item-return">
+                    <span>Rueckfahrt Distanz</span>
+                    <strong>{(returnRoute.distance / 1000).toFixed(1)} km</strong>
+                  </div>
+                  <div className="stat-item stat-item-return">
+                    <span>Rueckfahrt Dauer</span>
+                    <strong>{Math.round(returnRoute.duration / 60)} min</strong>
+                  </div>
+                  <div className="stat-item stat-item-return">
+                    <span>Hin + Zurueck</span>
+                    <strong>{((route.distance + returnRoute.distance) / 1000).toFixed(1)} km</strong>
+                  </div>
+                </>
+              )}
+
+              {pz && (
+                <div className="power-zone-card" style={{ '--pz-color': pz.color }}>
+                  <div className="pz-header">
+                    <span className="pz-label">{pz.label}</span>
+                  </div>
+                  <div className="pz-watts">
+                    <span className="pz-range">{pz.minWatts}–{pz.maxWatts} W</span>
+                    <span className="pz-target">{pz.targetWatts} W {t('power.target')}</span>
+                  </div>
+                  <div className="pz-load">
+                    <div className="pz-load-item">
+                      <span>{pz.estimatedKj} kJ</span>
+                      <small>{t('power.energy')}</small>
+                    </div>
+                    <div className="pz-load-divider" />
+                    <div className="pz-load-item">
+                      <span>{pz.estimatedTss}</span>
+                      <small>TSS</small>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <RouteTypeStats routeStats={route.routeStats} />
+            </div>
+          )}
+
+          {route && (
+            <div className="export-buttons">
+              <button className="btn-secondary" onClick={handleExportTCX}>
+                <FiDownload /> {t('route.exportTcx')}
+              </button>
+              <button className="btn-secondary" onClick={handleExportGPX}>
+                <FiDownload /> {t('route.exportGpx')}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {activeTab === 'setup' && (
+        <>
+          <div className="control-group">
+            <label>{t('route.bike')}</label>
+            <div className="bike-profile-select">
+              <select
+                value={bikeType || selectedProfile.id}
+                onChange={(event) => setBikeType(event.target.value)}
+                disabled={!bikeProfiles.length}
+              >
+                {profileOptions.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="bike-model-tag">
+              {selectedProfile.source === 'brouter'
+                ? t('route.brouterProfile')
+                : t('route.routingProfile')}
+            </div>
+          </div>
+
+          <div className="control-group">
+            <label>{t('route.rideType')}</label>
+            <div className="ride-type-buttons">
+              {RIDE_TYPES.map(({ id }) => (
+                <button
+                  key={id}
+                  className={`ride-type-btn${rideType === id ? ' active' : ''}`}
+                  onClick={() => setRideType(id)}
+                >
+                  <span className="rt-label">{t(`rideTypes.${id}.label`)}</span>
+                  <span className="rt-sub">{t(`rideTypes.${id}.subtitle`)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="control-group">
+            <label>{t('route.riderProfile.title')}</label>
+            <div className="rider-profile-inputs">
+              <label>
+                <span><FiZap size={12} /> {t('route.riderProfile.ftp')}</span>
+                <div className="rider-input">
+                  <input
+                    type="number"
+                    min="50"
+                    max="600"
+                    step="1"
+                    value={riderProfile.ftp}
+                    onChange={(event) => handleRiderProfileChange('ftp', event.target.value)}
+                  />
+                  <small>W</small>
+                </div>
+              </label>
+              <label>
+                <span>{t('route.riderProfile.weight')}</span>
+                <div className="rider-input">
+                  <input
+                    type="number"
+                    min="30"
+                    max="180"
+                    step="0.5"
+                    value={riderProfile.weight}
+                    onChange={(event) => handleRiderProfileChange('weight', event.target.value)}
+                  />
+                  <small>kg</small>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div className="control-group">
+            <label>{t('route.style')}</label>
+            <div className="preference-buttons">
+              {['fastest', 'scenic', 'offroad'].map((id) => (
+                <button
+                  key={id}
+                  className={preference === id ? 'active' : ''}
+                  onClick={() => setPreference(id)}
+                >
+                  {t(`preferences.${id}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {rideType && riderProfile.ftp && !route && (
+            <PowerZonePreview rideType={rideType} ftp={riderProfile.ftp} />
+          )}
+        </>
       )}
     </div>
   );

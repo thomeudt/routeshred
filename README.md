@@ -75,6 +75,7 @@ NODE_ENV=development
 OSRM_API=http://router.project-osrm.org
 ROUTING_ENGINE=osrm
 BROUTER_API=http://localhost:17777/brouter
+ROUTESHRED_ROUTES_DIR=./data/routes
 ```
 
 Frontend (`.env` in frontend folder):
@@ -155,6 +156,7 @@ Cached locally:
 - Overpass cycleway, major-road, and waypoint lookup responses
 - BRouter `.rd5` routing segments in `brouter-data/segments4`
 - User profiles in `data/profiles` (when Keycloak auth is enabled)
+- User-saved routes in `data/routes` (when Keycloak auth is enabled)
 
 Useful cache settings:
 

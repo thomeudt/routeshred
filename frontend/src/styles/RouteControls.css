@@ -34,6 +34,42 @@
   text-transform: uppercase;
 }
 
+.route-panel-tabs {
+  display: grid;
+  grid-template-columns: repeat(var(--tab-count, 3), minmax(0, 1fr));
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.route-panel-tabs button {
+  min-width: 0;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  padding: 10px 6px;
+  text-transform: uppercase;
+}
+
+.route-panel-tabs button:first-child {
+  border-left: 0;
+}
+
+.route-panel-tabs button:hover {
+  color: var(--primary);
+  background: var(--surface-subtle);
+}
+
+.route-panel-tabs button.active {
+  color: white;
+  background: var(--primary);
+}
+
 .control-group {
   display: flex;
   flex-direction: column;
@@ -110,6 +146,186 @@
   text-transform: uppercase;
   margin-top: 2px;
   padding-left: 2px;
+}
+
+/* ── Saved routes ──────────────────────────────────────────────────── */
+
+.saved-routes-panel {
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.saved-routes-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.saved-routes-heading span {
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.saved-route-savebar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.saved-route-savebar input,
+.saved-route-search input,
+.saved-route-main input {
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 10px;
+}
+
+.saved-route-savebar input:focus,
+.saved-route-search input:focus,
+.saved-route-main input:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.saved-route-savebar .btn-secondary {
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.saved-route-search {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  padding-left: 10px;
+}
+
+.saved-route-search:focus-within {
+  border-color: var(--primary);
+}
+
+.saved-route-search input {
+  border: 0;
+  padding-left: 0;
+}
+
+.saved-route-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.saved-route-empty {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 12px;
+  text-transform: uppercase;
+}
+
+.saved-route-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.saved-route-item:last-child {
+  border-bottom: 0;
+}
+
+.saved-route-item.is-active {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.saved-route-main {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  justify-content: center;
+  padding: 10px 10px 10px 12px;
+  text-align: left;
+}
+
+.saved-route-main:hover {
+  background: var(--surface-subtle);
+}
+
+.saved-route-main span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.saved-route-main small {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.saved-route-main input {
+  width: 100%;
+  padding: 7px 8px;
+}
+
+.saved-route-tools {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 34px;
+  border-left: 1px solid var(--border);
+}
+
+.saved-route-tools button {
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.saved-route-tools button:first-child {
+  border-left: 0;
+}
+
+.saved-route-tools button:hover {
+  color: var(--primary);
+  background: var(--surface-subtle);
+}
+
+.saved-route-error {
+  color: #b42318;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 /* ── Location search ───────────────────────────────────────────────── */

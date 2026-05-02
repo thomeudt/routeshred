@@ -10,6 +10,12 @@ const translations = {
     route: {
       planner: 'Routenplaner',
       engine: 'Engine',
+      tabs: {
+        label: 'Routenpanel',
+        plan: 'Planen',
+        library: 'Bibliothek',
+        setup: 'Setup'
+      },
       bike: 'Rad',
       rideType: 'Training',
       riderProfile: {
@@ -32,6 +38,28 @@ const translations = {
       end: 'Ziel',
       calculate: 'Route berechnen',
       delete: 'Route löschen',
+      saved: {
+        title: 'Gespeicherte Routen',
+        select: 'Route laden',
+        loading: 'Routen werden geladen...',
+        empty: 'Noch keine Routen gespeichert',
+        noSearchResults: 'Keine passende Route',
+        save: 'Speichern',
+        saved: 'Gespeichert',
+        delete: 'Gespeicherte Route löschen',
+        rename: 'Umbenennen',
+        renameSave: 'Namen speichern',
+        renameCancel: 'Umbenennen abbrechen',
+        namePlaceholder: 'Name der Route',
+        searchPlaceholder: 'Routen suchen',
+        errors: {
+          loadFailed: 'Gespeicherte Routen konnten nicht geladen werden',
+          saveFailed: 'Route konnte nicht gespeichert werden',
+          deleteFailed: 'Route konnte nicht gelöscht werden',
+          renameFailed: 'Route konnte nicht umbenannt werden',
+          noRoute: 'Keine berechnete Route zum Speichern'
+        }
+      },
       stats: 'Routendaten',
       distance: 'Distanz',
       duration: 'Dauer',
@@ -111,6 +139,12 @@ const translations = {
     route: {
       planner: 'Route Planner',
       engine: 'Engine',
+      tabs: {
+        label: 'Route panel',
+        plan: 'Plan',
+        library: 'Library',
+        setup: 'Setup'
+      },
       bike: 'Bike',
       rideType: 'Ride Type',
       riderProfile: {
@@ -133,6 +167,28 @@ const translations = {
       end: 'End',
       calculate: 'Calculate Route',
       delete: 'Delete Route',
+      saved: {
+        title: 'Saved Routes',
+        select: 'Load route',
+        loading: 'Loading routes...',
+        empty: 'No saved routes yet',
+        noSearchResults: 'No matching route',
+        save: 'Save',
+        saved: 'Saved',
+        delete: 'Delete saved route',
+        rename: 'Rename',
+        renameSave: 'Save name',
+        renameCancel: 'Cancel rename',
+        namePlaceholder: 'Route name',
+        searchPlaceholder: 'Search routes',
+        errors: {
+          loadFailed: 'Could not load saved routes',
+          saveFailed: 'Could not save route',
+          deleteFailed: 'Could not delete route',
+          renameFailed: 'Could not rename route',
+          noRoute: 'No calculated route to save'
+        }
+      },
       stats: 'Route Statistics',
       distance: 'Distance',
       duration: 'Duration',
