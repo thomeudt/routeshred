@@ -3,17 +3,21 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
+# Copy workspace package files from the repository root build context.
 COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/package.json
+COPY frontend/package.json ./frontend/package.json
 
 # Install dependencies
-RUN npm ci
+RUN npm ci --workspace=backend --omit=dev
 
 # Copy application code
-COPY src ./src
+COPY backend/src ./backend/src
 
 # Expose port
-EXPOSE 5000
+EXPOSE 5050
+
+WORKDIR /app/backend
 
 # Start application
 CMD ["npm", "start"]

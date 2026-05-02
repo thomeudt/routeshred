@@ -19,8 +19,8 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: routeshred-backend
     restart: unless-stopped
     environment:
@@ -46,8 +46,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         REACT_APP_API_URL: /api
         REACT_APP_KEYCLOAK_ENABLED: "true"

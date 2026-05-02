@@ -20,18 +20,20 @@ ENV REACT_APP_API_URL=$REACT_APP_API_URL \
 	REACT_APP_TILE_URL=$REACT_APP_TILE_URL \
 	REACT_APP_TILE_ATTRIBUTION=$REACT_APP_TILE_ATTRIBUTION
 
-# Copy package files
+# Copy workspace package files from the repository root build context.
 COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/package.json
+COPY frontend/package.json ./frontend/package.json
 
 # Install dependencies
-RUN npm ci
+RUN npm ci --workspace=frontend
 
 # Copy source
-COPY src ./src
-COPY public ./public
+COPY frontend/src ./frontend/src
+COPY frontend/public ./frontend/public
 
 # Build React app
-RUN npm run build
+RUN npm run build --workspace=frontend
 
 # Production stage
 FROM node:18-alpine
@@ -42,7 +44,7 @@ WORKDIR /app
 RUN npm install -g serve
 
 # Copy built app from build stage
-COPY --from=build /app/build ./build
+COPY --from=build /app/frontend/build ./build
 
 # Expose port
 EXPOSE 3000
