@@ -3,6 +3,9 @@
   color: var(--text-primary);
   padding: 14px 20px 10px;
   border-bottom: 1px solid color-mix(in srgb, var(--accent) 36%, #10263a);
+  position: sticky;
+  top: 0;
+  z-index: 1200;
 }
 
 .header-content {
@@ -74,12 +77,20 @@
   border: 1px solid color-mix(in srgb, white 35%, transparent);
   background: color-mix(in srgb, #0b1d2f 72%, transparent);
   color: #f3f8ff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 6px 9px;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   cursor: pointer;
+}
+
+.header-icon-btn svg {
+  flex-shrink: 0;
 }
 
 .header-tabs {
@@ -121,63 +132,114 @@
 
 @media (max-width: 768px) {
   .header {
-    padding: 12px 12px 9px;
+    padding: 8px 10px 7px;
   }
 
   .header-content {
-    gap: 9px;
+    gap: 7px;
   }
 
   .header-top {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
     gap: 8px;
   }
 
   .header-brand {
-    gap: 10px;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 8px;
   }
 
   .header-brand-copy {
     gap: 2px;
+    min-width: 0;
   }
 
   .header-content h1 {
-    font-size: 28px;
+    font-size: 22px;
+    white-space: nowrap;
   }
 
   .header-content p {
-    font-size: 10px;
-    letter-spacing: 0.14em;
+    display: none;
   }
 
   .header-auth {
-    width: 100%;
-    flex-wrap: wrap;
-    gap: 6px;
+    margin-left: auto;
+    flex: 0 0 auto;
+    justify-content: flex-end;
+    gap: 4px;
   }
 
   .header-tabs {
     width: 100%;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .header-tabs button {
+    min-height: 32px;
+    padding: 4px 5px;
+    font-size: 8px;
+    letter-spacing: 0.05em;
+  }
+
+  .user-pill {
+    display: none;
+  }
+
+  .header-icon-btn {
+    width: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+  }
+
+  .header-icon-btn span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .header-icon-btn svg {
+    width: 15px;
+    height: 15px;
   }
 
   .user-pill {
     flex: 0 1 auto;
-    min-height: 32px;
-    display: inline-flex;
+    min-height: 30px;
     align-items: center;
-    max-width: 100%;
+    max-width: 34vw;
     padding: 5px 8px;
-    font-size: 10px;
-    letter-spacing: 0.06em;
+    font-size: 9px;
+    letter-spacing: 0.04em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .header-btn {
-    min-height: 36px;
-    padding: 7px 10px;
+    min-height: 30px;
+    padding: 5px 8px;
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 420px) {
+  .header-content h1 {
+    font-size: 19px;
+  }
+
+  .header-tabs {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .header-tabs button {
+    min-height: 30px;
   }
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { FiLogOut, FiMap, FiMapPin } from 'react-icons/fi';
 import { t } from '../i18n';
 import '../styles/Header.css';
 
@@ -50,16 +51,30 @@ function Header({
 
           <div className="header-auth">
             {showMapToggle && (
-              <button className="header-btn" type="button" onClick={onToggleMapVisibility}>
-                {isMapVisible ? t('map.hideMap') : t('map.showMap')}
+              <button
+                className="header-btn header-icon-btn map-toggle-btn"
+                type="button"
+                onClick={onToggleMapVisibility}
+                aria-label={isMapVisible ? t('map.hideMap') : t('map.showMap')}
+                title={isMapVisible ? t('map.hideMap') : t('map.showMap')}
+              >
+                {isMapVisible ? <FiMapPin /> : <FiMap />}
+                <span>{isMapVisible ? t('map.hideMap') : t('map.showMap')}</span>
               </button>
             )}
 
             {authEnabled && authReady && authenticated && (
               <>
                 <span className="user-pill">{userName}</span>
-                <button className="header-btn" type="button" onClick={onLogout}>
-                  {t('auth.logoutButton')}
+                <button
+                  className="header-btn header-icon-btn logout-btn"
+                  type="button"
+                  onClick={onLogout}
+                  aria-label={t('auth.logoutButton')}
+                  title={t('auth.logoutButton')}
+                >
+                  <FiLogOut />
+                  <span>{t('auth.logoutButton')}</span>
                 </button>
               </>
             )}
