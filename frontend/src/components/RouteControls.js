@@ -1,8 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useRouteStore } from '../store/routeStore';
 import { t } from '../i18n';
-import { FiDownload, FiMapPin, FiNavigation, FiPlus, FiTrash2, FiZap, FiX } from 'react-icons/fi';
+import {
+  FiArrowDown,
+  FiArrowUp,
+  FiRepeat,
+  FiDownload,
+  FiMenu,
+  FiMapPin,
+  FiNavigation,
+  FiPlus,
+  FiTrash2,
+  FiZap,
+  FiX
+} from 'react-icons/fi';
 import LocationInput from './LocationInput';
+import RouteTypeStats from './RouteTypeStats';
 import '../styles/RouteControls.css';
 
 const RIDE_TYPES = [
@@ -14,14 +27,18 @@ const RIDE_TYPES = [
 
 function RouteControls() {
   const [engine, setEngine] = useState('unknown');
+  const [dragWaypointId, setDragWaypointId] = useState(null);
+  const [dragGapIndex, setDragGapIndex] = useState(null);
   const {
     startPoint, endPoint,
     startLabel, endLabel, waypoints,
     bikeProfiles, bikeType, preference, rideType, riderProfile,
     loadBikeProfiles, setBikeType, setPreference, setRideType, setRiderProfile,
-    setStartPoint, setEndPoint, addWaypoint, updateWaypoint, removeWaypoint,
+    includeReturnTrip, setIncludeReturnTrip,
+    setStartPoint, setEndPoint, insertWaypoint, updateWaypoint, removeWaypoint, moveWaypoint,
+    reverseRoute,
     calculateRoute, exportRoute, resetRoute,
-    loading, route
+    loading, route, returnRoute
   } = useRouteStore();
 
   useEffect(() => {
@@ -63,6 +80,66 @@ function RouteControls() {
     : [{ id: bikeType || 'road', label: t('common.loading'), source: 'fallback' }];
   const selectedProfile = profileOptions.find((profile) => profile.id === bikeType) || profileOptions[0];
   const pz = route && route.powerZone;
+  const isDraggingWaypoint = Boolean(dragWaypointId);
+
+  const clearWaypointDrag = () => {
+    setDragWaypointId(null);
+    setDragGapIndex(null);
+  };
+
+  const handleWaypointDragStart = (event, waypointId) => {
+    setDragWaypointId(waypointId);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', waypointId);
+  };
+
+  const handleWaypointGapDragOver = (event, gapIndex) => {
+    if (!dragWaypointId) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setDragGapIndex(gapIndex);
+  };
+
+  const handleWaypointGapDrop = (event, gapIndex) => {
+    event.preventDefault();
+    if (!dragWaypointId) {
+      return;
+    }
+
+    const fromIndex = waypoints.findIndex((waypoint) => waypoint.id === dragWaypointId);
+    if (fromIndex === -1) {
+      clearWaypointDrag();
+      return;
+    }
+
+    const toIndex = gapIndex > fromIndex ? gapIndex - 1 : gapIndex;
+    if (toIndex !== fromIndex) {
+      moveWaypoint(fromIndex, toIndex);
+    }
+    clearWaypointDrag();
+  };
+
+  const getWaypointGapLabel = (gapIndex) => {
+    if (isDraggingWaypoint) {
+      return 'Hier ablegen';
+    }
+
+    if (!waypoints.length) {
+      return 'Zwischen Start und Ziel einfugen';
+    }
+
+    if (gapIndex === 0) {
+      return 'Nach Start einfugen';
+    }
+
+    if (gapIndex === waypoints.length) {
+      return 'Vor Ziel einfugen';
+    }
+
+    return `Zwischen W${gapIndex} und W${gapIndex + 1} einfugen`;
+  };
 
   return (
     <div className="route-controls">
@@ -81,32 +158,100 @@ function RouteControls() {
             onSelect={setStartPoint}
             onClear={() => setStartPoint(null, '')}
           />
-          {waypoints.map((waypoint, index) => (
-            <div className="waypoint-row" key={waypoint.id}>
-              <LocationInput
-                label={`${t('route.locations.waypoint')} ${index + 1}`}
-                value={waypoint.label}
-                point={waypoint.point}
-                onSelect={(point, label) => updateWaypoint(waypoint.id, point, label)}
-                onClear={() => updateWaypoint(waypoint.id, null, '')}
-              />
-              <button
-                className="waypoint-remove"
-                type="button"
-                onClick={() => removeWaypoint(waypoint.id)}
-                aria-label={t('route.delete')}
-              >
-                <FiX />
-              </button>
-            </div>
-          ))}
           <button
-            className="btn-secondary btn-compact"
+            className={`waypoint-insert${dragGapIndex === 0 ? ' is-drop-target' : ''}${isDraggingWaypoint ? ' is-drag-mode' : ''}`}
             type="button"
-            onClick={() => addWaypoint()}
+            onClick={() => insertWaypoint(null, '', 0)}
+            onDragOver={(event) => handleWaypointGapDragOver(event, 0)}
+            onDrop={(event) => handleWaypointGapDrop(event, 0)}
           >
-            <FiPlus /> {t('route.locations.addWaypoint')}
+            {isDraggingWaypoint ? <FiMenu /> : <FiPlus />} {getWaypointGapLabel(0)}
           </button>
+          {waypoints.map((waypoint, index) => (
+            <React.Fragment key={waypoint.id}>
+              <div className="waypoint-row">
+                <LocationInput
+                  label={`${t('route.locations.waypoint')} ${index + 1}`}
+                  value={waypoint.label}
+                  point={waypoint.point}
+                  onSelect={(point, label) => updateWaypoint(waypoint.id, point, label)}
+                  onClear={() => updateWaypoint(waypoint.id, null, '')}
+                />
+                <div className="waypoint-actions">
+                  <button
+                    className="waypoint-drag"
+                    type="button"
+                    draggable
+                    onDragStart={(event) => handleWaypointDragStart(event, waypoint.id)}
+                    onDragEnd={clearWaypointDrag}
+                    aria-label="Wegpunkt ziehen"
+                    title="Wegpunkt ziehen zum Umsortieren"
+                  >
+                    <FiMenu />
+                  </button>
+                  <button
+                    className="waypoint-move"
+                    type="button"
+                    onClick={() => moveWaypoint(index, index - 1)}
+                    disabled={index === 0}
+                    aria-label="Move waypoint up"
+                  >
+                    <FiArrowUp />
+                  </button>
+                  <button
+                    className="waypoint-move"
+                    type="button"
+                    onClick={() => moveWaypoint(index, index + 1)}
+                    disabled={index === waypoints.length - 1}
+                    aria-label="Move waypoint down"
+                  >
+                    <FiArrowDown />
+                  </button>
+                  <button
+                    className="waypoint-remove"
+                    type="button"
+                    onClick={() => removeWaypoint(waypoint.id)}
+                    aria-label={t('route.delete')}
+                  >
+                    <FiX />
+                  </button>
+                </div>
+              </div>
+              <button
+                className={`waypoint-insert${dragGapIndex === index + 1 ? ' is-drop-target' : ''}${isDraggingWaypoint ? ' is-drag-mode' : ''}`}
+                type="button"
+                onClick={() => insertWaypoint(null, '', index + 1)}
+                onDragOver={(event) => handleWaypointGapDragOver(event, index + 1)}
+                onDrop={(event) => handleWaypointGapDrop(event, index + 1)}
+              >
+                {isDraggingWaypoint ? <FiMenu /> : <FiPlus />} {getWaypointGapLabel(index + 1)}
+              </button>
+            </React.Fragment>
+          ))}
+          {waypoints.length > 0 && (
+            <small className="waypoint-hint">
+              Am Griff ziehen, dann in einer markierten Luecke ablegen.
+            </small>
+          )}
+          <div className="location-actions">
+            <button
+              className="btn-secondary btn-compact"
+              type="button"
+              onClick={reverseRoute}
+              disabled={!startPoint || !endPoint || loading}
+            >
+              <FiRepeat /> Route umkehren
+            </button>
+            <label className="return-toggle">
+              <input
+                type="checkbox"
+                checked={includeReturnTrip}
+                onChange={(event) => setIncludeReturnTrip(event.target.checked)}
+                disabled={!startPoint || !endPoint || loading}
+              />
+              <span>Rueckfahrt berechnen</span>
+            </label>
+          </div>
           <LocationInput
             label={t('route.locations.end')}
             value={endLabel}
@@ -274,6 +419,22 @@ function RouteControls() {
               <strong>{route.fallbackFrom} → {route.engineUsed}</strong>
             </div>
           )}
+          {returnRoute && (
+            <>
+              <div className="stat-item stat-item-return">
+                <span>Rueckfahrt Distanz</span>
+                <strong>{(returnRoute.distance / 1000).toFixed(1)} km</strong>
+              </div>
+              <div className="stat-item stat-item-return">
+                <span>Rueckfahrt Dauer</span>
+                <strong>{Math.round(returnRoute.duration / 60)} min</strong>
+              </div>
+              <div className="stat-item stat-item-return">
+                <span>Hin + Zurueck</span>
+                <strong>{((route.distance + returnRoute.distance) / 1000).toFixed(1)} km</strong>
+              </div>
+            </>
+          )}
 
           {pz && (
             <div className="power-zone-card" style={{ '--pz-color': pz.color }}>
@@ -297,6 +458,7 @@ function RouteControls() {
               </div>
             </div>
           )}
+          <RouteTypeStats routeStats={route.routeStats} />
         </div>
       )}
 

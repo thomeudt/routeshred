@@ -47,20 +47,34 @@ async function getRoute(start, end, options = {}) {
   } = options;
   const ftp = Number(riderProfile.ftp) > 0 ? Number(riderProfile.ftp) : 250;
   const profile = PROFILES[bikeType] || 'cycling';
-  const routePoints = [start, ...normalizeWaypoints(waypoints), end];
+  const normalizedWaypoints = normalizeWaypoints(waypoints);
+  const hasIntermediateVias = normalizedWaypoints.length > 0;
+  const routePoints = [start, ...normalizedWaypoints, end];
+  const routeContext = { requestedPoints: routePoints };
 
   try {
     const baseRouteResponse = await requestRoute(profile, routePoints, {
-      alternatives: true,
+      // BRouter alternatives can include visually odd loop-heavy detours.
+      // Keep OSRM alternatives, and for BRouter enable alternatives when vias exist
+      // so dead-end spur variants can be filtered by shape scoring.
+      alternatives: ROUTING_ENGINE !== 'brouter' || normalizedWaypoints.length > 0,
       continue_straight: preference === 'fastest',
       bikeType,
-      preference
+      preference,
+      routeContext
     });
 
     const baseCandidates = baseRouteResponse.routes || [];
     if (!baseCandidates.length) {
       throw new Error('No route found');
     }
+
+    // Safety filter: avoid crossing railway tracks away from known rail crossings.
+    const railwaySafetyData = await loadRailwaySafetyData(routePoints);
+    const baseRailPartition = partitionRoutesByRailwaySafety(baseCandidates, railwaySafetyData);
+    const filteredBaseCandidates = baseRailPartition.safeRoutes.length
+      ? baseRailPartition.safeRoutes
+      : baseCandidates;
 
     // Map rideType to effective preference for route scoring.
     const effectivePreference = mapRideTypeToPreference(rideType, preference);
@@ -76,11 +90,16 @@ async function getRoute(start, end, options = {}) {
             continue_straight: false,
             bikeType,
             preference: effectivePreference,
-            rideType
+            rideType,
+            routeContext: { requestedPoints: [start, ...normalizeWaypoints(waypoints), viaPoint, end] }
           });
 
           if (guidedResponse.routes && guidedResponse.routes.length) {
-            guidedRoute = guidedResponse.routes[0];
+            const guidedCandidate = guidedResponse.routes[0];
+            const guidedSafety = assessRouteRailwaySafety(guidedCandidate, railwaySafetyData);
+            if (!guidedSafety.hasUnsafeCrossing) {
+              guidedRoute = guidedCandidate;
+            }
             break;
           }
         } catch (guidedError) {
@@ -89,17 +108,24 @@ async function getRoute(start, end, options = {}) {
       }
     }
 
-    let selected = pickPreferredRoute(baseCandidates, guidedRoute, effectivePreference, rideType);
+    let selected = pickPreferredRoute(
+      filteredBaseCandidates,
+      guidedRoute,
+      effectivePreference,
+      rideType,
+      hasIntermediateVias
+    );
 
     // Active preference of OSM cycle infrastructure in corridor between start/end.
     const cycleRanked = await selectByCyclewayAffinity(
-      baseCandidates,
+      filteredBaseCandidates,
       guidedRoute,
       start,
       end,
       bikeType,
       effectivePreference,
-      rideType
+      rideType,
+      hasIntermediateVias
     );
 
     if (cycleRanked) {
@@ -108,6 +134,26 @@ async function getRoute(start, end, options = {}) {
 
     if (!selected) {
       throw new Error('No route found after preference selection');
+    }
+
+    // Hard guardrail: routes with explicit vias must not detour excessively.
+    const fastestDistance = Math.min(
+      ...filteredBaseCandidates.map((candidate) => Number(candidate.distance) || Number.POSITIVE_INFINITY)
+    );
+    const selectedDistance = Number(selected.route && selected.route.distance) || Number.POSITIVE_INFINITY;
+    const selectedDetourFactor = selectedDistance / Math.max(fastestDistance, 1);
+    const maxDetourWithVias = preference === 'offroad' ? 1.2 : 1.15;
+    if (hasIntermediateVias && selectedDetourFactor > maxDetourWithVias) {
+      const bestDirect = filteredBaseCandidates
+        .slice()
+        .sort((a, b) => (Number(a.distance) || Number.POSITIVE_INFINITY) - (Number(b.distance) || Number.POSITIVE_INFINITY))[0];
+      if (bestDirect) {
+        selected = { route: bestDirect, strategy: 'via-detour-guard' };
+      }
+    }
+
+    if (selected.route && selected.route._unsafeRailCrossings > 0) {
+      throw new Error('No route without unsafe railway crossing found');
     }
 
     const route = selected.route;
@@ -119,6 +165,7 @@ async function getRoute(start, end, options = {}) {
       ascent: route.ascent || 0,   // meters total elevation gain
       descent: route.descent || 0,
       legs: route.legs,
+      routeStats: route.routeStats || null,
       startPoint: start,
       endPoint: end,
       waypoints: normalizeWaypoints(waypoints),
@@ -339,6 +386,9 @@ function getRoutingEngineInfo() {
 
 async function requestRouteBrouter(points, options = {}) {
   await ensureBrouterSegments(points);
+  const hasIntermediateVias = Array.isArray(options.routeContext && options.routeContext.requestedPoints)
+    ? options.routeContext.requestedPoints.length > 2
+    : false;
 
   const alternatives = options.alternatives ? [0, 1, 2] : [0];
   const routes = [];
@@ -362,7 +412,7 @@ async function requestRouteBrouter(points, options = {}) {
         continue;
       }
 
-      routes.push(normalizeBrouterFeature(feature));
+      routes.push(normalizeBrouterFeature(feature, options.routeContext));
     } catch (error) {
       // Try next alternative candidate.
     }
@@ -372,7 +422,50 @@ async function requestRouteBrouter(points, options = {}) {
     throw new Error('BRouter returned no route');
   }
 
-  return { routes };
+  const sortedRoutes = routes.sort((a, b) => (
+    (getRouteShapePenalty(a) - getRouteShapePenalty(b))
+    || ((Number(a && a._maxOutAndBackKm) || 0) - (Number(b && b._maxOutAndBackKm) || 0))
+    || (a.distance - b.distance)
+  ));
+  const cleanRoutes = sortedRoutes.filter((route) => {
+    const shapeOk = getRouteShapePenalty(route) <= 0.12;
+    if (!shapeOk) {
+      return false;
+    }
+
+    // With explicit vias we are stricter against dead-end out-and-back artifacts.
+    if (hasIntermediateVias) {
+      const maxOutAndBackKm = Number(route && route._maxOutAndBackKm) || 0;
+      const spurScore = Number(route && route._outAndBackSpurScore) || 0;
+      if (maxOutAndBackKm > 0.22 || spurScore > 0.42) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  if (cleanRoutes.length) {
+    return { routes: cleanRoutes };
+  }
+
+  // Do not hard-fail to OSRM if all BRouter candidates exceed the heuristic.
+  // Keep the best BRouter route and let later scoring/selection choose safely.
+  if (DEBUG_OPTIONAL_LOOKUPS) {
+    console.warn(
+      `BRouter returned only high-shape-penalty routes; using best candidate (${getRouteShapePenalty(sortedRoutes[0]).toFixed(3)})`
+    );
+  }
+
+  const fallbackRoute = hasIntermediateVias
+    ? [...sortedRoutes].sort((a, b) => {
+      const aSpur = Number(a && a._maxOutAndBackKm) || 0;
+      const bSpur = Number(b && b._maxOutAndBackKm) || 0;
+      return aSpur - bSpur || getRouteShapePenalty(a) - getRouteShapePenalty(b) || a.distance - b.distance;
+    })[0]
+    : sortedRoutes[0];
+
+  return { routes: [fallbackRoute] };
 }
 
 async function ensureBrouterSegments(points) {
@@ -506,9 +599,19 @@ function getBikeKind(bikeType) {
   return inferBikeKind(bikeType);
 }
 
-function normalizeBrouterFeature(feature) {
+function getRouteShapePenalty(route) {
+  return Math.max(
+    Number(route && route._backtrackingScore) || 0,
+    Number(route && route._axisRegressionScore) || 0,
+    (Number(route && route._corridorDetourScore) || 0) * 0.6,
+    (Number(route && route._outAndBackSpurScore) || 0) * 0.9
+  );
+}
+
+function normalizeBrouterFeature(feature, routeContext = {}) {
   const coordinates = feature.geometry.coordinates;
   const distanceMeters = computePolylineDistanceMeters(coordinates);
+  const shapeScore = computeRouteShapeScore(coordinates, routeContext.requestedPoints);
 
   const props = feature.properties || {};
   const rawSeconds = Number(props['total-time']);
@@ -520,6 +623,8 @@ function normalizeBrouterFeature(feature) {
   // 'plain-ascend' is the net altitude change. There is no 'total-descent' property.
   const ascent  = Number(props['filtered ascend']) || 0;
   const descent = 0; // BRouter v1.7.9 does not expose total descent in GeoJSON properties
+
+  const routeStats = parseBrouterRouteStats(props.messages);
 
   return {
     geometry: {
@@ -538,8 +643,63 @@ function normalizeBrouterFeature(feature) {
         steps: []
       }
     ],
+    routeStats,
     _engine: 'brouter',
-    _fallbackFrom: null
+    _fallbackFrom: null,
+    _backtrackingScore: shapeScore.backtrackingScore,
+    _axisRegressionScore: shapeScore.axisRegressionScore,
+    _corridorDetourScore: shapeScore.corridorDetourScore,
+    _outAndBackSpurScore: shapeScore.outAndBackSpurScore,
+    _maxOutAndBackKm: shapeScore.maxOutAndBackKm
+  };
+}
+
+/**
+ * Parse BRouter GeoJSON messages into highway-type and surface-type distributions.
+ * Each row in messages is a segment; Distance is cumulative meters from start.
+ * We diff consecutive distances to get per-segment length.
+ */
+function parseBrouterRouteStats(messages) {
+  if (!Array.isArray(messages) || messages.length < 2) {
+    return null;
+  }
+  const [header, ...rows] = messages;
+  const distIdx = header.indexOf('Distance');
+  const tagIdx  = header.indexOf('WayTags');
+  if (distIdx === -1 || tagIdx === -1) return null;
+
+  const hwMeters  = {};
+  const sfMeters  = {};
+  let prevDist = 0;
+
+  for (const row of rows) {
+    const cumDist = Number(row[distIdx]) || 0;
+    const segLen  = Math.max(0, cumDist - prevDist);
+    prevDist = cumDist;
+
+    const tags = {};
+    for (const kv of row[tagIdx].split(' ')) {
+      const eq = kv.indexOf('=');
+      if (eq > 0) tags[kv.slice(0, eq)] = kv.slice(eq + 1);
+    }
+    const hw = tags.highway || 'unknown';
+    const sf = tags.surface || 'unknown';
+    hwMeters[hw] = (hwMeters[hw] || 0) + segLen;
+    sfMeters[sf] = (sfMeters[sf] || 0) + segLen;
+  }
+
+  const totalMeters = Object.values(hwMeters).reduce((s, v) => s + v, 0) || 1;
+
+  function toSortedEntries(map) {
+    return Object.entries(map)
+      .map(([type, meters]) => ({ type, meters: Math.round(meters), pct: Math.round(100 * meters / totalMeters) }))
+      .sort((a, b) => b.meters - a.meters);
+  }
+
+  return {
+    totalMeters: Math.round(totalMeters),
+    highwayTypes: toSortedEntries(hwMeters),
+    surfaceTypes: toSortedEntries(sfMeters)
   };
 }
 
@@ -559,7 +719,214 @@ function estimateRideDurationSeconds(distanceMeters) {
   return hours * 3600;
 }
 
-async function selectByCyclewayAffinity(baseCandidates, guidedRoute, start, end, bikeType, preference, rideType = 'z2') {
+function computeRouteShapeScore(coordinates, requestedPoints = []) {
+  const backtrackingScore = computeBacktrackingScore(coordinates);
+  const segmentScores = computeSegmentRegressionScores(coordinates, requestedPoints);
+  const spurScores = computeOutAndBackSpurScore(coordinates);
+  return {
+    backtrackingScore: Math.max(backtrackingScore, segmentScores.axisRegressionScore),
+    axisRegressionScore: segmentScores.axisRegressionScore,
+    corridorDetourScore: segmentScores.corridorDetourScore,
+    outAndBackSpurScore: spurScores.outAndBackSpurScore,
+    maxOutAndBackKm: spurScores.maxOutAndBackKm
+  };
+}
+
+function computeOutAndBackSpurScore(coordinates) {
+  if (!Array.isArray(coordinates) || coordinates.length < 10) {
+    return { outAndBackSpurScore: 0, maxOutAndBackKm: 0 };
+  }
+
+  const sampled = sampleRouteCoordinates(coordinates, 260);
+  if (sampled.length < 10) {
+    return { outAndBackSpurScore: 0, maxOutAndBackKm: 0 };
+  }
+
+  const cumulativeKm = [0];
+  for (let i = 1; i < sampled.length; i++) {
+    cumulativeKm[i] = cumulativeKm[i - 1] + getDistanceFromLatLon(
+      sampled[i - 1][1], sampled[i - 1][0],
+      sampled[i][1], sampled[i][0]
+    );
+  }
+
+  let spurCount = 0;
+  let maxOutAndBackKm = 0;
+
+  // Detect local "go out and come back close to the same point" artifacts.
+  for (let i = 10; i < sampled.length; i++) {
+    for (let j = 0; j < i - 8; j++) {
+      const closureKm = getDistanceFromLatLon(sampled[i][1], sampled[i][0], sampled[j][1], sampled[j][0]);
+      if (closureKm > 0.02) {
+        continue;
+      }
+
+      const pathKm = cumulativeKm[i] - cumulativeKm[j];
+      if (pathKm < 0.18 || pathKm > 4.5) {
+        continue;
+      }
+
+      const outAndBackKm = Math.max(0, pathKm - closureKm);
+      if (outAndBackKm < 0.14) {
+        continue;
+      }
+
+      spurCount += 1;
+      if (outAndBackKm > maxOutAndBackKm) {
+        maxOutAndBackKm = outAndBackKm;
+      }
+      break;
+    }
+  }
+
+  const outAndBackSpurScore = Math.min(1, maxOutAndBackKm / 0.9 + spurCount * 0.12);
+  return { outAndBackSpurScore, maxOutAndBackKm };
+}
+
+function computeBacktrackingScore(coordinates) {
+  if (!Array.isArray(coordinates) || coordinates.length < 8) {
+    return 0;
+  }
+
+  const sampled = sampleRouteCoordinates(coordinates, 240);
+  const cumulativeKm = [0];
+  for (let i = 1; i < sampled.length; i++) {
+    cumulativeKm[i] = cumulativeKm[i - 1] + getDistanceFromLatLon(
+      sampled[i - 1][1], sampled[i - 1][0],
+      sampled[i][1], sampled[i][0]
+    );
+  }
+
+  let revisits = 0;
+  let uTurns = 0;
+  for (let i = 6; i < sampled.length; i++) {
+    const current = sampled[i];
+    for (let j = 0; j < i - 4; j++) {
+      if (cumulativeKm[i] - cumulativeKm[j] < 0.35) {
+        continue;
+      }
+      const distanceKm = getDistanceFromLatLon(current[1], current[0], sampled[j][1], sampled[j][0]);
+      if (distanceKm < 0.03) {
+        revisits += 1;
+        break;
+      }
+    }
+  }
+
+  for (let i = 2; i < sampled.length - 2; i++) {
+    const angle = Math.abs(turnAngleDegrees(sampled[i - 2], sampled[i], sampled[i + 2]));
+    const localDistanceKm = getDistanceFromLatLon(sampled[i - 2][1], sampled[i - 2][0], sampled[i][1], sampled[i][0])
+      + getDistanceFromLatLon(sampled[i][1], sampled[i][0], sampled[i + 2][1], sampled[i + 2][0]);
+    if (angle > 160 && localDistanceKm < 0.25) {
+      uTurns += 1;
+    }
+  }
+
+  // Scale down incidental near-parallel revisits; keep explicit U-turns stronger.
+  return sampled.length ? Math.min(1, (revisits + uTurns * 3) / (sampled.length * 5)) : 0;
+}
+
+function computeSegmentRegressionScores(coordinates, requestedPoints = []) {
+  // Axis regression is only meaningful when at least one explicit via segment exists.
+  // For plain start->end routes, this metric over-penalizes legitimate scenic arcs.
+  if (!Array.isArray(coordinates) || coordinates.length < 8 || !Array.isArray(requestedPoints) || requestedPoints.length < 3) {
+    return { axisRegressionScore: 0, corridorDetourScore: 0 };
+  }
+
+  const route = coordinates.map((coord) => [coord[1], coord[0]]);
+  const vias = requestedPoints.map((point) => [Number(point[0]), Number(point[1])])
+    .filter((point) => Number.isFinite(point[0]) && Number.isFinite(point[1]));
+  if (vias.length < 2) {
+    return { axisRegressionScore: 0, corridorDetourScore: 0 };
+  }
+
+  let worstRegression = 0;
+  let worstCorridor = 0;
+  let searchStart = 0;
+
+  for (let viaIndex = 0; viaIndex < vias.length - 1; viaIndex++) {
+    const a = vias[viaIndex];
+    const b = vias[viaIndex + 1];
+    const startIndex = findNearestRouteIndex(route, a, searchStart);
+    const endIndex = findNearestRouteIndex(route, b, startIndex + 1);
+    if (startIndex < 0 || endIndex <= startIndex + 4) {
+      continue;
+    }
+
+    const segment = route.slice(startIndex, endIndex + 1);
+    const segmentScore = computeAxisRegressionForSegment(segment, a, b);
+    worstRegression = Math.max(worstRegression, segmentScore.axisRegressionScore);
+    worstCorridor = Math.max(worstCorridor, segmentScore.corridorDetourScore);
+    searchStart = endIndex;
+  }
+
+  return {
+    axisRegressionScore: worstRegression,
+    corridorDetourScore: worstCorridor
+  };
+}
+
+function computeAxisRegressionForSegment(segment, start, end) {
+  const axis = toLocalVector(start, end, start);
+  const axisLength2 = axis.x * axis.x + axis.y * axis.y;
+  if (axisLength2 <= 1e-10) {
+    return { axisRegressionScore: 0, corridorDetourScore: 0 };
+  }
+
+  let previousProjection = null;
+  let negativeDistanceKm = 0;
+  let totalDistanceKm = 0;
+  let maxCorridorKm = 0;
+
+  for (let i = 0; i < segment.length; i++) {
+    const local = toLocalVector(start, segment[i], start);
+    const projection = (local.x * axis.x + local.y * axis.y) / axisLength2;
+    const cross = Math.abs(local.x * axis.y - local.y * axis.x) / Math.sqrt(axisLength2);
+    maxCorridorKm = Math.max(maxCorridorKm, cross);
+
+    if (i > 0) {
+      const stepKm = getDistanceFromLatLon(segment[i - 1][0], segment[i - 1][1], segment[i][0], segment[i][1]);
+      totalDistanceKm += stepKm;
+      if (projection < previousProjection - 0.015) {
+        negativeDistanceKm += stepKm;
+      }
+    }
+
+    previousProjection = projection;
+  }
+
+  const axisDistanceKm = getDistanceFromLatLon(start[0], start[1], end[0], end[1]);
+  const corridorLimitKm = Math.max(0.45, axisDistanceKm * 0.45);
+
+  return {
+    axisRegressionScore: totalDistanceKm ? negativeDistanceKm / totalDistanceKm : 0,
+    corridorDetourScore: Math.max(0, (maxCorridorKm - corridorLimitKm) / Math.max(corridorLimitKm, 0.1))
+  };
+}
+
+function findNearestRouteIndex(route, point, startIndex = 0) {
+  let bestIndex = -1;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let i = Math.max(0, startIndex); i < route.length; i++) {
+    const distance = getDistanceFromLatLon(route[i][0], route[i][1], point[0], point[1]);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = i;
+    }
+  }
+  return bestIndex;
+}
+
+function toLocalVector(origin, point, reference) {
+  const latScale = 111.32;
+  const lonScale = 111.32 * Math.cos((reference[0] || origin[0]) * Math.PI / 180);
+  return {
+    x: (point[1] - origin[1]) * lonScale,
+    y: (point[0] - origin[0]) * latScale
+  };
+}
+
+async function selectByCyclewayAffinity(baseCandidates, guidedRoute, start, end, bikeType, preference, rideType = 'z2', hasIntermediateVias = false) {
   const routePool = [...baseCandidates];
   if (guidedRoute) {
     routePool.push(guidedRoute);
@@ -576,9 +943,26 @@ async function selectByCyclewayAffinity(baseCandidates, guidedRoute, start, end,
   const majorRoadPoints = await loadMajorRoadNetwork(start, end);
 
   const fastestDistance = Math.min(...routePool.map((r) => r.distance || Number.POSITIVE_INFINITY));
+  const maxShapePenalty = preference === 'fastest' ? 0.03 : 0.06;
+  const maxDetourFactor = hasIntermediateVias
+    ? (preference === 'offroad' ? 1.2 : 1.15)
+    : (preference === 'offroad' ? 1.9 : (preference === 'scenic' ? 1.45 : 1.2));
+  const eligibleRoutes = routePool.filter((route) => {
+    const shapePenalty = getRouteShapePenalty(route);
+    const detourFactor = (route.distance || fastestDistance) / Math.max(fastestDistance, 1);
+    const unsafeRailCrossings = Number(route && route._unsafeRailCrossings) || 0;
+    return shapePenalty <= maxShapePenalty
+      && detourFactor <= maxDetourFactor
+      && unsafeRailCrossings <= 0;
+  });
+
+  if (!eligibleRoutes.length) {
+    return null;
+  }
+
   let best = null;
 
-  for (const route of routePool) {
+  for (const route of eligibleRoutes) {
     const metrics = scoreRouteCycleAffinity(
       route,
       networkPoints,
@@ -594,6 +978,10 @@ async function selectByCyclewayAffinity(baseCandidates, guidedRoute, start, end,
   }
 
   if (!best) {
+    return null;
+  }
+
+  if (best.metrics.backtrackingScore > maxShapePenalty) {
     return null;
   }
 
@@ -814,6 +1202,7 @@ function scoreRouteCycleAffinity(route, networkPoints, majorRoadPoints, fastestD
   const offroadWeight = (preference === 'offroad' || bikeKind === 'mtb') ? 80 : 20;
   const detourPenaltyWeight = preference === 'fastest' ? 120 : 50;
   const majorRoadPenaltyWeight = preference === 'fastest' ? 190 : 240;
+  const backtrackingPenaltyWeight = preference === 'fastest' ? 220 : 340;
 
   // Ride-type hill preference: SST/Threshold reward ascent; TT/Z2 treat it neutrally.
   const ascentM = route.ascent || 0;
@@ -825,7 +1214,9 @@ function scoreRouteCycleAffinity(route, networkPoints, majorRoadPoints, fastestD
     cycleCoverage * cycleWeight +
     offroadCoverage * offroadWeight -
     majorRoadCoverage * majorRoadPenaltyWeight -
+    (getRouteShapePenalty(route) || computeBacktrackingScore(coords)) * backtrackingPenaltyWeight -
     Math.max(0, detourFactor - 1) * detourPenaltyWeight +
+    (Number(route && route._unsafeRailCrossings) || 0) * -1200 +
     hillBonus;
 
   return {
@@ -833,8 +1224,251 @@ function scoreRouteCycleAffinity(route, networkPoints, majorRoadPoints, fastestD
     cycleCoverage,
     offroadCoverage,
     majorRoadCoverage,
-    detourFactor
+    backtrackingScore: getRouteShapePenalty(route) || computeBacktrackingScore(coords),
+    detourFactor,
+    unsafeRailCrossings: Number(route && route._unsafeRailCrossings) || 0
   };
+}
+
+async function loadRailwaySafetyData(points) {
+  if (!Array.isArray(points) || points.length < 2) {
+    return { available: false, railSegments: [], crossingPoints: [] };
+  }
+
+  const bounds = getBoundsFromLatLonPoints(points, 0.03, 0.05);
+  if (!bounds) {
+    return { available: false, railSegments: [], crossingPoints: [] };
+  }
+
+  const approxDistanceKm = getPolylineDistanceKmFromLatLonPoints(points);
+  if (approxDistanceKm > 140) {
+    // Avoid huge Overpass requests for long routes.
+    return { available: false, railSegments: [], crossingPoints: [] };
+  }
+
+  const bbox = `${bounds.minLat},${bounds.minLon},${bounds.maxLat},${bounds.maxLon}`;
+  const query = `[out:json][timeout:22];(
+way["railway"~"rail|light_rail|tram|narrow_gauge|subway"]["disused"!="yes"]["abandoned"!="yes"]["construction"!="yes"]["bridge"!="yes"]["tunnel"!="yes"](${bbox});
+node["railway"~"level_crossing|crossing"](${bbox});
+node["crossing"="railway"](${bbox});
+);out geom;`;
+
+  try {
+    const elements = await fetchOverpassElements('railway-safety', query, 22000);
+    const railSegments = [];
+    const crossingPoints = [];
+
+    for (const element of elements) {
+      if (element.type === 'way' && Array.isArray(element.geometry)) {
+        for (let i = 1; i < element.geometry.length; i++) {
+          const prev = element.geometry[i - 1];
+          const curr = element.geometry[i];
+          if (!prev || !curr) {
+            continue;
+          }
+          railSegments.push({
+            a: [prev.lat, prev.lon],
+            b: [curr.lat, curr.lon],
+            bbox: getSegmentBounds([prev.lat, prev.lon], [curr.lat, curr.lon])
+          });
+        }
+      }
+
+      if (element.type === 'node' && Number.isFinite(element.lat) && Number.isFinite(element.lon)) {
+        crossingPoints.push({ lat: element.lat, lon: element.lon });
+      }
+
+      if (railSegments.length > 25000 && crossingPoints.length > 3000) {
+        break;
+      }
+    }
+
+    return {
+      available: railSegments.length > 0,
+      railSegments,
+      crossingPoints
+    };
+  } catch (error) {
+    logOptionalLookupFailure('Railway safety', error);
+    return { available: false, railSegments: [], crossingPoints: [] };
+  }
+}
+
+function partitionRoutesByRailwaySafety(routes, railwaySafetyData) {
+  if (!Array.isArray(routes) || !routes.length) {
+    return { safeRoutes: [], unsafeRoutes: [] };
+  }
+
+  if (!railwaySafetyData || !railwaySafetyData.available) {
+    return { safeRoutes: routes, unsafeRoutes: [] };
+  }
+
+  const safeRoutes = [];
+  const unsafeRoutes = [];
+  for (const route of routes) {
+    const safety = assessRouteRailwaySafety(route, railwaySafetyData);
+    route._unsafeRailCrossings = safety.unsafeCrossings;
+    if (safety.hasUnsafeCrossing) {
+      unsafeRoutes.push(route);
+    } else {
+      safeRoutes.push(route);
+    }
+  }
+
+  return { safeRoutes, unsafeRoutes };
+}
+
+function assessRouteRailwaySafety(route, railwaySafetyData) {
+  const coords = route && route.geometry && Array.isArray(route.geometry.coordinates)
+    ? route.geometry.coordinates
+    : [];
+  if (!coords.length || !railwaySafetyData || !railwaySafetyData.available) {
+    return { unsafeCrossings: 0, hasUnsafeCrossing: false };
+  }
+
+  const sampled = sampleRouteCoordinates(coords, 320);
+  let unsafeCrossings = 0;
+  const seenCrossingPoints = [];
+
+  for (let i = 1; i < sampled.length; i++) {
+    const prev = [sampled[i - 1][1], sampled[i - 1][0]]; // [lat, lon]
+    const curr = [sampled[i][1], sampled[i][0]];
+    const routeBbox = getSegmentBounds(prev, curr);
+
+    for (const railSegment of railwaySafetyData.railSegments) {
+      if (!bboxesOverlap(routeBbox, railSegment.bbox)) {
+        continue;
+      }
+
+      if (!segmentsIntersectLatLon(prev, curr, railSegment.a, railSegment.b)) {
+        continue;
+      }
+
+      const intersection = segmentIntersectionPointLatLon(prev, curr, railSegment.a, railSegment.b)
+        || [
+          (prev[0] + curr[0]) / 2,
+          (prev[1] + curr[1]) / 2
+        ];
+
+      const alreadySeen = seenCrossingPoints.some((p) => (
+        getDistanceFromLatLon(p[0], p[1], intersection[0], intersection[1]) <= 0.08
+      ));
+      if (alreadySeen) {
+        continue;
+      }
+
+      seenCrossingPoints.push(intersection);
+
+      const nearestCrossing = railwaySafetyData.crossingPoints.length
+        ? findNearestNetworkPointKm(intersection[0], intersection[1], railwaySafetyData.crossingPoints)
+        : null;
+      const isSafeCrossing = Boolean(nearestCrossing && nearestCrossing.distanceKm <= 0.06);
+
+      if (!isSafeCrossing) {
+        unsafeCrossings += 1;
+      }
+
+      break;
+    }
+  }
+
+  return {
+    unsafeCrossings,
+    hasUnsafeCrossing: unsafeCrossings > 0
+  };
+}
+
+function getSegmentBounds(a, b) {
+  return {
+    minLat: Math.min(a[0], b[0]),
+    maxLat: Math.max(a[0], b[0]),
+    minLon: Math.min(a[1], b[1]),
+    maxLon: Math.max(a[1], b[1])
+  };
+}
+
+function bboxesOverlap(a, b) {
+  return !(a.maxLat < b.minLat || a.minLat > b.maxLat || a.maxLon < b.minLon || a.minLon > b.maxLon);
+}
+
+function segmentsIntersectLatLon(a1, a2, b1, b2) {
+  const o1 = orientation(a1, a2, b1);
+  const o2 = orientation(a1, a2, b2);
+  const o3 = orientation(b1, b2, a1);
+  const o4 = orientation(b1, b2, a2);
+
+  if (o1 !== o2 && o3 !== o4) {
+    return true;
+  }
+
+  if (o1 === 0 && onSegment(a1, b1, a2)) return true;
+  if (o2 === 0 && onSegment(a1, b2, a2)) return true;
+  if (o3 === 0 && onSegment(b1, a1, b2)) return true;
+  if (o4 === 0 && onSegment(b1, a2, b2)) return true;
+  return false;
+}
+
+function orientation(p, q, r) {
+  const val = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1]);
+  if (Math.abs(val) < 1e-12) return 0;
+  return val > 0 ? 1 : 2;
+}
+
+function onSegment(p, q, r) {
+  return (
+    q[0] <= Math.max(p[0], r[0]) && q[0] >= Math.min(p[0], r[0])
+    && q[1] <= Math.max(p[1], r[1]) && q[1] >= Math.min(p[1], r[1])
+  );
+}
+
+function segmentIntersectionPointLatLon(a1, a2, b1, b2) {
+  const x1 = a1[1];
+  const y1 = a1[0];
+  const x2 = a2[1];
+  const y2 = a2[0];
+  const x3 = b1[1];
+  const y3 = b1[0];
+  const x4 = b2[1];
+  const y4 = b2[0];
+
+  const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+  if (Math.abs(den) < 1e-14) {
+    return null;
+  }
+
+  const px = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / den;
+  const py = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / den;
+  return [py, px];
+}
+
+function getBoundsFromLatLonPoints(points, latPad = 0, lonPad = 0) {
+  const valid = points
+    .map((p) => [Number(p[0]), Number(p[1])])
+    .filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+
+  if (!valid.length) {
+    return null;
+  }
+
+  const lats = valid.map((p) => p[0]);
+  const lons = valid.map((p) => p[1]);
+
+  return {
+    minLat: Math.min(...lats) - latPad,
+    maxLat: Math.max(...lats) + latPad,
+    minLon: Math.min(...lons) - lonPad,
+    maxLon: Math.max(...lons) + lonPad
+  };
+}
+
+function getPolylineDistanceKmFromLatLonPoints(points) {
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    total += getDistanceFromLatLon(Number(a[0]), Number(a[1]), Number(b[0]), Number(b[1]));
+  }
+  return total;
 }
 
 function sampleRouteCoordinates(coordinates, maxPoints) {
@@ -875,9 +1509,10 @@ function findNearestNetworkPointKm(lat, lon, networkPoints) {
   return { point: best, distanceKm: bestDist };
 }
 
-function pickPreferredRoute(candidates, guidedRoute, preference, rideType = 'z2') {
+function pickPreferredRoute(candidates, guidedRoute, preference, rideType = 'z2', hasIntermediateVias = false) {
+  const routeRank = (route) => (route.duration || 0) + (getRouteShapePenalty(route) || computeBacktrackingScore(route.geometry?.coordinates)) * 3000;
   const fastest = candidates.reduce((acc, route) => {
-    if (!acc || route.duration < acc.duration) {
+    if (!acc || routeRank(route) < routeRank(acc)) {
       return route;
     }
     return acc;
@@ -889,7 +1524,9 @@ function pickPreferredRoute(candidates, guidedRoute, preference, rideType = 'z2'
 
   if (guidedRoute && fastest) {
     const detourFactor = guidedRoute.distance / Math.max(fastest.distance, 1);
-    const maxDetour = preference === 'offroad' ? 2.5 : 1.9;
+    const maxDetour = hasIntermediateVias
+      ? (preference === 'offroad' ? 1.2 : 1.15)
+      : (preference === 'offroad' ? 2.5 : 1.9);
     if (detourFactor <= maxDetour) {
       return {
         route: guidedRoute,
@@ -898,8 +1535,13 @@ function pickPreferredRoute(candidates, guidedRoute, preference, rideType = 'z2'
     }
   }
 
+  // With intermediate vias, prefer the best-ranked candidate directly to avoid massive detours.
+  if (hasIntermediateVias) {
+    return fastest ? { route: fastest, strategy: `${preference}-via-best` } : null;
+  }
+
   // Fallback if no guided route is available: prefer a non-fastest alternative.
-  const sorted = [...candidates].sort((a, b) => a.duration - b.duration);
+  const sorted = [...candidates].sort((a, b) => routeRank(a) - routeRank(b));
   const alt = sorted[1] || sorted[0];
   return alt ? { route: alt, strategy: `${preference}-alternative` } : null;
 }
@@ -998,6 +1640,21 @@ function dedupePoints(points) {
     }
   }
   return out;
+}
+
+function turnAngleDegrees(before, current, after) {
+  const incoming = bearingDegrees(current, before);
+  const outgoing = bearingDegrees(current, after);
+  let diff = outgoing - incoming;
+  while (diff > 180) diff -= 360;
+  while (diff < -180) diff += 360;
+  return diff;
+}
+
+function bearingDegrees(from, to) {
+  const dy = to[1] - from[1];
+  const dx = (to[0] - from[0]) * Math.cos(from[1] * Math.PI / 180);
+  return Math.atan2(dx, dy) * 180 / Math.PI;
 }
 
 function distancePointToSegmentKm(px, py, ax, ay, bx, by) {

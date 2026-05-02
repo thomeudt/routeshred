@@ -10,6 +10,7 @@ const API_BASE = rawApiUrl
 export const useRouteStore = create((set, get) => ({
   // State
   route: null,
+  returnRoute: null,
   startPoint: null,
   startLabel: '',
   endPoint: null,
@@ -20,6 +21,7 @@ export const useRouteStore = create((set, get) => ({
   preference: 'scenic',
   rideType: 'z2',
   riderProfile: { ftp: 250, weight: 87 },
+  includeReturnTrip: false,
   loading: false,
   error: null,
 
@@ -44,75 +46,139 @@ export const useRouteStore = create((set, get) => ({
       }));
     }
   },
-  setStartPoint: (point, label = '') => set({ startPoint: point, startLabel: label, route: null }),
-  setEndPoint: (point, label = '') => set({ endPoint: point, endLabel: label, route: null }),
-  addWaypoint: (point = null, label = '') => set((state) => ({
-    waypoints: [
-      ...state.waypoints,
-      { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, point, label }
-    ],
-    route: null
-  })),
-  updateWaypoint: (id, point, label = '') => set((state) => ({
-    waypoints: state.waypoints.map((waypoint) => (
-      waypoint.id === id ? { ...waypoint, point, label } : waypoint
-    )),
-    route: null
-  })),
-  removeWaypoint: (id) => set((state) => ({
-    waypoints: state.waypoints.filter((waypoint) => waypoint.id !== id),
-    route: null
-  })),
+  setStartPoint: async (point, label = '') => {
+    set({ startPoint: point, startLabel: label, route: null, returnRoute: null });
+  },
+  setEndPoint: async (point, label = '') => {
+    set({ endPoint: point, endLabel: label, route: null, returnRoute: null });
+  },
+  addWaypoint: async (point = null, label = '') => {
+    set((state) => ({
+      waypoints: [
+        ...state.waypoints,
+        { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, point, label }
+      ],
+      route: null,
+      returnRoute: null
+    }));
+  },
+  insertWaypoint: async (point = null, label = '', atIndex = null) => {
+    set((state) => {
+      const nextWaypoint = { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, point, label };
+      const waypoints = [...state.waypoints];
+      const idx = Number.isInteger(atIndex)
+        ? Math.max(0, Math.min(atIndex, waypoints.length))
+        : waypoints.length;
+      waypoints.splice(idx, 0, nextWaypoint);
+      return { waypoints, route: null, returnRoute: null };
+    });
+  },
+  updateWaypoint: async (id, point, label = '') => {
+    set((state) => ({
+      waypoints: state.waypoints.map((waypoint) => (
+        waypoint.id === id ? { ...waypoint, point, label } : waypoint
+      )),
+      route: null,
+      returnRoute: null
+    }));
+  },
+  removeWaypoint: async (id) => {
+    set((state) => ({
+      waypoints: state.waypoints.filter((waypoint) => waypoint.id !== id),
+      route: null,
+      returnRoute: null
+    }));
+  },
+  moveWaypoint: async (fromIndex, toIndex) => {
+    set((state) => {
+      const waypoints = [...state.waypoints];
+      if (
+        !Number.isInteger(fromIndex)
+        || !Number.isInteger(toIndex)
+        || fromIndex < 0
+        || fromIndex >= waypoints.length
+        || toIndex < 0
+        || toIndex >= waypoints.length
+        || fromIndex === toIndex
+      ) {
+        return state;
+      }
+
+      const [moved] = waypoints.splice(fromIndex, 1);
+      waypoints.splice(toIndex, 0, moved);
+      return { waypoints, route: null, returnRoute: null };
+    });
+  },
   setRideType: async (type) => {
-    const { rideType, startPoint, endPoint, loading } = get();
+    const { rideType } = get();
     if (rideType === type) return;
-    set({ rideType: type });
-    if (startPoint && endPoint && !loading) await get().calculateRoute();
+    set({ rideType: type, route: null, returnRoute: null });
   },
   setRiderProfile: async (profile) => {
-    const { startPoint, endPoint, loading } = get();
-    set({ riderProfile: { ...get().riderProfile, ...profile } });
-    if (startPoint && endPoint && !loading) {
-      await get().calculateRoute();
-    }
+    set({ riderProfile: { ...get().riderProfile, ...profile }, route: null, returnRoute: null });
   },
   setBikeType: async (type) => {
-    const { bikeType, startPoint, endPoint, loading } = get();
+    const { bikeType } = get();
     if (bikeType === type) {
       return;
     }
 
-    set({ bikeType: type });
-
-    if (startPoint && endPoint && !loading) {
-      await get().calculateRoute();
-    }
+    set({ bikeType: type, route: null, returnRoute: null });
   },
   setPreference: async (pref) => {
-    const { preference, startPoint, endPoint, loading } = get();
+    const { preference } = get();
     if (preference === pref) {
       return;
     }
 
-    set({ preference: pref });
-
-    if (startPoint && endPoint && !loading) {
-      await get().calculateRoute();
-    }
+    set({ preference: pref, route: null, returnRoute: null });
   },
   resetRoute: () => set({
     route: null,
+    returnRoute: null,
     startPoint: null,
     startLabel: '',
     endPoint: null,
     endLabel: '',
     waypoints: [],
+    includeReturnTrip: false,
     loading: false,
     error: null
   }),
 
+  setIncludeReturnTrip: async (enabled) => {
+    const { includeReturnTrip } = get();
+    if (includeReturnTrip === enabled) {
+      return;
+    }
+
+    set({ includeReturnTrip: enabled, route: null, returnRoute: null });
+  },
+
+  reverseRoute: async () => {
+    const { startPoint, endPoint, startLabel, endLabel } = get();
+    set((state) => ({
+      startPoint: endPoint,
+      endPoint: startPoint,
+      startLabel: endLabel,
+      endLabel: startLabel,
+      waypoints: [...state.waypoints].reverse(),
+      route: null,
+      returnRoute: null
+    }));
+  },
+
   calculateRoute: async () => {
-    const { startPoint, endPoint, bikeType, preference, rideType, riderProfile, waypoints } = get();
+    const {
+      startPoint,
+      endPoint,
+      bikeType,
+      preference,
+      rideType,
+      riderProfile,
+      waypoints,
+      includeReturnTrip
+    } = get();
 
     if (!bikeType) {
       await get().loadBikeProfiles();
@@ -127,17 +193,32 @@ export const useRouteStore = create((set, get) => ({
 
     try {
       const selectedBikeType = get().bikeType || 'road';
+      const waypointPoints = waypoints.map((waypoint) => waypoint.point).filter(Boolean);
       const response = await axios.post(`${API_BASE}/routing/route`, {
         start: startPoint,
         end: endPoint,
-        waypoints: waypoints.map((waypoint) => waypoint.point).filter(Boolean),
+        waypoints: waypointPoints,
         bikeType: selectedBikeType,
         preference,
         rideType,
         riderProfile
       });
 
-      set({ route: response.data, loading: false });
+      let returnRoute = null;
+      if (includeReturnTrip) {
+        const returnResponse = await axios.post(`${API_BASE}/routing/route`, {
+          start: endPoint,
+          end: startPoint,
+          waypoints: [...waypointPoints].reverse(),
+          bikeType: selectedBikeType,
+          preference,
+          rideType,
+          riderProfile
+        });
+        returnRoute = returnResponse.data;
+      }
+
+      set({ route: response.data, returnRoute, loading: false });
     } catch (error) {
       set({
         error: error.response?.data?.message || t('route.errors.calculateFailed'),

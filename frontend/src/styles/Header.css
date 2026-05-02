@@ -7,9 +7,15 @@
 
 .header-content {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 24px;
+}
+
+.header-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
 }
 
 .header-content h1 {
@@ -26,4 +32,48 @@
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
+}
+
+.header-auth {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-pill {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.header-btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.header-btn:hover {
+  border-color: var(--accent);
+}
+
+@media (max-width: 768px) {
+  .header-content {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .header-brand {
+    flex-direction: column;
+    gap: 4px;
+  }
 }

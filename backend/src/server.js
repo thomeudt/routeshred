@@ -5,6 +5,8 @@ const routingRouter = require('./routes/routing');
 const elevationRouter = require('./routes/elevation');
 const exportRouter = require('./routes/export');
 const geocodeRouter = require('./routes/geocode');
+const authRouter = require('./routes/auth');
+const profileRouter = require('./routes/profile');
 const { getRoutingEngineInfo } = require('./services/routingService');
 
 const app = express();
@@ -21,6 +23,8 @@ app.use('/api/routing', routingRouter);
 app.use('/api/elevation', elevationRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/geocode', geocodeRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/profile', profileRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

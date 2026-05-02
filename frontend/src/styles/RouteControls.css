@@ -238,15 +238,128 @@
 
 .waypoint-row {
   display: grid;
-  grid-template-columns: 1fr 34px;
+  grid-template-columns: 1fr auto;
   gap: 6px;
   align-items: end;
 }
 
+.waypoint-actions {
+  display: grid;
+  grid-template-columns: 34px 34px 34px 34px;
+  gap: 4px;
+}
+
+.waypoint-drag,
+.waypoint-move,
 .waypoint-remove {
   height: 38px;
   border: 1px solid var(--border);
   background: var(--surface);
+}
+
+.waypoint-drag {
+  color: var(--text-secondary);
+  cursor: grab;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.waypoint-drag:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.waypoint-drag:active {
+  cursor: grabbing;
+}
+
+.waypoint-move {
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.waypoint-move:hover:not(:disabled) {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.waypoint-move:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.waypoint-insert {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px dashed var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 7px 8px;
+  cursor: pointer;
+  min-height: 30px;
+}
+
+.waypoint-insert:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.waypoint-insert.is-drag-mode {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  background: color-mix(in srgb, var(--primary) 6%, var(--surface-subtle));
+}
+
+.waypoint-insert.is-drop-target {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 16%, var(--surface-subtle));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+.waypoint-hint {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  margin: 2px 2px 0;
+}
+
+.location-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.return-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.return-toggle input {
+  width: 14px;
+  height: 14px;
+}
+
+.return-toggle span {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .btn-compact {
@@ -596,6 +709,10 @@
 .stat-item strong {
   color: var(--text-primary);
   font-weight: 700;
+}
+
+.stat-item-return {
+  color: #2f7dd1;
 }
 
 .export-buttons {

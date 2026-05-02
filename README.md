@@ -93,6 +93,10 @@ npm run dev:brouter
 # Start dev mode with Docker-managed BRouter + app stack
 npm run dev:brouter:docker
 
+# Start/stop only Keycloak
+npm run keycloak:up
+npm run keycloak:down
+
 # Or run separately:
 npm run dev --workspace=frontend  # Runs on http://localhost:3000
 npm run dev --workspace=backend   # Runs on http://localhost:5050
@@ -150,6 +154,7 @@ Cached locally:
 - Elevation profiles from Open-Meteo/Open-Elevation
 - Overpass cycleway, major-road, and waypoint lookup responses
 - BRouter `.rd5` routing segments in `brouter-data/segments4`
+- User profiles in `data/profiles` (when Keycloak auth is enabled)
 
 Useful cache settings:
 
@@ -188,6 +193,41 @@ curl http://localhost:5050/api/health
 
 If BRouter is unavailable, RouteShred automatically falls back to OSRM so routing keeps working.
 
+### Authentication With Keycloak
+
+RouteShred supports Keycloak as Identity Provider (OIDC) for user login and
+persistent rider profiles.
+
+1. Start Keycloak (realm import is automatic):
+
+```bash
+docker compose up -d keycloak keycloak-db
+```
+
+2. Configure backend (`.env` at project root):
+
+```env
+KEYCLOAK_ENABLED=true
+KEYCLOAK_URL=http://localhost:8080
+KEYCLOAK_REALM=routeshred
+KEYCLOAK_CLIENT_ID=routeshred-frontend
+ROUTESHRED_PROFILE_DIR=./data/profiles
+```
+
+3. Configure frontend (`frontend/.env`):
+
+```env
+REACT_APP_KEYCLOAK_ENABLED=true
+REACT_APP_KEYCLOAK_URL=http://localhost:8080
+REACT_APP_KEYCLOAK_REALM=routeshred
+REACT_APP_KEYCLOAK_CLIENT_ID=routeshred-frontend
+```
+
+4. Restart frontend/backend and open `http://localhost:3000`.
+
+The header now shows login/logout and a profile save action. Saved profile data
+includes rider FTP/weight, selected bike profile and ride type.
+
 ## 🗺️ How to Use
 
 1. Open your browser to `http://localhost:3000`
@@ -204,6 +244,12 @@ If BRouter is unavailable, RouteShred automatically falls back to OSRM so routin
 ### Routing
 - `POST /api/routing/route` - Calculate bike route
 - `POST /api/routing/analyze` - Analyze route terrain
+
+### Auth/Profile
+- `GET /api/auth/config` - Keycloak runtime config
+- `GET /api/auth/me` - Authenticated user claims
+- `GET /api/profile` - Load authenticated user profile
+- `PUT /api/profile` - Save authenticated user profile
 
 ### Elevation
 - `POST /api/elevation/profile` - Get elevation profile for coordinates

@@ -33,6 +33,51 @@ main {
   overflow: hidden;
 }
 
+.login-screen {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 35%),
+    var(--bg-light);
+}
+
+.login-card {
+  width: min(520px, 100%);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 28px;
+}
+
+.login-card h2 {
+  margin: 0 0 10px;
+  font-size: 22px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.login-card p {
+  margin: 0 0 20px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.login-btn {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #111;
+  padding: 10px 14px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.login-btn:hover {
+  filter: brightness(1.05);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
