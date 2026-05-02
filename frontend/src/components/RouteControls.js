@@ -24,6 +24,8 @@ import {
 } from 'react-icons/fi';
 import LocationInput from './LocationInput';
 import RouteTypeStats from './RouteTypeStats';
+import SavedRoutesPanel from './SavedRoutesPanel';
+import GroupRidesPanel from './GroupRidesPanel';
 import { useAuth } from '../auth/AuthProvider';
 import '../styles/RouteControls.css';
 
@@ -241,7 +243,7 @@ function sampleGpxWaypoints(coordinates, maxWaypoints = 6) {
   return waypoints;
 }
 
-function RouteControls() {
+function RouteControls({ socialSurfacesMoved = false }) {
   const { enabled: authEnabled, authenticated, token, user } = useAuth();
   const [engine, setEngine] = useState('unknown');
   const [activeTab, setActiveTab] = useState('plan');
@@ -769,11 +771,19 @@ function RouteControls() {
         </div>
       </div>
 
-      {(activeTab === 'routes' || activeTab === 'community') && authEnabled && authenticated && (
+      {(activeTab === 'routes' || activeTab === 'community') && authEnabled && authenticated && socialSurfacesMoved && (
         <div className="panel-moved-note">
           <strong>{t(`route.tabs.${activeTab}`)}</strong>
           <span>{t('route.socialSurfaceHint')}</span>
         </div>
+      )}
+
+      {activeTab === 'routes' && authEnabled && authenticated && !socialSurfacesMoved && (
+        <SavedRoutesPanel context="mixed" />
+      )}
+
+      {activeTab === 'community' && authEnabled && authenticated && !socialSurfacesMoved && (
+        <GroupRidesPanel />
       )}
 
       {activeTab === 'plan' && (

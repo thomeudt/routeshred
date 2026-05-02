@@ -548,7 +548,7 @@ function MapComponent({ isMapVisible = true }) {
       )}
 
       <div className={`controls-panel${showSocialSurface ? ' controls-hidden' : ''}`}>
-        <RouteControls />
+        <RouteControls socialSurfacesMoved={showSocialSurface} />
         {route && !showSocialSurface && <ElevationProfile route={route} />}
       </div>
 
