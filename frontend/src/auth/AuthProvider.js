@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 import Keycloak from 'keycloak-js';
 
 const AuthContext = createContext(null);
@@ -96,6 +97,51 @@ export function AuthProvider({ children }) {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!KEYCLOAK_ENABLED || !authenticated) {
+      return undefined;
+    }
+
+    const interceptorId = axios.interceptors.request.use(async (config) => {
+      const url = String(config.url || '');
+      const isApiRequest = url.startsWith('/api') || url.includes('/api/');
+      if (!isApiRequest) {
+        return config;
+      }
+
+      const client = getKeycloakClient();
+      if (!client || !client.authenticated) {
+        return config;
+      }
+
+      try {
+        await client.updateToken(30);
+        setToken(client.token || null);
+        setUser(client.tokenParsed || null);
+        setAuthenticated(Boolean(client.authenticated));
+
+        config.headers = {
+          ...(config.headers || {}),
+          Authorization: `Bearer ${client.token}`
+        };
+      } catch (_) {
+        setAuthenticated(false);
+        setToken(null);
+        setUser(null);
+        if (config.headers) {
+          delete config.headers.Authorization;
+          delete config.headers.authorization;
+        }
+      }
+
+      return config;
+    });
+
+    return () => {
+      axios.interceptors.request.eject(interceptorId);
+    };
+  }, [authenticated]);
 
   const value = useMemo(() => ({
     enabled: KEYCLOAK_ENABLED,

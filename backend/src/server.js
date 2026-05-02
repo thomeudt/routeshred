@@ -10,6 +10,7 @@ const geocodeRouter = require('./routes/geocode');
 const authRouter = require('./routes/auth');
 const profileRouter = require('./routes/profile');
 const savedRoutesRouter = require('./routes/savedRoutes');
+const usersRouter = require('./routes/users');
 const { getRoutingEngineInfo } = require('./services/routingService');
 const { getKeycloakConfig } = require('./services/keycloakService');
 
@@ -30,6 +31,7 @@ app.use('/api/geocode', geocodeRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/profile', profileRouter);
 app.use('/api/routes', savedRoutesRouter);
+app.use('/api/users', usersRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

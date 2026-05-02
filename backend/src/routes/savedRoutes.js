@@ -3,10 +3,11 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const {
   listSavedRoutes,
-  readSavedRoute,
+  readVisibleSavedRoute,
   writeSavedRoute,
   deleteSavedRoute,
-  renameSavedRoute
+  renameSavedRoute,
+  updateSavedRouteSharing
 } = require('../services/savedRouteService');
 
 function getSubject(req, res) {
@@ -20,10 +21,11 @@ function getSubject(req, res) {
 
 router.get('/', requireAuth, async (req, res) => {
   try {
+    const user = req.auth.user || {};
     const sub = getSubject(req, res);
     if (!sub) return null;
 
-    return res.json({ routes: await listSavedRoutes(sub) });
+    return res.json({ routes: await listSavedRoutes(sub, user) });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to load saved routes', message: error.message });
   }
@@ -31,10 +33,11 @@ router.get('/', requireAuth, async (req, res) => {
 
 router.get('/:id', requireAuth, async (req, res) => {
   try {
+    const user = req.auth.user || {};
     const sub = getSubject(req, res);
     if (!sub) return null;
 
-    const route = await readSavedRoute(sub, req.params.id);
+    const route = await readVisibleSavedRoute(sub, req.query.owner || sub, req.params.id, user);
     if (!route) {
       return res.status(404).json({ error: 'Not found', message: 'Saved route not found' });
     }
@@ -47,10 +50,11 @@ router.get('/:id', requireAuth, async (req, res) => {
 
 router.post('/', requireAuth, async (req, res) => {
   try {
+    const user = req.auth.user || {};
     const sub = getSubject(req, res);
     if (!sub) return null;
 
-    const route = await writeSavedRoute(sub, req.body || {});
+    const route = await writeSavedRoute(sub, req.body || {}, user);
     return res.status(201).json({ route });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to save route', message: error.message });
@@ -59,10 +63,11 @@ router.post('/', requireAuth, async (req, res) => {
 
 router.put('/:id', requireAuth, async (req, res) => {
   try {
+    const user = req.auth.user || {};
     const sub = getSubject(req, res);
     if (!sub) return null;
 
-    const route = await writeSavedRoute(sub, { ...(req.body || {}), id: req.params.id });
+    const route = await writeSavedRoute(sub, { ...(req.body || {}), id: req.params.id }, user);
     return res.json({ route });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to save route', message: error.message });
@@ -74,7 +79,10 @@ router.patch('/:id', requireAuth, async (req, res) => {
     const sub = getSubject(req, res);
     if (!sub) return null;
 
-    const route = await renameSavedRoute(sub, req.params.id, req.body && req.body.name);
+    const payload = req.body || {};
+    const route = payload.name !== undefined
+      ? await renameSavedRoute(sub, req.params.id, payload.name)
+      : await updateSavedRouteSharing(sub, req.params.id, payload);
     if (!route) {
       return res.status(404).json({ error: 'Not found', message: 'Saved route not found' });
     }

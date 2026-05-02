@@ -1,8 +1,25 @@
-import React, { useMemo, useState } from 'react';
-import { FiCheck, FiEdit2, FiFolder, FiSave, FiSearch, FiTrash2, FiX } from 'react-icons/fi';
+import React, { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
+import {
+  FiCheck,
+  FiEdit2,
+  FiFolder,
+  FiGlobe,
+  FiLock,
+  FiSave,
+  FiSearch,
+  FiShare2,
+  FiTrash2,
+  FiX
+} from 'react-icons/fi';
 import { useAuth } from '../auth/AuthProvider';
 import { t } from '../i18n';
 import { useRouteStore } from '../store/routeStore';
+
+const rawApiUrl = (process.env.REACT_APP_API_URL || '').trim().replace(/\/$/, '');
+const API_BASE = rawApiUrl
+  ? (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`)
+  : '/api';
 
 function formatDistance(meters) {
   const value = Number(meters) || 0;
@@ -14,23 +31,42 @@ function formatDuration(seconds) {
   return value > 0 ? `${Math.round(value / 60)} min` : '—';
 }
 
+function getRouteSourceLabel(savedRoute) {
+  if (savedRoute.access === 'own') {
+    return t('route.saved.own');
+  }
+
+  const owner = savedRoute.ownerName || t('common.unknown');
+  return savedRoute.access === 'public'
+    ? t('route.saved.publicBy', { owner })
+    : t('route.saved.sharedBy', { owner });
+}
+
 function SavedRoutesPanel() {
   const { token } = useAuth();
   const [query, setQuery] = useState('');
   const [routeName, setRouteName] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
+  const [sharingId, setSharingId] = useState(null);
+  const [shareQuery, setShareQuery] = useState('');
+  const [shareDraftIds, setShareDraftIds] = useState([]);
+  const [userSuggestions, setUserSuggestions] = useState([]);
+  const [sharedUserLabels, setSharedUserLabels] = useState({});
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
   const {
     route,
     savedRoutes,
     savedRoutesLoading,
     savedRoutesError,
     activeSavedRouteId,
+    activeSavedRouteOwner,
     routeSaveState,
     saveCurrentRoute,
     loadSavedRoute,
     deleteSavedRoute,
-    renameSavedRoute
+    renameSavedRoute,
+    updateSavedRouteSharing
   } = useRouteStore();
 
   const filteredRoutes = useMemo(() => {
@@ -44,12 +80,81 @@ function SavedRoutesPanel() {
       savedRoute.startLabel,
       savedRoute.endLabel,
       savedRoute.bikeType,
-      savedRoute.rideType
+      savedRoute.rideType,
+      savedRoute.ownerName,
+      savedRoute.access
     ].some((value) => String(value || '').toLowerCase().includes(needle)));
   }, [query, savedRoutes]);
 
+  const routeKey = (savedRoute) => `${savedRoute.ownerSub || ''}:${savedRoute.id}`;
+
+  useEffect(() => {
+    let mounted = true;
+    const needle = shareQuery.trim();
+
+    if (!sharingId || !token) {
+      setUserSuggestions([]);
+      return () => { mounted = false; };
+    }
+
+    const timeout = setTimeout(async () => {
+      setUserSearchLoading(true);
+      try {
+        const response = await axios.get(`${API_BASE}/users/search`, {
+          params: { q: needle },
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (mounted) {
+          setUserSuggestions(Array.isArray(response.data?.users) ? response.data.users : []);
+        }
+      } catch (_) {
+        if (mounted) {
+          setUserSuggestions([]);
+        }
+      } finally {
+        if (mounted) {
+          setUserSearchLoading(false);
+        }
+      }
+    }, 180);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeout);
+    };
+  }, [shareQuery, sharingId, token]);
+
+  useEffect(() => {
+    let mounted = true;
+    const ids = shareDraftIds;
+
+    if (!sharingId || !token || !ids.length) {
+      return () => { mounted = false; };
+    }
+
+    async function resolveUsers() {
+      try {
+        const response = await axios.get(`${API_BASE}/users/resolve`, {
+          params: { ids: ids.join(',') },
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!mounted) return;
+        const next = {};
+        (Array.isArray(response.data?.users) ? response.data.users : []).forEach((user) => {
+          next[user.id] = user;
+        });
+        setSharedUserLabels((current) => ({ ...current, ...next }));
+      } catch (_) {
+        // Keep raw IDs visible if resolving fails.
+      }
+    }
+
+    resolveUsers();
+    return () => { mounted = false; };
+  }, [shareDraftIds, sharingId, token]);
+
   const startRename = (savedRoute) => {
-    setEditingId(savedRoute.id);
+    setEditingId(routeKey(savedRoute));
     setEditingName(savedRoute.name || '');
   };
 
@@ -64,8 +169,44 @@ function SavedRoutesPanel() {
       return;
     }
 
-    await renameSavedRoute(token, editingId, editingName.trim());
+    const savedRoute = savedRoutes.find((candidate) => routeKey(candidate) === editingId);
+    if (savedRoute) {
+      await renameSavedRoute(token, savedRoute.id, editingName.trim(), savedRoute.ownerSub);
+    }
     cancelRename();
+  };
+
+  const startSharing = (savedRoute) => {
+    setSharingId(routeKey(savedRoute));
+    setShareQuery('');
+    setShareDraftIds(Array.isArray(savedRoute.sharedWith) ? savedRoute.sharedWith : []);
+    setUserSuggestions([]);
+    setUserSearchLoading(true);
+  };
+
+  const cancelSharing = () => {
+    setSharingId(null);
+    setShareQuery('');
+    setShareDraftIds([]);
+    setUserSuggestions([]);
+  };
+
+  const commitSharing = async (savedRoute, overrides = {}) => {
+    await updateSavedRouteSharing(token, savedRoute.id, {
+      visibility: savedRoute.visibility || 'private',
+      sharedWith: shareDraftIds,
+      ...overrides
+    });
+    cancelSharing();
+  };
+
+  const removeSharedUser = async (savedRoute, userId) => {
+    const sharedWith = shareDraftIds.filter((id) => id !== userId);
+    setShareDraftIds(sharedWith);
+    await updateSavedRouteSharing(token, savedRoute.id, {
+      visibility: savedRoute.visibility || 'private',
+      sharedWith
+    });
   };
 
   const handleSave = async () => {
@@ -119,12 +260,15 @@ function SavedRoutesPanel() {
           </div>
         )}
         {!savedRoutesLoading && filteredRoutes.map((savedRoute) => {
-          const isActive = activeSavedRouteId === savedRoute.id;
-          const isEditing = editingId === savedRoute.id;
+          const key = routeKey(savedRoute);
+          const isActive = activeSavedRouteId === savedRoute.id && (!activeSavedRouteOwner || activeSavedRouteOwner === savedRoute.ownerSub);
+          const isEditing = editingId === key;
+          const isSharing = sharingId === key;
+          const canEdit = savedRoute.canEdit !== false;
           return (
             <div
               className={`saved-route-item${isActive ? ' is-active' : ''}`}
-              key={savedRoute.id}
+              key={key}
             >
               {isEditing ? (
                 <div className="saved-route-main">
@@ -147,12 +291,15 @@ function SavedRoutesPanel() {
                 <button
                   className="saved-route-main"
                   type="button"
-                  onClick={() => loadSavedRoute(token, savedRoute.id)}
+                  onClick={() => loadSavedRoute(token, savedRoute.id, savedRoute.ownerSub)}
                 >
                   <span>{savedRoute.name}</span>
                   <small>
-                    {formatDistance(savedRoute.distance)} · {formatDuration(savedRoute.duration)}
+                    {formatDistance(savedRoute.distance)} · {formatDuration(savedRoute.duration)} · {t(`route.saved.access.${savedRoute.access || 'own'}`)}
                   </small>
+                  {savedRoute.access !== 'own' && (
+                    <small className="saved-route-source">{getRouteSourceLabel(savedRoute)}</small>
+                  )}
                 </button>
               )}
               <div className="saved-route-tools">
@@ -167,15 +314,92 @@ function SavedRoutesPanel() {
                   </>
                 ) : (
                   <>
-                    <button type="button" onClick={() => startRename(savedRoute)} aria-label={t('route.saved.rename')}>
-                      <FiEdit2 />
-                    </button>
-                    <button type="button" onClick={() => deleteSavedRoute(token, savedRoute.id)} aria-label={t('route.saved.delete')}>
-                      <FiTrash2 />
-                    </button>
+                    {canEdit && (
+                      <>
+                        <button type="button" onClick={() => startRename(savedRoute)} aria-label={t('route.saved.rename')}>
+                          <FiEdit2 />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateSavedRouteSharing(token, savedRoute.id, {
+                            visibility: savedRoute.visibility === 'public' ? 'private' : 'public',
+                            sharedWith: savedRoute.sharedWith || []
+                          })}
+                          aria-label={savedRoute.visibility === 'public' ? t('route.saved.makePrivate') : t('route.saved.makePublic')}
+                          title={savedRoute.visibility === 'public' ? t('route.saved.makePrivate') : t('route.saved.makePublic')}
+                        >
+                          {savedRoute.visibility === 'public' ? <FiGlobe /> : <FiLock />}
+                        </button>
+                        <button type="button" onClick={() => startSharing(savedRoute)} aria-label={t('route.saved.share')}>
+                          <FiShare2 />
+                        </button>
+                        <button type="button" onClick={() => deleteSavedRoute(token, savedRoute.id, savedRoute.ownerSub)} aria-label={t('route.saved.delete')}>
+                          <FiTrash2 />
+                        </button>
+                      </>
+                    )}
                   </>
                 )}
               </div>
+              {isSharing && canEdit && (
+                <div className="saved-route-share">
+                  {Boolean(shareDraftIds.length) && (
+                    <div className="saved-route-share-chips">
+                      {shareDraftIds.map((userId) => {
+                        const user = sharedUserLabels[userId];
+                        return (
+                          <span key={userId}>
+                            <strong>{user ? user.label : userId}</strong>
+                            <button
+                              type="button"
+                              onClick={() => removeSharedUser(savedRoute, userId)}
+                              aria-label={t('route.saved.unshareUser')}
+                              title={t('route.saved.unshareUser')}
+                            >
+                              <FiX />
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    value={shareQuery}
+                    onChange={(event) => setShareQuery(event.target.value)}
+                    placeholder={t('route.saved.sharePlaceholder')}
+                    autoFocus
+                  />
+                  {Boolean(userSuggestions.length || userSearchLoading) && (
+                    <div className="saved-route-user-suggestions">
+                      {userSearchLoading && <div>{t('route.saved.searchingUsers')}</div>}
+                      {!userSearchLoading && userSuggestions.map((user) => (
+                        <button
+                          type="button"
+                          key={user.id}
+                          onClick={() => {
+                            setShareDraftIds((current) => (
+                              current.includes(user.id) ? current : [...current, user.id]
+                            ));
+                            setShareQuery('');
+                            setSharedUserLabels((current) => ({ ...current, [user.id]: user }));
+                            setUserSuggestions([]);
+                          }}
+                        >
+                          <span>{user.label}</span>
+                          <small>{user.detail}</small>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button type="button" onClick={() => commitSharing(savedRoute)}>
+                    <FiCheck /> {t('route.saved.shareSave')}
+                  </button>
+                  <button type="button" onClick={cancelSharing} aria-label={t('route.saved.shareCancel')}>
+                    <FiX />
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}

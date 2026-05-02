@@ -50,6 +50,22 @@ const translations = {
         rename: 'Umbenennen',
         renameSave: 'Namen speichern',
         renameCancel: 'Umbenennen abbrechen',
+        share: 'Teilen',
+        shareSave: 'Teilen',
+        shareCancel: 'Teilen abbrechen',
+        unshareUser: 'Freigabe für User entfernen',
+        sharePlaceholder: 'User, E-Mail oder Sub, kommagetrennt',
+        searchingUsers: 'User werden gesucht...',
+        makePublic: 'Öffentlich machen',
+        makePrivate: 'Privat machen',
+        own: 'Eigene',
+        sharedBy: 'Geteilt von {{owner}}',
+        publicBy: 'Öffentlich von {{owner}}',
+        access: {
+          own: 'Eigene',
+          shared: 'Geteilt',
+          public: 'Öffentlich'
+        },
         namePlaceholder: 'Name der Route',
         searchPlaceholder: 'Routen suchen',
         errors: {
@@ -57,6 +73,7 @@ const translations = {
           saveFailed: 'Route konnte nicht gespeichert werden',
           deleteFailed: 'Route konnte nicht gelöscht werden',
           renameFailed: 'Route konnte nicht umbenannt werden',
+          shareFailed: 'Freigabe konnte nicht gespeichert werden',
           noRoute: 'Keine berechnete Route zum Speichern'
         }
       },
@@ -179,6 +196,22 @@ const translations = {
         rename: 'Rename',
         renameSave: 'Save name',
         renameCancel: 'Cancel rename',
+        share: 'Share',
+        shareSave: 'Share',
+        shareCancel: 'Cancel sharing',
+        unshareUser: 'Remove user share',
+        sharePlaceholder: 'User, email, or sub, comma-separated',
+        searchingUsers: 'Searching users...',
+        makePublic: 'Make public',
+        makePrivate: 'Make private',
+        own: 'Own',
+        sharedBy: 'Shared by {{owner}}',
+        publicBy: 'Public by {{owner}}',
+        access: {
+          own: 'Own',
+          shared: 'Shared',
+          public: 'Public'
+        },
         namePlaceholder: 'Route name',
         searchPlaceholder: 'Search routes',
         errors: {
@@ -186,6 +219,7 @@ const translations = {
           saveFailed: 'Could not save route',
           deleteFailed: 'Could not delete route',
           renameFailed: 'Could not rename route',
+          shareFailed: 'Could not save sharing settings',
           noRoute: 'No calculated route to save'
         }
       },

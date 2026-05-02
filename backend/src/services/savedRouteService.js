@@ -4,6 +4,8 @@ const path = require('path');
 
 const SAVED_ROUTES_DIR = process.env.ROUTESHRED_ROUTES_DIR
   || path.resolve(__dirname, '../../../data/routes');
+const PROFILE_DIR = process.env.ROUTESHRED_PROFILE_DIR
+  || path.resolve(__dirname, '../../../data/profiles');
 
 function normalizeSub(sub) {
   return String(sub || '').replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -11,6 +13,53 @@ function normalizeSub(sub) {
 
 function normalizeRouteId(id) {
   return String(id || '').replace(/[^a-zA-Z0-9._-]/g, '');
+}
+
+function getUserIdentifiers(user = {}) {
+  return [
+    user.sub,
+    user.email,
+    user.preferred_username,
+    user.username,
+    user.name
+  ]
+    .map((value) => String(value || '').trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function getDisplayName(user = {}) {
+  return user.name || user.preferred_username || user.email || 'Rider';
+}
+
+async function getStoredDisplayName(sub) {
+  const cleanSub = normalizeSub(sub);
+  if (!cleanSub) {
+    return '';
+  }
+
+  try {
+    const raw = await fs.readFile(path.join(PROFILE_DIR, `${cleanSub}.json`), 'utf8');
+    const profile = JSON.parse(raw);
+    return String(profile.displayName || profile.name || profile.preferred_username || profile.email || '').trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+function sanitizeShareList(sharedWith) {
+  if (!Array.isArray(sharedWith)) {
+    return [];
+  }
+
+  return [...new Set(sharedWith
+    .map((value) => String(value || '').trim().toLowerCase())
+    .filter(Boolean)
+    .slice(0, 50))]
+    .map((value) => value.slice(0, 180));
+}
+
+function sanitizeVisibility(visibility) {
+  return visibility === 'public' ? 'public' : 'private';
 }
 
 function userRoutesDir(sub) {
@@ -89,6 +138,8 @@ function sanitizeSavedRoutePayload(payload = {}) {
       weight: Number(payload.riderProfile && payload.riderProfile.weight) || 87
     },
     includeReturnTrip: Boolean(payload.includeReturnTrip),
+    visibility: sanitizeVisibility(payload.visibility),
+    sharedWith: sanitizeShareList(payload.sharedWith),
     route,
     returnRoute,
     distance: route && Number.isFinite(Number(route.distance)) ? Math.round(Number(route.distance)) : 0,
@@ -100,6 +151,10 @@ function sanitizeSavedRoutePayload(payload = {}) {
 function summarizeSavedRoute(savedRoute) {
   return {
     id: savedRoute.id,
+    ownerSub: savedRoute.ownerSub,
+    ownerName: savedRoute.ownerName,
+    access: savedRoute.access || 'own',
+    canEdit: Boolean(savedRoute.canEdit),
     name: savedRoute.name,
     startLabel: savedRoute.startLabel,
     endLabel: savedRoute.endLabel,
@@ -108,14 +163,50 @@ function summarizeSavedRoute(savedRoute) {
     bikeType: savedRoute.bikeType,
     preference: savedRoute.preference,
     rideType: savedRoute.rideType,
+    visibility: sanitizeVisibility(savedRoute.visibility),
+    sharedWith: sanitizeShareList(savedRoute.sharedWith),
     createdAt: savedRoute.createdAt,
     updatedAt: savedRoute.updatedAt
   };
 }
 
-async function listSavedRoutes(sub) {
-  const dir = await ensureUserRoutesDir(sub);
-  const entries = await fs.readdir(dir, { withFileTypes: true });
+function annotateSavedRoute(savedRoute, ownerSub, currentUser = {}, ownerDisplayName = '') {
+  const currentSub = normalizeSub(currentUser.sub);
+  const cleanOwnerSub = normalizeSub(savedRoute.ownerSub || ownerSub);
+  const identifiers = getUserIdentifiers(currentUser);
+  const sharedWith = sanitizeShareList(savedRoute.sharedWith);
+  const visibility = sanitizeVisibility(savedRoute.visibility);
+  const isOwner = cleanOwnerSub === currentSub;
+  const isPublic = visibility === 'public';
+  const isShared = sharedWith.some((identifier) => identifiers.includes(identifier));
+
+  return {
+    ...savedRoute,
+    ownerSub: cleanOwnerSub,
+    ownerName: savedRoute.ownerName || ownerDisplayName || cleanOwnerSub,
+    visibility,
+    sharedWith,
+    access: isOwner ? 'own' : (isPublic ? 'public' : (isShared ? 'shared' : 'private')),
+    canEdit: isOwner
+  };
+}
+
+function canReadRoute(savedRoute, ownerSub, currentUser = {}) {
+  const annotated = annotateSavedRoute(savedRoute, ownerSub, currentUser);
+  return ['own', 'public', 'shared'].includes(annotated.access);
+}
+
+async function readRoutesForOwner(ownerSub, currentUser = {}) {
+  const dir = userRoutesDir(ownerSub);
+  let entries = [];
+  const ownerDisplayName = await getStoredDisplayName(ownerSub);
+
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch (_) {
+    return [];
+  }
+
   const routes = [];
 
   for (const entry of entries) {
@@ -125,10 +216,40 @@ async function listSavedRoutes(sub) {
 
     try {
       const raw = await fs.readFile(path.join(dir, entry.name), 'utf8');
-      routes.push(summarizeSavedRoute(JSON.parse(raw)));
+      const route = JSON.parse(raw);
+      const annotated = annotateSavedRoute(route, ownerSub, currentUser, ownerDisplayName);
+      if (['own', 'public', 'shared'].includes(annotated.access)) {
+        routes.push(summarizeSavedRoute(annotated));
+      }
     } catch (_) {
       // Ignore malformed route files so one bad save cannot break the list.
     }
+  }
+
+  return routes;
+}
+
+async function listSavedRoutes(sub, user = {}) {
+  await ensureUserRoutesDir(sub);
+  let ownerDirs = [];
+
+  try {
+    ownerDirs = await fs.readdir(SAVED_ROUTES_DIR, { withFileTypes: true });
+  } catch (_) {
+    ownerDirs = [];
+  }
+
+  const routes = [];
+  const ownSub = normalizeSub(sub);
+  const ownerNames = new Set([ownSub]);
+  ownerDirs.forEach((entry) => {
+    if (entry.isDirectory()) {
+      ownerNames.add(entry.name);
+    }
+  });
+
+  for (const ownerSub of ownerNames) {
+    routes.push(...await readRoutesForOwner(ownerSub, { ...user, sub }));
   }
 
   return routes.sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
@@ -148,13 +269,27 @@ async function readSavedRoute(sub, routeId) {
   }
 }
 
-async function writeSavedRoute(sub, payload = {}) {
+async function readVisibleSavedRoute(currentSub, ownerSub, routeId, user = {}) {
+  const owner = normalizeSub(ownerSub || currentSub);
+  const route = await readSavedRoute(owner, routeId);
+  if (!route || !canReadRoute(route, owner, { ...user, sub: currentSub })) {
+    return null;
+  }
+
+  return annotateSavedRoute(route, owner, { ...user, sub: currentSub }, await getStoredDisplayName(owner));
+}
+
+async function writeSavedRoute(sub, payload = {}, user = {}) {
   const dir = await ensureUserRoutesDir(sub);
   const id = normalizeRouteId(payload.id) || crypto.randomUUID();
   const existing = await readSavedRoute(sub, id);
   const sanitized = sanitizeSavedRoutePayload(payload);
   const savedRoute = {
     ...sanitized,
+    visibility: existing && existing.visibility ? existing.visibility : sanitized.visibility,
+    sharedWith: existing && Array.isArray(existing.sharedWith) ? existing.sharedWith : sanitized.sharedWith,
+    ownerSub: normalizeSub(sub),
+    ownerName: existing && existing.ownerName ? existing.ownerName : getDisplayName(user),
     id,
     createdAt: existing && existing.createdAt ? existing.createdAt : sanitized.updatedAt
   };
@@ -197,10 +332,33 @@ async function renameSavedRoute(sub, routeId, name) {
   return renamed;
 }
 
+async function updateSavedRouteSharing(sub, routeId, payload = {}) {
+  const existing = await readSavedRoute(sub, routeId);
+  if (!existing) {
+    return null;
+  }
+
+  const updated = {
+    ...existing,
+    visibility: payload.visibility === undefined
+      ? sanitizeVisibility(existing.visibility)
+      : sanitizeVisibility(payload.visibility),
+    sharedWith: payload.sharedWith === undefined
+      ? sanitizeShareList(existing.sharedWith)
+      : sanitizeShareList(payload.sharedWith),
+    updatedAt: new Date().toISOString()
+  };
+
+  await fs.writeFile(routePathForSub(sub, updated.id), JSON.stringify(updated, null, 2), 'utf8');
+  return updated;
+}
+
 module.exports = {
   listSavedRoutes,
   readSavedRoute,
+  readVisibleSavedRoute,
   writeSavedRoute,
   deleteSavedRoute,
-  renameSavedRoute
+  renameSavedRoute,
+  updateSavedRouteSharing
 };

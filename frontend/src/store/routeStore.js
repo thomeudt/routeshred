@@ -26,6 +26,7 @@ export const useRouteStore = create((set, get) => ({
   savedRoutesLoading: false,
   savedRoutesError: null,
   activeSavedRouteId: null,
+  activeSavedRouteOwner: null,
   routeSaveState: 'idle',
   loading: false,
   error: null,
@@ -148,6 +149,7 @@ export const useRouteStore = create((set, get) => ({
     waypoints: [],
     includeReturnTrip: false,
     activeSavedRouteId: null,
+    activeSavedRouteOwner: null,
     loading: false,
     error: null
   }),
@@ -270,8 +272,13 @@ export const useRouteStore = create((set, get) => ({
 
     set({ routeSaveState: 'saving', savedRoutesError: null });
     try {
+      const activeSavedRoute = state.savedRoutes.find((savedRoute) => (
+        savedRoute.id === state.activeSavedRouteId
+        && (!state.activeSavedRouteOwner || savedRoute.ownerSub === state.activeSavedRouteOwner)
+      ));
+      const canUpdateActiveRoute = state.activeSavedRouteId && activeSavedRoute && activeSavedRoute.canEdit !== false;
       const payload = {
-        id: state.activeSavedRouteId || undefined,
+        id: canUpdateActiveRoute ? state.activeSavedRouteId : undefined,
         name: name || defaultName,
         startPoint: state.startPoint,
         startLabel: state.startLabel,
@@ -286,12 +293,16 @@ export const useRouteStore = create((set, get) => ({
         route: state.route,
         returnRoute: state.returnRoute
       };
-      const endpoint = state.activeSavedRouteId
+      const endpoint = canUpdateActiveRoute
         ? axios.put(`${API_BASE}/routes/${state.activeSavedRouteId}`, payload, { headers: { Authorization: `Bearer ${token}` } })
         : axios.post(`${API_BASE}/routes`, payload, { headers: { Authorization: `Bearer ${token}` } });
       const response = await endpoint;
       const savedRoute = response.data?.route;
-      set({ activeSavedRouteId: savedRoute?.id || state.activeSavedRouteId, routeSaveState: 'saved' });
+      set({
+        activeSavedRouteId: savedRoute?.id || (canUpdateActiveRoute ? state.activeSavedRouteId : null),
+        activeSavedRouteOwner: savedRoute?.ownerSub || (canUpdateActiveRoute ? state.activeSavedRouteOwner : null),
+        routeSaveState: 'saved'
+      });
       await get().loadSavedRoutes(token);
       setTimeout(() => {
         if (get().routeSaveState === 'saved') {
@@ -306,7 +317,7 @@ export const useRouteStore = create((set, get) => ({
     }
   },
 
-  loadSavedRoute: async (token, routeId) => {
+  loadSavedRoute: async (token, routeId, ownerSub = null) => {
     if (!token || !routeId) {
       return;
     }
@@ -314,6 +325,7 @@ export const useRouteStore = create((set, get) => ({
     set({ savedRoutesLoading: true, savedRoutesError: null });
     try {
       const response = await axios.get(`${API_BASE}/routes/${routeId}`, {
+        params: ownerSub ? { owner: ownerSub } : {},
         headers: { Authorization: `Bearer ${token}` }
       });
       const savedRoute = response.data?.route;
@@ -323,6 +335,7 @@ export const useRouteStore = create((set, get) => ({
 
       set({
         activeSavedRouteId: savedRoute.id,
+        activeSavedRouteOwner: savedRoute.ownerSub || ownerSub || null,
         startPoint: savedRoute.startPoint,
         startLabel: savedRoute.startLabel || '',
         endPoint: savedRoute.endPoint,
@@ -346,7 +359,7 @@ export const useRouteStore = create((set, get) => ({
     }
   },
 
-  deleteSavedRoute: async (token, routeId) => {
+  deleteSavedRoute: async (token, routeId, ownerSub = null) => {
     if (!token || !routeId) {
       return;
     }
@@ -357,15 +370,22 @@ export const useRouteStore = create((set, get) => ({
         headers: { Authorization: `Bearer ${token}` }
       });
       set((state) => ({
-        savedRoutes: state.savedRoutes.filter((savedRoute) => savedRoute.id !== routeId),
-        activeSavedRouteId: state.activeSavedRouteId === routeId ? null : state.activeSavedRouteId
+        savedRoutes: state.savedRoutes.filter((savedRoute) => !(
+          savedRoute.id === routeId && (!ownerSub || savedRoute.ownerSub === ownerSub)
+        )),
+        activeSavedRouteId: state.activeSavedRouteId === routeId && (!ownerSub || state.activeSavedRouteOwner === ownerSub)
+          ? null
+          : state.activeSavedRouteId,
+        activeSavedRouteOwner: state.activeSavedRouteId === routeId && (!ownerSub || state.activeSavedRouteOwner === ownerSub)
+          ? null
+          : state.activeSavedRouteOwner
       }));
     } catch (error) {
       set({ savedRoutesError: error.response?.data?.message || t('route.saved.errors.deleteFailed') });
     }
   },
 
-  renameSavedRoute: async (token, routeId, name) => {
+  renameSavedRoute: async (token, routeId, name, ownerSub = null) => {
     const cleanName = String(name || '').trim();
     if (!token || !routeId || !cleanName) {
       return;
@@ -381,7 +401,7 @@ export const useRouteStore = create((set, get) => ({
       const renamed = response.data?.route;
       set((state) => ({
         savedRoutes: state.savedRoutes.map((savedRoute) => (
-          savedRoute.id === routeId
+          savedRoute.id === routeId && (!ownerSub || savedRoute.ownerSub === ownerSub)
             ? {
               ...savedRoute,
               name: renamed?.name || cleanName,
@@ -392,6 +412,36 @@ export const useRouteStore = create((set, get) => ({
       }));
     } catch (error) {
       set({ savedRoutesError: error.response?.data?.message || t('route.saved.errors.renameFailed') });
+    }
+  },
+
+  updateSavedRouteSharing: async (token, routeId, payload = {}) => {
+    if (!token || !routeId) {
+      return;
+    }
+
+    set({ savedRoutesError: null });
+    try {
+      const response = await axios.patch(
+        `${API_BASE}/routes/${routeId}`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const updated = response.data?.route;
+      set((state) => ({
+        savedRoutes: state.savedRoutes.map((savedRoute) => (
+          savedRoute.id === routeId && savedRoute.ownerSub === (updated?.ownerSub || savedRoute.ownerSub)
+            ? {
+              ...savedRoute,
+              visibility: updated?.visibility || savedRoute.visibility,
+              sharedWith: Array.isArray(updated?.sharedWith) ? updated.sharedWith : savedRoute.sharedWith,
+              updatedAt: updated?.updatedAt || new Date().toISOString()
+            }
+            : savedRoute
+        ))
+      }));
+    } catch (error) {
+      set({ savedRoutesError: error.response?.data?.message || t('route.saved.errors.shareFailed') });
     }
   },
 
