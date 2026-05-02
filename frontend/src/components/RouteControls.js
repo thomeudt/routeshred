@@ -385,14 +385,14 @@ function RouteControls({ socialSurfacesMoved = false }) {
   const handleShareWahoo = async () => {
     if (!route) return;
     try {
-      const response = await fetch('/api/export/tcx', {
+      const response = await fetch('/api/export/gpx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ route, name: `Route_${Date.now()}`, description: '' })
       });
       if (!response.ok) throw new Error('Export failed');
       const blob = await response.blob();
-      const file = new File([blob], 'route.tcx', { type: 'application/xml' });
+      const file = new File([blob], 'route.gpx', { type: 'application/gpx+xml' });
       await navigator.share({ files: [file], title: 'RouteShred Route' });
     } catch (err) {
       if (err.name !== 'AbortError') console.error('Share failed', err);
