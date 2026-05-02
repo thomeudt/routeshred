@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useRouteStore } from '../store/routeStore';
 import { t } from '../i18n';
 import {
+  FiAlertTriangle,
   FiArrowDown,
   FiArrowUp,
+  FiCheckCircle,
   FiRepeat,
   FiDownload,
   FiMenu,
-  FiMapPin,
   FiNavigation,
   FiPlus,
   FiTrash2,
@@ -28,6 +29,105 @@ const RIDE_TYPES = [
 ];
 
 const PANEL_TABS = ['plan', 'library', 'setup'];
+
+function formatSignedDuration(seconds = 0) {
+  const totalSeconds = Math.round(Number(seconds || 0));
+  const sign = totalSeconds > 0 ? '+' : totalSeconds < 0 ? '-' : '';
+  const absSeconds = Math.abs(totalSeconds);
+  const minutes = Math.floor(absSeconds / 60);
+  const remainderSeconds = absSeconds % 60;
+
+  if (absSeconds === 0) return '0 min';
+  if (remainderSeconds === 0) return `${sign}${minutes} min`;
+  if (minutes === 0) return `${sign}${remainderSeconds} s`;
+  return `${sign}${minutes} min ${remainderSeconds} s`;
+}
+
+function getWindDirectionLabel(wind) {
+  if (wind && wind.directionLabel) {
+    return wind.directionLabel;
+  }
+  if (wind && Number.isFinite(Number(wind.directionDeg))) {
+    return `${Math.round(Number(wind.directionDeg))} deg`;
+  }
+  return '-';
+}
+
+function getWeatherAlertItems(weatherAlerts) {
+  if (!weatherAlerts || !weatherAlerts.alerts) {
+    return [];
+  }
+
+  const items = [];
+  const { alerts } = weatherAlerts;
+
+  if (alerts.rain && alerts.rain.active) {
+    items.push({
+      id: 'rain',
+      severity: alerts.rain.severity,
+      text: t('route.weatherAlerts.rainWarning', {
+        precipitation: Number(alerts.rain.precipitationMm || 0).toFixed(1)
+      })
+    });
+  }
+
+  if (alerts.storm && alerts.storm.active) {
+    items.push({
+      id: 'storm',
+      severity: alerts.storm.severity,
+      text: t('route.weatherAlerts.stormWarning', {
+        wind: Math.round(Number(alerts.storm.windKmh) || 0),
+        gust: Math.round(Number(alerts.storm.gustKmh) || 0)
+      })
+    });
+  }
+
+  if (alerts.heat && alerts.heat.active) {
+    items.push({
+      id: 'heat',
+      severity: alerts.heat.severity,
+      text: t('route.weatherAlerts.heatWarning', {
+        temperature: Number(alerts.heat.temperatureC || 0).toFixed(1)
+      })
+    });
+  }
+
+  if (alerts.uv && alerts.uv.active) {
+    items.push({
+      id: 'uv',
+      severity: alerts.uv.severity,
+      text: t('route.weatherAlerts.uvWarning', {
+        uv: Number(alerts.uv.uvIndex || 0).toFixed(1)
+      })
+    });
+  }
+
+  if (alerts.sidewind && alerts.sidewind.active) {
+    items.push({
+      id: 'sidewind',
+      severity: alerts.sidewind.severity,
+      text: t('route.weatherAlerts.sidewindWarning', {
+        crosswind: Number(alerts.sidewind.crosswindKmh || 0).toFixed(1),
+        direction: alerts.sidewind.windDirectionLabel || '-'
+      })
+    });
+  }
+
+  return items;
+}
+
+function getWeatherAgeLabel(weatherAlerts) {
+  const measuredAt = weatherAlerts && weatherAlerts.measuredAt ? Date.parse(weatherAlerts.measuredAt) : NaN;
+  if (!Number.isFinite(measuredAt)) {
+    return '';
+  }
+
+  const ageMinutes = Math.max(0, Math.floor((Date.now() - measuredAt) / 60000));
+  if (ageMinutes < 1) {
+    return t('route.weatherAlerts.updatedNow');
+  }
+  return t('route.weatherAlerts.updatedMinutesAgo', { minutes: ageMinutes });
+}
 
 function RouteControls() {
   const { enabled: authEnabled, authenticated, token } = useAuth();
@@ -101,6 +201,24 @@ function RouteControls() {
   const pz = route && route.powerZone;
   const isDraggingWaypoint = Boolean(dragWaypointId);
   const visibleTabs = PANEL_TABS.filter((tab) => tab !== 'library' || (authEnabled && authenticated));
+  const tempoFactors = route && route.tempoFactors ? route.tempoFactors : null;
+  const tempoAdjustmentSeconds = tempoFactors
+    ? Number(tempoFactors.adjustedDuration || 0) - Number(tempoFactors.baseDuration || 0)
+    : 0;
+  const frictionDelaySeconds = tempoFactors
+    ? Number(tempoFactors.frictionDelaySeconds ?? tempoFactors.delaySeconds ?? 0)
+    : 0;
+  const windEffectSeconds = tempoFactors ? Number(tempoFactors.windEffectSeconds || 0) : 0;
+  const windSummary = tempoFactors && tempoFactors.wind
+    ? t('route.tempo.windDetails', {
+      speed: Math.round(Number(tempoFactors.wind.speedKmh) || 0),
+      direction: getWindDirectionLabel(tempoFactors.wind)
+    })
+    : '';
+  const weatherAlerts = route && route.weatherAlerts ? route.weatherAlerts : null;
+  const weatherAlertItems = getWeatherAlertItems(weatherAlerts);
+  const hasWeatherWarnings = weatherAlertItems.length > 0;
+  const weatherAgeLabel = getWeatherAgeLabel(weatherAlerts);
 
   const clearWaypointDrag = () => {
     setDragWaypointId(null);
@@ -143,22 +261,25 @@ function RouteControls() {
 
   const getWaypointGapLabel = (gapIndex) => {
     if (isDraggingWaypoint) {
-      return 'Hier ablegen';
+      return t('route.controls.dropHere');
     }
 
     if (!waypoints.length) {
-      return 'Zwischen Start und Ziel einfugen';
+      return t('route.controls.insertBetweenStartEnd');
     }
 
     if (gapIndex === 0) {
-      return 'Nach Start einfugen';
+      return t('route.controls.insertAfterStart');
     }
 
     if (gapIndex === waypoints.length) {
-      return 'Vor Ziel einfugen';
+      return t('route.controls.insertBeforeEnd');
     }
 
-    return `Zwischen W${gapIndex} und W${gapIndex + 1} einfugen`;
+    return t('route.controls.insertBetweenWaypoints', {
+      left: gapIndex,
+      right: gapIndex + 1
+    });
   };
 
   return (
@@ -228,8 +349,8 @@ function RouteControls() {
                         draggable
                         onDragStart={(event) => handleWaypointDragStart(event, waypoint.id)}
                         onDragEnd={clearWaypointDrag}
-                        aria-label="Wegpunkt ziehen"
-                        title="Wegpunkt ziehen zum Umsortieren"
+                        aria-label={t('route.controls.waypointDragAria')}
+                        title={t('route.controls.waypointDragTitle')}
                       >
                         <FiMenu />
                       </button>
@@ -274,9 +395,16 @@ function RouteControls() {
               ))}
               {waypoints.length > 0 && (
                 <small className="waypoint-hint">
-                  Am Griff ziehen, dann in einer markierten Luecke ablegen.
+                  {t('route.controls.waypointHint')}
                 </small>
               )}
+              <LocationInput
+                label={t('route.locations.end')}
+                value={endLabel}
+                point={endPoint}
+                onSelect={setEndPoint}
+                onClear={() => setEndPoint(null, '')}
+              />
               <div className="location-actions">
                 <button
                   className="btn-secondary btn-compact"
@@ -284,7 +412,7 @@ function RouteControls() {
                   onClick={reverseRoute}
                   disabled={!startPoint || !endPoint || loading}
                 >
-                  <FiRepeat /> Route umkehren
+                  <FiRepeat /> {t('route.controls.reverseRoute')}
                 </button>
                 <label className="return-toggle">
                   <input
@@ -293,46 +421,31 @@ function RouteControls() {
                     onChange={(event) => setIncludeReturnTrip(event.target.checked)}
                     disabled={!startPoint || !endPoint || loading}
                   />
-                  <span>Rueckfahrt berechnen</span>
+                  <span>{t('route.controls.calculateReturnTrip')}</span>
                 </label>
               </div>
-              <LocationInput
-                label={t('route.locations.end')}
-                value={endLabel}
-                point={endPoint}
-                onSelect={setEndPoint}
-                onClear={() => setEndPoint(null, '')}
-              />
             </div>
           </div>
 
-          {startPoint && endPoint && (
-            <div className="route-info">
-              <p><FiMapPin /> {t('route.start')}: {startPoint[0].toFixed(4)}, {startPoint[1].toFixed(4)}</p>
-              {waypoints.filter((waypoint) => waypoint.point).map((waypoint, index) => (
-                <p key={waypoint.id}><FiMapPin /> {t('route.locations.waypoint')} {index + 1}: {waypoint.point[0].toFixed(4)}, {waypoint.point[1].toFixed(4)}</p>
-              ))}
-              <p><FiMapPin /> {t('route.end')}: {endPoint[0].toFixed(4)}, {endPoint[1].toFixed(4)}</p>
-            </div>
-          )}
-
-          <button
-            className="btn-primary"
-            onClick={handleCalculate}
-            disabled={!startPoint || !endPoint || loading}
-          >
-            <FiNavigation /> {t('route.calculate')}
-          </button>
-
-          {(startPoint || endPoint || route) && (
+          <div className="plan-action-bar">
             <button
-              className="btn-secondary btn-danger"
-              onClick={handleResetRoute}
-              disabled={loading}
+              className="btn-primary"
+              onClick={handleCalculate}
+              disabled={!startPoint || !endPoint || loading}
             >
-              <FiTrash2 /> {t('route.delete')}
+              <FiNavigation /> {t('route.calculate')}
             </button>
-          )}
+
+            {(startPoint || endPoint || route) && (
+              <button
+                className="btn-secondary btn-danger"
+                onClick={handleResetRoute}
+                disabled={loading}
+              >
+                <FiTrash2 /> {t('route.delete')}
+              </button>
+            )}
+          </div>
 
           {route && (
             <div className="route-stats">
@@ -355,6 +468,24 @@ function RouteControls() {
                   <strong>{route.ascent} m</strong>
                 </div>
               )}
+              {tempoFactors && (
+                <>
+                  <div className="stat-item">
+                    <span>{t('route.tempo.adjusted')}</span>
+                    <strong>{formatSignedDuration(tempoAdjustmentSeconds)}</strong>
+                  </div>
+                  <div className="stat-item">
+                    <span>{t('route.tempo.friction')}</span>
+                    <strong>{formatSignedDuration(frictionDelaySeconds)}</strong>
+                  </div>
+                  {tempoFactors.wind && (
+                    <div className="stat-item">
+                      <span>{t('route.tempo.wind')}</span>
+                      <strong title={windSummary}>{formatSignedDuration(windEffectSeconds)} | {windSummary}</strong>
+                    </div>
+                  )}
+                </>
+              )}
               <div className="stat-item">
                 <span>{t('route.engine')}</span>
                 <strong>{route.engineUsed || engine}</strong>
@@ -368,15 +499,15 @@ function RouteControls() {
               {returnRoute && (
                 <>
                   <div className="stat-item stat-item-return">
-                    <span>Rueckfahrt Distanz</span>
+                    <span>{t('route.controls.returnDistance')}</span>
                     <strong>{(returnRoute.distance / 1000).toFixed(1)} km</strong>
                   </div>
                   <div className="stat-item stat-item-return">
-                    <span>Rueckfahrt Dauer</span>
+                    <span>{t('route.controls.returnDuration')}</span>
                     <strong>{Math.round(returnRoute.duration / 60)} min</strong>
                   </div>
                   <div className="stat-item stat-item-return">
-                    <span>Hin + Zurueck</span>
+                    <span>{t('route.controls.outAndBack')}</span>
                     <strong>{((route.distance + returnRoute.distance) / 1000).toFixed(1)} km</strong>
                   </div>
                 </>
@@ -405,6 +536,29 @@ function RouteControls() {
                 </div>
               )}
               <RouteTypeStats routeStats={route.routeStats} />
+            </div>
+          )}
+
+          {route && (
+            <div className={`weather-alerts${hasWeatherWarnings ? ' has-warnings' : ' is-all-clear'}`}>
+              <h3>
+                {hasWeatherWarnings ? <FiAlertTriangle /> : <FiCheckCircle />}
+                <span>{t('route.weatherAlerts.title')}</span>
+              </h3>
+              {weatherAgeLabel && <p className="weather-alerts-meta">{weatherAgeLabel}</p>}
+              {hasWeatherWarnings ? (
+                <ul>
+                  {weatherAlertItems.map((alert) => (
+                    <li key={alert.id} className={`severity-${alert.severity || 'moderate'}`}>
+                      {alert.text}
+                    </li>
+                  ))}
+                </ul>
+              ) : weatherAlerts ? (
+                <p className="weather-alerts-perfect">{t('route.weatherAlerts.allClear')}</p>
+              ) : (
+                <p className="weather-alerts-missing">{t('route.weatherAlerts.unavailable')}</p>
+              )}
             </div>
           )}
 

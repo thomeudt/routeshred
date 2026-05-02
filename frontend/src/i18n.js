@@ -82,6 +82,24 @@ const translations = {
       duration: 'Dauer',
       avgSpeed: 'Ø Tempo',
       elevation: 'Höhenmeter ↑',
+      tempo: {
+        adjusted: 'Tempo-Korrektur',
+        wind: 'Wind-Effekt',
+        windDetails: '{{speed}} km/h aus {{direction}}',
+        friction: 'Kreuzungen'
+      },
+      weatherAlerts: {
+        title: 'Wetterwarnungen',
+        updatedNow: 'Wetterstand: gerade eben aktualisiert',
+        updatedMinutesAgo: 'Wetterstand: vor {{minutes}} min',
+        allClear: 'Keine Warnungen: Bedingungen sind aktuell sehr gut für die geplante Route.',
+        unavailable: 'Wetterdaten sind aktuell nicht verfügbar.',
+        rainWarning: 'Regen auf der Strecke möglich ({{precipitation}} mm/h).',
+        stormWarning: 'Stürmischer Wind erwartet ({{wind}} km/h, öen bis {{gust}} km/h).',
+        heatWarning: 'Hitze-Belastung hoch ({{temperature}} C).',
+        uvWarning: 'UV-Wert erhoeht (Index {{uv}}).',
+        sidewindWarning: 'Starker Seitenwind wahrscheinlich ({{crosswind}} km/h, Wind aus {{direction}}).'
+      },
       fallback: 'Fallback',
       exportTcx: 'TCX exportieren (Wahoo/Garmin)',
       exportGpx: 'GPX exportieren',
@@ -90,6 +108,21 @@ const translations = {
       calculating: 'Route wird berechnet...',
       details: 'Routendetails',
       detailsComingSoon: 'Routendetailansicht folgt...',
+      controls: {
+        dropHere: 'Hier ablegen',
+        insertBetweenStartEnd: 'Zwischen Start und Ziel einfügen',
+        insertAfterStart: 'Nach Start einfügen',
+        insertBeforeEnd: 'Vor Ziel einfügen',
+        insertBetweenWaypoints: 'Zwischen W{{left}} und W{{right}} einfügen',
+        waypointDragAria: 'Wegpunkt ziehen',
+        waypointDragTitle: 'Wegpunkt ziehen zum Umsortieren',
+        waypointHint: 'Am Griff ziehen, dann in einer markierten Lücke ablegen.',
+        reverseRoute: 'Route umkehren',
+        calculateReturnTrip: 'Rückfahrt berechnen',
+        returnDistance: 'Rückfahrt Distanz',
+        returnDuration: 'Rückfahrt Dauer',
+        outAndBack: 'Hin + Zurück'
+      },
       errors: {
         missingPoints: 'Start und Ziel erforderlich',
         calculateFailed: 'Route konnte nicht berechnet werden',
@@ -138,11 +171,24 @@ const translations = {
       title: 'Höhenprofil',
       units: 'Distanz km · Höhe m',
       altitude: 'Höhe',
+      climbCode: 'Climb-Code',
+      toughnessCode: 'Toughness-Code',
+      gradientCode: 'Gradient-Code',
       error: 'Fehler beim Laden der Höhendaten'
     },
     map: {
       startPopup: 'Start',
-      endPopup: 'Ziel'
+      endPopup: 'Ziel',
+      currentLocationPopup: 'Aktuelle Position',
+      gpsEnable: 'GPS an',
+      gpsDisable: 'GPS aus',
+      gpsTrackingOn: 'GPS-Tracking aktiv',
+      gpsUnavailable: 'GPS wird von diesem Geraet/Browser nicht unterstuetzt.',
+      gpsPermissionDenied: 'GPS-Zugriff wurde blockiert.',
+      gpsPositionUnavailable: 'Aktuelle Position konnte nicht bestimmt werden.',
+      gpsTimeout: 'GPS-Antwort dauert zu lange. Bitte erneut versuchen.',
+      hideMap: 'Karte ausblenden',
+      showMap: 'Karte einblenden'
     }
   },
   en: {
@@ -228,6 +274,24 @@ const translations = {
       duration: 'Duration',
       avgSpeed: 'Avg Speed',
       elevation: 'Elevation ↑',
+      tempo: {
+        adjusted: 'Tempo adjustment',
+        wind: 'Wind effect',
+        windDetails: '{{speed}} km/h from {{direction}}',
+        friction: 'Intersections'
+      },
+      weatherAlerts: {
+        title: 'Weather alerts',
+        updatedNow: 'Weather updated just now',
+        updatedMinutesAgo: 'Weather updated {{minutes}} min ago',
+        allClear: 'No warnings: conditions currently look excellent for this route.',
+        unavailable: 'Weather data is currently unavailable.',
+        rainWarning: 'Rain is possible on route ({{precipitation}} mm/h).',
+        stormWarning: 'Stormy wind expected ({{wind}} km/h, gusts up to {{gust}} km/h).',
+        heatWarning: 'Heat stress is elevated ({{temperature}} C).',
+        uvWarning: 'UV index is high ({{uv}}).',
+        sidewindWarning: 'Strong crosswind likely ({{crosswind}} km/h, wind from {{direction}}).'
+      },
       fallback: 'Fallback',
       exportTcx: 'Export TCX (Wahoo/Garmin)',
       exportGpx: 'Export GPX',
@@ -236,6 +300,21 @@ const translations = {
       calculating: 'Calculating route...',
       details: 'Route Details',
       detailsComingSoon: 'Route detail view coming soon...',
+      controls: {
+        dropHere: 'Drop here',
+        insertBetweenStartEnd: 'Insert between start and end',
+        insertAfterStart: 'Insert after start',
+        insertBeforeEnd: 'Insert before end',
+        insertBetweenWaypoints: 'Insert between W{{left}} and W{{right}}',
+        waypointDragAria: 'Drag waypoint',
+        waypointDragTitle: 'Drag waypoint to reorder',
+        waypointHint: 'Drag from the handle, then drop into a highlighted gap.',
+        reverseRoute: 'Reverse route',
+        calculateReturnTrip: 'Calculate return trip',
+        returnDistance: 'Return distance',
+        returnDuration: 'Return duration',
+        outAndBack: 'Out + back'
+      },
       errors: {
         missingPoints: 'Start and end points required',
         calculateFailed: 'Failed to calculate route',
@@ -284,11 +363,24 @@ const translations = {
       title: 'Elevation Profile',
       units: 'Distance km · Altitude m',
       altitude: 'Altitude',
+      climbCode: 'Climb code',
+      toughnessCode: 'Toughness code',
+      gradientCode: 'Gradient code',
       error: 'Error fetching elevation data'
     },
     map: {
       startPopup: 'Start',
-      endPopup: 'End'
+      endPopup: 'End',
+      currentLocationPopup: 'Current location',
+      gpsEnable: 'GPS on',
+      gpsDisable: 'GPS off',
+      gpsTrackingOn: 'GPS tracking active',
+      gpsUnavailable: 'GPS is not supported by this device/browser.',
+      gpsPermissionDenied: 'GPS access was denied.',
+      gpsPositionUnavailable: 'Current position is unavailable.',
+      gpsTimeout: 'GPS lookup timed out. Please try again.',
+      hideMap: 'Hide map',
+      showMap: 'Show map'
     }
   }
 };

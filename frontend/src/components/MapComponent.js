@@ -52,7 +52,7 @@ function MapInstanceBinder({ mapRef }) {
   return null;
 }
 
-function MapComponent() {
+function MapComponent({ isMapVisible = true }) {
   const {
     route, returnRoute, startPoint, endPoint, waypoints,
     setStartPoint, setEndPoint, addWaypoint, insertWaypoint, updateWaypoint,
@@ -62,11 +62,16 @@ function MapComponent() {
   const [mapCenter] = useState([51.505, 10.09]); // Germany center
   const [snapFeedback, setSnapFeedback] = useState(null);
   const [routeDrag, setRouteDrag] = useState(null);
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [gpsTracking, setGpsTracking] = useState(false);
+  const [gpsError, setGpsError] = useState('');
   const mapRef = useRef();
   const fittedRouteKeyRef = useRef(null);
   const snapFeedbackTimeoutRef = useRef(null);
   const routeDragRef = useRef(null);
   const suppressNextMapClickRef = useRef(false);
+  const gpsWatchIdRef = useRef(null);
+  const gpsHasCenteredRef = useRef(false);
   const routePositions = route && route.geometry
     ? route.geometry.coordinates.map(coord => [coord[1], coord[0]])
     : null;
@@ -184,7 +189,87 @@ function MapComponent() {
     if (map && map.dragging) {
       map.dragging.enable();
     }
+
+    if (gpsWatchIdRef.current !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(gpsWatchIdRef.current);
+      gpsWatchIdRef.current = null;
+    }
   }, []);
+
+  const stopGpsTracking = () => {
+    if (gpsWatchIdRef.current !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(gpsWatchIdRef.current);
+      gpsWatchIdRef.current = null;
+    }
+    setGpsTracking(false);
+  };
+
+  const startGpsTracking = () => {
+    if (!navigator.geolocation) {
+      setGpsError(t('map.gpsUnavailable'));
+      return;
+    }
+
+    setGpsError('');
+    gpsHasCenteredRef.current = false;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const lat = Number(position.coords.latitude);
+        const lng = Number(position.coords.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          return;
+        }
+
+        const nextPoint = [lat, lng];
+        setCurrentLocation(nextPoint);
+        setGpsTracking(true);
+        setGpsError('');
+
+        const map = mapRef.current;
+        if (map && !gpsHasCenteredRef.current) {
+          map.flyTo(nextPoint, Math.max(14, map.getZoom()), {
+            animate: true,
+            duration: 0.45
+          });
+          gpsHasCenteredRef.current = true;
+        }
+      },
+      (error) => {
+        if (error && error.code === error.PERMISSION_DENIED) {
+          setGpsError(t('map.gpsPermissionDenied'));
+        } else if (error && error.code === error.TIMEOUT) {
+          setGpsError(t('map.gpsTimeout'));
+        } else {
+          setGpsError(t('map.gpsPositionUnavailable'));
+        }
+        stopGpsTracking();
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 8000
+      }
+    );
+
+    gpsWatchIdRef.current = watchId;
+    setGpsTracking(true);
+  };
+
+  const toggleGpsTracking = () => {
+    if (gpsTracking) {
+      stopGpsTracking();
+      return;
+    }
+    startGpsTracking();
+  };
+
+  useEffect(() => {
+    if (!isMapVisible) {
+      stopGpsTracking();
+      setGpsError('');
+    }
+  }, [isMapVisible]);
 
   useEffect(() => {
     const hasOutbound = Array.isArray(routePositions) && routePositions.length >= 2;
@@ -231,8 +316,9 @@ function MapComponent() {
   };
 
   return (
-    <div className="map-container">
-      <div className="map-wrapper">
+    <div className={`map-container${isMapVisible ? '' : ' map-hidden'}`}>
+      {isMapVisible && (
+        <div className="map-wrapper">
         <MapContainer
           center={mapCenter}
           zoom={6}
@@ -308,6 +394,14 @@ function MapComponent() {
               <Popup>{t('route.locations.waypoint')} {index + 1}: {waypoint.point[0].toFixed(4)}, {waypoint.point[1].toFixed(4)}</Popup>
             </Marker>
           ))}
+
+          {currentLocation && (
+            <Marker position={currentLocation} icon={currentLocationIcon}>
+              <Popup>
+                {t('map.currentLocationPopup')}: {currentLocation[0].toFixed(5)}, {currentLocation[1].toFixed(5)}
+              </Popup>
+            </Marker>
+          )}
 
           {/* Route polyline with high-contrast casing for OpenCycleMap */}
           {routePositions && (
@@ -388,7 +482,21 @@ function MapComponent() {
             </>
           )}
         </MapContainer>
+
+        <div className="map-overlay-controls">
+          <button
+            type="button"
+            className={`gps-toggle${gpsTracking ? ' is-active' : ''}`}
+            onClick={toggleGpsTracking}
+            title={gpsTracking ? t('map.gpsDisable') : t('map.gpsEnable')}
+          >
+            {gpsTracking ? t('map.gpsDisable') : t('map.gpsEnable')}
+          </button>
+          {gpsError && <p className="gps-status gps-status-error">{gpsError}</p>}
+          {!gpsError && gpsTracking && <p className="gps-status">{t('map.gpsTrackingOn')}</p>}
+        </div>
       </div>
+      )}
 
       <div className="controls-panel">
         <RouteControls />
@@ -399,6 +507,13 @@ function MapComponent() {
     </div>
   );
 }
+
+const currentLocationIcon = L.divIcon({
+  className: 'current-location-marker',
+  html: '<span></span>',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9]
+});
 
 function getWaypointAnchorsOnRoute(waypoints, routePositions) {
   if (!Array.isArray(routePositions) || !routePositions.length) {

@@ -30,6 +30,8 @@ const BROUTER_SEGMENTS_BASE_URL = process.env.BROUTER_SEGMENTS_BASE_URL
 const BROUTER_AUTO_FETCH_SEGMENTS = String(process.env.BROUTER_AUTO_FETCH_SEGMENTS || 'true') !== 'false';
 const DEBUG_OPTIONAL_LOOKUPS = String(process.env.DEBUG_OPTIONAL_LOOKUPS || 'false') === 'true';
 const OVERPASS_CACHE_TTL_MS = Number(process.env.OVERPASS_CACHE_TTL_MS || 7 * 24 * 60 * 60 * 1000);
+const WIND_SPEED_ENABLED = String(process.env.WIND_SPEED_ENABLED || 'true') !== 'false';
+const WIND_API = process.env.WIND_API || 'https://api.open-meteo.com/v1/forecast';
 
 const downloadedSegmentTiles = new Set();
 
@@ -166,7 +168,7 @@ async function getRoute(start, end, options = {}) {
       }
     }
 
-    const route = selected.route;
+    const route = await applyTempoAdjustments(selected.route);
 
     return {
       geometry: route.geometry,
@@ -188,6 +190,8 @@ async function getRoute(start, end, options = {}) {
       fallbackFrom: route._fallbackFrom ? String(route._fallbackFrom).toUpperCase() : null,
       fallbackReason: route._fallbackReason || null,
       shapeWarning: route._shapeWarning || null,
+      tempoFactors: route.tempoFactors || null,
+      weatherAlerts: route.weatherAlerts || null,
       railwaySafety: {
         available: Boolean(railwaySafetyData && railwaySafetyData.available),
         unsafeCrossings: Number(route && route._unsafeRailCrossings) || 0,
@@ -355,6 +359,313 @@ function computePowerZone(rideType, ftp, durationSeconds) {
   };
 }
 
+async function applyTempoAdjustments(route) {
+  if (!route || !route.geometry || !Array.isArray(route.geometry.coordinates)) {
+    return route;
+  }
+
+  const baseDuration = Number(route.duration) || 0;
+  const baseDistance = Number(route.distance) || computePolylineDistanceMeters(route.geometry.coordinates);
+  if (baseDuration <= 0 || baseDistance <= 0) {
+    return route;
+  }
+
+  const friction = route._routeFriction || computeRouteFriction(route);
+  const frictionDelaySeconds = computeFrictionDelaySeconds(friction, baseDistance);
+  const wind = await loadWindForRoute(route.geometry.coordinates);
+  const weatherAlerts = assessWeatherAlerts(route.geometry.coordinates, wind);
+  const windFactor = wind
+    ? computeWindDurationFactor(route.geometry.coordinates, baseDuration, wind)
+    : 1;
+  const durationAfterFriction = baseDuration + frictionDelaySeconds;
+  const adjustedDuration = Math.max(1, Math.round(durationAfterFriction * windFactor));
+  const windEffectSeconds = adjustedDuration - durationAfterFriction;
+
+  if (route.legs && route.legs[0]) {
+    route.legs = route.legs.map((leg, index) => (
+      index === 0 ? { ...leg, duration: adjustedDuration } : leg
+    ));
+  }
+
+  return {
+    ...route,
+    duration: adjustedDuration,
+    weatherAlerts,
+    tempoFactors: {
+      baseDuration: Math.round(baseDuration),
+      adjustedDuration,
+      frictionDelaySeconds: Math.round(frictionDelaySeconds),
+      windEffectSeconds: Math.round(windEffectSeconds),
+      delaySeconds: Math.round(frictionDelaySeconds),
+      windDurationFactor: Number(windFactor.toFixed(3)),
+      avgSpeedKmh: Number(((baseDistance / adjustedDuration) * 3.6).toFixed(1)),
+      crossings: friction.crossings,
+      trafficSignals: friction.trafficSignals,
+      stopOrGiveWay: friction.stopOrGiveWay,
+      majorTurns: friction.majorTurns,
+      wind
+    }
+  };
+}
+
+function computeFrictionDelaySeconds(friction = {}, distanceMeters = 0) {
+  const distanceKm = Math.max(0.1, distanceMeters / 1000);
+  const crossingDelay = Math.min(distanceKm * 2.4, (Number(friction.crossings) || 0) * 1.2);
+  const signalDelay = (Number(friction.trafficSignals) || 0) * 8;
+  const stopDelay = (Number(friction.stopOrGiveWay) || 0) * 5;
+  const turnDelay = (Number(friction.majorTurns) || 0) * 2.5;
+  return crossingDelay + signalDelay + stopDelay + turnDelay;
+}
+
+async function loadWindForRoute(coordinates) {
+  if (!WIND_SPEED_ENABLED || !Array.isArray(coordinates) || !coordinates.length) {
+    return null;
+  }
+
+  const midpoint = coordinates[Math.floor(coordinates.length / 2)];
+  if (!Array.isArray(midpoint)) {
+    return null;
+  }
+
+  const lat = Number(midpoint[1]);
+  const lon = Number(midpoint[0]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return null;
+  }
+
+  const cacheKey = `wind:${lat.toFixed(2)}:${lon.toFixed(2)}`;
+  const cached = await getCachedJson('weather', cacheKey, 20 * 60 * 1000);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const response = await axios.get(WIND_API, {
+      params: {
+        latitude: lat,
+        longitude: lon,
+        current: 'wind_speed_10m,wind_direction_10m,wind_gusts_10m,temperature_2m,precipitation,weather_code,uv_index',
+        wind_speed_unit: 'kmh'
+      },
+      timeout: 3500
+    });
+    const current = response.data && response.data.current ? response.data.current : {};
+    const wind = {
+      speedKmh: Math.max(0, Number(current.wind_speed_10m) || 0),
+      directionDeg: normalizeDegrees(Number(current.wind_direction_10m) || 0),
+      directionLabel: degreesToCompass(Number(current.wind_direction_10m) || 0),
+      gustKmh: Math.max(0, Number(current.wind_gusts_10m) || 0),
+      temperatureC: Number.isFinite(Number(current.temperature_2m)) ? Number(current.temperature_2m) : null,
+      precipitationMm: Math.max(0, Number(current.precipitation) || 0),
+      uvIndex: Number.isFinite(Number(current.uv_index)) ? Number(current.uv_index) : null,
+      weatherCode: Number.isFinite(Number(current.weather_code)) ? Number(current.weather_code) : null,
+      source: 'open-meteo'
+    };
+    await setCachedJson('weather', cacheKey, wind);
+    return wind;
+  } catch (error) {
+    logOptionalLookupFailure('Wind', error);
+    return null;
+  }
+}
+
+function assessWeatherAlerts(coordinates, weather) {
+  if (!weather || !Array.isArray(coordinates) || coordinates.length < 2) {
+    return null;
+  }
+
+  const windSpeedKmh = Number(weather.speedKmh) || 0;
+  const gustKmh = Number(weather.gustKmh) || 0;
+  const temperatureC = Number.isFinite(Number(weather.temperatureC)) ? Number(weather.temperatureC) : null;
+  const precipitationMm = Number(weather.precipitationMm) || 0;
+  const uvIndex = Number.isFinite(Number(weather.uvIndex)) ? Number(weather.uvIndex) : null;
+  const crosswindKmh = estimateRouteCrosswindKmh(coordinates, Number(weather.directionDeg) || 0, windSpeedKmh);
+
+  const rainSeverity = precipitationMm >= 4 ? 'high' : precipitationMm >= 1 ? 'moderate' : null;
+  const stormSeverity = gustKmh >= 75 || windSpeedKmh >= 60
+    ? 'high'
+    : gustKmh >= 60 || windSpeedKmh >= 45
+      ? 'moderate'
+      : null;
+  const heatSeverity = temperatureC !== null && temperatureC >= 35
+    ? 'high'
+    : temperatureC !== null && temperatureC >= 30
+      ? 'moderate'
+      : null;
+  const uvSeverity = uvIndex !== null && uvIndex >= 8
+    ? 'high'
+    : uvIndex !== null && uvIndex >= 6
+      ? 'moderate'
+      : null;
+  const sidewindSeverity = crosswindKmh >= 30
+    ? 'high'
+    : crosswindKmh >= 20
+      ? 'moderate'
+      : null;
+
+  const alerts = {
+    rain: {
+      active: Boolean(rainSeverity),
+      severity: rainSeverity,
+      precipitationMm: Number(precipitationMm.toFixed(1))
+    },
+    storm: {
+      active: Boolean(stormSeverity),
+      severity: stormSeverity,
+      windKmh: Math.round(windSpeedKmh),
+      gustKmh: Math.round(gustKmh)
+    },
+    heat: {
+      active: Boolean(heatSeverity),
+      severity: heatSeverity,
+      temperatureC: temperatureC === null ? null : Number(temperatureC.toFixed(1))
+    },
+    uv: {
+      active: Boolean(uvSeverity),
+      severity: uvSeverity,
+      uvIndex: uvIndex === null ? null : Number(uvIndex.toFixed(1))
+    },
+    sidewind: {
+      active: Boolean(sidewindSeverity),
+      severity: sidewindSeverity,
+      crosswindKmh: Number(crosswindKmh.toFixed(1)),
+      windDirectionLabel: weather.directionLabel || degreesToCompass(Number(weather.directionDeg) || 0)
+    }
+  };
+
+  const activeCount = Object.values(alerts).filter((entry) => entry && entry.active).length;
+
+  return {
+    allClear: activeCount === 0,
+    activeCount,
+    measuredAt: new Date().toISOString(),
+    source: weather.source || 'open-meteo',
+    alerts
+  };
+}
+
+function estimateRouteCrosswindKmh(coordinates, windFromDirectionDeg, windSpeedKmh) {
+  const speed = Math.max(0, Number(windSpeedKmh) || 0);
+  if (!speed || !Array.isArray(coordinates) || coordinates.length < 2) {
+    return 0;
+  }
+
+  const sample = sampleRouteCoordinates(coordinates, 120);
+  let weightedCrosswind = 0;
+  let totalKm = 0;
+
+  for (let i = 1; i < sample.length; i++) {
+    const prev = sample[i - 1];
+    const curr = sample[i];
+    const segmentKm = getDistanceFromLatLon(prev[1], prev[0], curr[1], curr[0]);
+    if (segmentKm <= 0) {
+      continue;
+    }
+
+    const routeBearing = bearingDegrees([prev[1], prev[0]], [curr[1], curr[0]]);
+    const angle = smallestAngleDegrees(routeBearing, normalizeDegrees(windFromDirectionDeg));
+    const crosswind = Math.abs(speed * Math.sin(angle * Math.PI / 180));
+    weightedCrosswind += crosswind * segmentKm;
+    totalKm += segmentKm;
+  }
+
+  if (!totalKm) {
+    return 0;
+  }
+
+  return weightedCrosswind / totalKm;
+}
+
+function computeWindDurationFactor(coordinates, baseDuration, wind) {
+  const windSpeedKmh = Number(wind && wind.speedKmh) || 0;
+  if (!windSpeedKmh || !Array.isArray(coordinates) || coordinates.length < 2) {
+    return 1;
+  }
+
+  const baseSpeedKmh = Math.max(10, Math.min(42, (computePolylineDistanceMeters(coordinates) / Math.max(baseDuration, 1)) * 3.6));
+  const sample = sampleRouteCoordinates(coordinates, 100);
+  let weightedFactor = 0;
+  let totalKm = 0;
+
+  for (let i = 1; i < sample.length; i++) {
+    const prev = sample[i - 1];
+    const curr = sample[i];
+    const segmentKm = getDistanceFromLatLon(prev[1], prev[0], curr[1], curr[0]);
+    if (segmentKm <= 0) {
+      continue;
+    }
+
+    const routeBearing = bearingDegrees([prev[1], prev[0]], [curr[1], curr[0]]);
+    const windFromDirection = normalizeDegrees(Number(wind.directionDeg) || 0);
+    const angle = smallestAngleDegrees(routeBearing, windFromDirection);
+    const headwindKmh = windSpeedKmh * Math.cos(angle * Math.PI / 180);
+    const effectiveSpeed = Math.max(8, baseSpeedKmh - headwindKmh * 0.28);
+    const segmentFactor = baseSpeedKmh / effectiveSpeed;
+    weightedFactor += segmentFactor * segmentKm;
+    totalKm += segmentKm;
+  }
+
+  if (!totalKm) {
+    return 1;
+  }
+
+  return Math.max(0.92, Math.min(1.22, weightedFactor / totalKm));
+}
+
+function computeRouteFriction(route = {}) {
+  const friction = { crossings: 0, trafficSignals: 0, stopOrGiveWay: 0, majorTurns: 0 };
+  const legs = Array.isArray(route.legs) ? route.legs : [];
+
+  for (const leg of legs) {
+    const steps = Array.isArray(leg.steps) ? leg.steps : [];
+    for (const step of steps) {
+      const maneuverType = String(step.maneuver && step.maneuver.type || '');
+      const modifier = String(step.maneuver && step.maneuver.modifier || '');
+      if (/turn|fork|end of road|roundabout/.test(maneuverType) || /sharp|left|right/.test(modifier)) {
+        friction.majorTurns += 1;
+      }
+      const intersections = Array.isArray(step.intersections) ? step.intersections : [];
+      for (const intersection of intersections) {
+        if (Array.isArray(intersection.entry) && intersection.entry.length >= 3) {
+          friction.crossings += 1;
+        }
+      }
+    }
+  }
+
+  return friction;
+}
+
+function computeBrouterRouteFriction(messages) {
+  const friction = { crossings: 0, trafficSignals: 0, stopOrGiveWay: 0, majorTurns: 0 };
+  if (!Array.isArray(messages) || messages.length < 2) {
+    return friction;
+  }
+
+  const [header, ...rows] = messages;
+  const turnIdx = header.indexOf('TurnCost');
+  const nodeIdx = header.indexOf('NodeTags');
+
+  for (const row of rows) {
+    const nodeTags = nodeIdx >= 0 ? String(row[nodeIdx] || '') : '';
+    const turnCost = turnIdx >= 0 ? Number(row[turnIdx]) || 0 : 0;
+    if (/crossing=|highway=crossing/.test(nodeTags)) {
+      friction.crossings += 1;
+    }
+    if (/traffic_signals/.test(nodeTags)) {
+      friction.trafficSignals += 1;
+    }
+    if (/give_way|stop/.test(nodeTags)) {
+      friction.stopOrGiveWay += 1;
+    }
+    if (turnCost > 45) {
+      friction.majorTurns += 1;
+    }
+  }
+
+  return friction;
+}
+
 async function requestRoute(profile, points, options = {}) {
   let fellBackFromBrouter = false;
   let brouterFallbackReason = null;
@@ -509,7 +820,8 @@ function normalizeOsrmRoute(route, routeContext = {}, fellBackFromBrouter = fals
     _axisRegressionScore: shapeScore.axisRegressionScore,
     _corridorDetourScore: shapeScore.corridorDetourScore,
     _outAndBackSpurScore: shapeScore.outAndBackSpurScore,
-    _maxOutAndBackKm: shapeScore.maxOutAndBackKm
+    _maxOutAndBackKm: shapeScore.maxOutAndBackKm,
+    _routeFriction: computeRouteFriction(route)
   };
 }
 
@@ -735,6 +1047,7 @@ function normalizeBrouterFeature(feature, routeContext = {}) {
   const descent = 0; // BRouter v1.7.9 does not expose total descent in GeoJSON properties
 
   const routeStats = parseBrouterRouteStats(props.messages);
+  const routeFriction = computeBrouterRouteFriction(props.messages);
 
   return {
     geometry: {
@@ -760,7 +1073,8 @@ function normalizeBrouterFeature(feature, routeContext = {}) {
     _axisRegressionScore: shapeScore.axisRegressionScore,
     _corridorDetourScore: shapeScore.corridorDetourScore,
     _outAndBackSpurScore: shapeScore.outAndBackSpurScore,
-    _maxOutAndBackKm: shapeScore.maxOutAndBackKm
+    _maxOutAndBackKm: shapeScore.maxOutAndBackKm,
+    _routeFriction: routeFriction
   };
 }
 
@@ -1921,6 +2235,24 @@ function bearingDegrees(from, to) {
   const dy = to[1] - from[1];
   const dx = (to[0] - from[0]) * Math.cos(from[1] * Math.PI / 180);
   return Math.atan2(dx, dy) * 180 / Math.PI;
+}
+
+function normalizeDegrees(value) {
+  let out = Number(value) % 360;
+  if (out < 0) out += 360;
+  return out;
+}
+
+function degreesToCompass(value) {
+  const labels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  const index = Math.round(normalizeDegrees(value) / 45) % labels.length;
+  return labels[index];
+}
+
+function smallestAngleDegrees(a, b) {
+  let diff = Math.abs(normalizeDegrees(a) - normalizeDegrees(b));
+  if (diff > 180) diff = 360 - diff;
+  return diff;
 }
 
 function distancePointToSegmentKm(px, py, ax, ay, bx, by) {

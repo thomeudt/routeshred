@@ -10,7 +10,10 @@ function Header({
   onLogin,
   onLogout,
   onSaveProfile,
-  profileSaveState
+  profileSaveState,
+  showMapToggle,
+  isMapVisible,
+  onToggleMapVisibility
 }) {
   const saveLabel = profileSaveState === 'saving'
     ? 'Saving...'
@@ -29,6 +32,12 @@ function Header({
         </div>
 
         <div className="header-auth">
+          {showMapToggle && (
+            <button className="header-btn" type="button" onClick={onToggleMapVisibility}>
+              {isMapVisible ? t('map.hideMap') : t('map.showMap')}
+            </button>
+          )}
+
           {authEnabled && authReady && authenticated && (
             <>
               <span className="user-pill">{userName}</span>

@@ -17,6 +17,7 @@ function App() {
     setRideType
   } = useRouteStore();
   const [profileSaveState, setProfileSaveState] = useState('idle');
+  const [isMapVisible, setIsMapVisible] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -83,6 +84,9 @@ function App() {
   };
 
   const showLoginScreen = enabled && initialized && !authenticated;
+  const handleToggleMapVisibility = () => {
+    setIsMapVisible((visible) => !visible);
+  };
 
   return (
     <div className="App">
@@ -95,6 +99,9 @@ function App() {
         onLogout={logout}
         onSaveProfile={handleSaveProfile}
         profileSaveState={profileSaveState}
+        showMapToggle={!showLoginScreen}
+        isMapVisible={isMapVisible}
+        onToggleMapVisibility={handleToggleMapVisibility}
       />
       {showLoginScreen ? (
         <main className="login-screen">
@@ -109,7 +116,7 @@ function App() {
           </div>
         </main>
       ) : (
-        <MapComponent />
+        <MapComponent isMapVisible={isMapVisible} />
       )}
     </div>
   );

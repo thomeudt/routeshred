@@ -66,14 +66,52 @@
 }
 
 @media (max-width: 768px) {
+  .header {
+    padding: 12px 14px;
+  }
+
   .header-content {
     align-items: flex-start;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
   }
 
   .header-brand {
     flex-direction: column;
     gap: 4px;
+  }
+
+  .header-content h1 {
+    font-size: 20px;
+  }
+
+  .header-content p {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+  }
+
+  .header-auth {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .user-pill {
+    flex: 0 1 auto;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 5px 8px;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .header-btn {
+    min-height: 40px;
+    padding: 8px 12px;
   }
 }

@@ -1007,21 +1007,9 @@
   cursor: not-allowed;
 }
 
-.route-info {
-  background: var(--surface-subtle);
-  border-left: 3px solid var(--accent);
-  padding: 12px;
-  border-radius: 0;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.route-info p {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 4px 0;
-  color: var(--text-primary);
+.plan-action-bar {
+  display: grid;
+  gap: 8px;
 }
 
 .route-stats {
@@ -1067,4 +1055,170 @@
   flex-direction: column;
   gap: 8px;
   margin-top: 8px;
+}
+
+.weather-alerts {
+  border: 1px solid var(--border);
+  padding: 12px;
+  background: var(--surface);
+}
+
+.weather-alerts h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.weather-alerts ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.weather-alerts li {
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.weather-alerts li.severity-high {
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.weather-alerts li.severity-moderate {
+  color: #92400e;
+}
+
+.weather-alerts p {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.weather-alerts-meta {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-top: 6px;
+  text-transform: uppercase;
+}
+
+.weather-alerts.is-all-clear {
+  border-color: rgba(21, 128, 61, 0.32);
+  background: rgba(21, 128, 61, 0.08);
+}
+
+.weather-alerts.is-all-clear h3 {
+  color: #166534;
+}
+
+.weather-alerts.has-warnings {
+  border-color: rgba(180, 35, 24, 0.34);
+  background: rgba(180, 35, 24, 0.06);
+}
+
+.weather-alerts.has-warnings h3 {
+  color: #991b1b;
+}
+
+.weather-alerts-perfect {
+  color: #14532d;
+  font-weight: 700;
+}
+
+.weather-alerts-missing {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+  .route-controls {
+    gap: 12px;
+  }
+
+  .route-controls h2 {
+    font-size: 16px;
+  }
+
+  .engine-badge {
+    font-size: 10px;
+    padding: 4px 6px;
+  }
+
+  .route-panel-tabs button {
+    padding: 12px 8px;
+    font-size: 11px;
+  }
+
+  .location-input__field input,
+  .saved-route-savebar input,
+  .saved-route-search input,
+  .saved-route-main input,
+  .rider-input input {
+    font-size: 16px;
+  }
+
+  .waypoint-actions {
+    grid-template-columns: 40px 40px 40px 40px;
+    gap: 5px;
+  }
+
+  .waypoint-drag,
+  .waypoint-move,
+  .waypoint-remove {
+    height: 40px;
+  }
+
+  .waypoint-insert {
+    min-height: 36px;
+    font-size: 11px;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    min-height: 44px;
+  }
+
+  .plan-action-bar {
+    position: sticky;
+    bottom: -1px;
+    z-index: 20;
+    margin: 0 -4px;
+    padding: 10px 4px 6px;
+    background: linear-gradient(to top, var(--surface) 65%, rgba(255, 255, 255, 0));
+  }
+
+  .route-stats,
+  .weather-alerts {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .route-controls-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .ride-type-buttons {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .preference-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .rider-profile-inputs {
+    grid-template-columns: 1fr;
+  }
 }

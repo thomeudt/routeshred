@@ -78,6 +78,24 @@ main {
   filter: brightness(1.05);
 }
 
+@media (max-width: 768px) {
+  header {
+    padding: 12px 14px;
+  }
+
+  .login-screen {
+    padding: 14px;
+  }
+
+  .login-card {
+    padding: 20px 16px;
+  }
+
+  .login-card h2 {
+    font-size: 18px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
