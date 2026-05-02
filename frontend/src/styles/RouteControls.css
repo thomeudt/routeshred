@@ -1371,6 +1371,39 @@
   line-height: 1.45;
 }
 
+.group-ride-instagram {
+  border: 1px solid color-mix(in srgb, #e1306c 28%, var(--border));
+  background: color-mix(in srgb, #e1306c 5%, var(--surface));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.group-ride-instagram iframe {
+  width: 100%;
+  min-height: 360px;
+  border: 0;
+  background: var(--surface);
+}
+
+.group-ride-instagram a {
+  color: color-mix(in srgb, #e1306c 75%, var(--text-primary));
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  padding: 8px 10px;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.group-ride-instagram a:hover {
+  background: color-mix(in srgb, #e1306c 9%, transparent);
+}
+
 /* ── Footer ── */
 .group-ride-footer {
   display: flex;

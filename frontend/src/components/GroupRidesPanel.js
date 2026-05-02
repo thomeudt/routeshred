@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { FiArrowRight, FiCamera, FiCheck, FiClock, FiEdit2, FiFlag, FiGlobe, FiMap, FiMapPin, FiMessageSquare, FiPlus, FiSearch, FiShare2, FiTrash2, FiUsers, FiX } from 'react-icons/fi';
+import { FiArrowRight, FiCheck, FiClock, FiEdit2, FiFlag, FiGlobe, FiInstagram, FiMap, FiMapPin, FiMessageSquare, FiPlus, FiSearch, FiShare2, FiTrash2, FiUsers, FiX } from 'react-icons/fi';
 import { useAuth } from '../auth/AuthProvider';
 import { t } from '../i18n';
 import { useRouteStore } from '../store/routeStore';
@@ -43,6 +43,28 @@ function toLocalInputValue(value) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function getInstagramEmbedUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.replace(/^www\./, '').toLowerCase();
+    if (!['instagram.com', 'instagr.am'].includes(host)) {
+      return '';
+    }
+
+    const [type, shortcode] = url.pathname.split('/').filter(Boolean);
+    if (!['p', 'reel', 'tv'].includes(type) || !shortcode) {
+      return '';
+    }
+
+    return `https://www.instagram.com/${type}/${encodeURIComponent(shortcode)}/embed`;
+  } catch (_) {
+    return '';
+  }
+}
+
 function GroupRidesPanel() {
   const { token } = useAuth();
   const { savedRoutes, loadSavedRoute } = useRouteStore();
@@ -79,7 +101,7 @@ function GroupRidesPanel() {
     title: '',
     description: '',
     challenge: 'social',
-    photoUrl: '',
+    instagramUrl: '',
     meetingPoint: '',
     startAt: '',
     visibility: 'public',
@@ -184,7 +206,7 @@ function GroupRidesPanel() {
         title: '',
         description: '',
         challenge: draft.challenge,
-        photoUrl: '',
+        instagramUrl: '',
         meetingPoint: '',
         startAt: '',
         visibility: draft.visibility,
@@ -221,7 +243,7 @@ function GroupRidesPanel() {
       title: ride.title || '',
       description: ride.description || '',
       challenge: ride.challenge || 'social',
-      photoUrl: ride.photoUrl || '',
+      instagramUrl: ride.instagramUrl || '',
       meetingPoint: ride.meetingPoint || '',
       startAt: toLocalInputValue(ride.startAt),
       visibility: ride.visibility || 'public',
@@ -422,12 +444,12 @@ function GroupRidesPanel() {
               </select>
             </label>
             <label>
-              <FiCamera size={12} />
+              <FiInstagram size={12} />
               <input
                 type="url"
-                placeholder={t('route.groupRides.fields.photoUrl')}
-                value={draft.photoUrl}
-                onChange={(event) => setDraft((current) => ({ ...current, photoUrl: event.target.value }))}
+                placeholder={t('route.groupRides.fields.instagramUrl')}
+                value={draft.instagramUrl}
+                onChange={(event) => setDraft((current) => ({ ...current, instagramUrl: event.target.value }))}
               />
             </label>
           </div>
@@ -533,6 +555,8 @@ function GroupRidesPanel() {
           const rideDate = formatRideDate(ride.startAt);
           const comments = Array.isArray(ride.comments) ? ride.comments : [];
           const isCommentsOpen = commentsOpen.has(ride.id);
+          const instagramUrl = String(ride.instagramUrl || '').trim();
+          const instagramEmbedUrl = getInstagramEmbedUrl(instagramUrl);
           return (
             <article key={ride.id} className="group-ride-card">
               <div
@@ -574,12 +598,12 @@ function GroupRidesPanel() {
                       </select>
                     </label>
                     <label>
-                      <FiCamera size={12} />
+                      <FiInstagram size={12} />
                       <input
                         type="url"
-                        value={editDraft.photoUrl}
-                        onChange={(e) => setEditDraft((d) => ({ ...d, photoUrl: e.target.value }))}
-                        placeholder={t('route.groupRides.fields.photoUrl')}
+                        value={editDraft.instagramUrl}
+                        onChange={(e) => setEditDraft((d) => ({ ...d, instagramUrl: e.target.value }))}
+                        placeholder={t('route.groupRides.fields.instagramUrl')}
                       />
                     </label>
                   </div>
@@ -701,6 +725,23 @@ function GroupRidesPanel() {
                 )}
 
                 {ride.description && <p className="group-ride-desc">{ride.description}</p>}
+
+                {instagramUrl && (
+                  <div className="group-ride-instagram">
+                    {instagramEmbedUrl && (
+                      <iframe
+                        src={instagramEmbedUrl}
+                        title={`${ride.title || t('route.groupRides.title')} Instagram`}
+                        loading="lazy"
+                        allowTransparency="true"
+                      />
+                    )}
+                    <a href={instagramUrl} target="_blank" rel="noopener noreferrer">
+                      <FiInstagram size={12} />
+                      {t('route.groupRides.instagramOpen')}
+                    </a>
+                  </div>
+                )}
 
                 <div className="group-ride-footer">
                   <button

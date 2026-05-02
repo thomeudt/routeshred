@@ -149,10 +149,11 @@ const translations = {
         commentPlaceholder: 'Kommentar schreiben...',
         commentAction: 'Senden',
         noDescription: 'Keine Beschreibung',
+        instagramOpen: 'Auf Instagram öffnen',
         fields: {
           title: 'Titel',
           description: 'Beschreibung, Route-Idee, Pace, Hinweise',
-          photoUrl: 'Foto-URL',
+          instagramUrl: 'Instagram-Link',
           meetingPoint: 'Treffpunkt',
           noLinkedRoute: 'Keine Route verknüpft',
           linkedRoute: 'Route verknüpfen'
@@ -510,10 +511,11 @@ const translations = {
         commentPlaceholder: 'Add a comment...',
         commentAction: 'Post',
         noDescription: 'No description',
+        instagramOpen: 'Open on Instagram',
         fields: {
           title: 'Title',
           description: 'Description, route idea, pace, notes',
-          photoUrl: 'Photo URL',
+          instagramUrl: 'Instagram link',
           meetingPoint: 'Meeting point',
           noLinkedRoute: 'No linked route',
           linkedRoute: 'Link a route'
