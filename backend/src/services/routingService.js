@@ -20,10 +20,12 @@ const PREFERENCE_PROFILES = {
 const OSRM_API = process.env.OSRM_API || 'http://router.project-osrm.org';
 const OVERPASS_API = process.env.OVERPASS_API || 'https://overpass-api.de/api/interpreter';
 const OVERPASS_API_LIST = buildOverpassApiList();
-const ROUTING_ENGINE = (process.env.ROUTING_ENGINE || 'osrm').toLowerCase();
+const ROUTING_ENGINE = (process.env.ROUTING_ENGINE || 'brouter').toLowerCase();
 const BROUTER_API = process.env.BROUTER_API || 'http://localhost:17777/brouter';
 const BROUTER_CUSTOM_PROFILES_DIR = process.env.BROUTER_CUSTOM_PROFILES_DIR
   || path.resolve(__dirname, '../../../brouter-data/customprofiles');
+const DEFAULT_BROUTER_CUSTOM_PROFILES_DIR = process.env.DEFAULT_BROUTER_CUSTOM_PROFILES_DIR
+  || path.resolve(__dirname, '../../../default-brouter-data/customprofiles');
 const BROUTER_SEGMENTS_DIR = process.env.BROUTER_SEGMENTS_DIR
   || path.resolve(__dirname, '../../../brouter-data/segments4');
 const BROUTER_SEGMENTS_BASE_URL = process.env.BROUTER_SEGMENTS_BASE_URL
@@ -248,8 +250,39 @@ async function getRoute(start, end, options = {}) {
 }
 
 async function getBikeProfiles(actor = {}) {
+  const profileMap = new Map();
+  const profileDirs = getBrouterProfileDirs();
+
+  for (const profileDir of profileDirs) {
+    const profiles = await readBikeProfilesFromDir(profileDir, actor);
+    profiles.forEach((profile) => {
+      if (!profileMap.has(profile.id)) {
+        profileMap.set(profile.id, profile);
+      }
+    });
+  }
+
+  if (profileMap.size) {
+    return [...profileMap.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  return [
+    { id: 'road', label: 'Road', kind: 'road', source: 'fallback' },
+    { id: 'gravel', label: 'Gravel', kind: 'gravel', source: 'fallback' },
+    { id: 'mtb', label: 'MTB', kind: 'mtb', source: 'fallback' }
+  ];
+}
+
+function getBrouterProfileDirs() {
+  return [...new Set([
+    BROUTER_CUSTOM_PROFILES_DIR,
+    DEFAULT_BROUTER_CUSTOM_PROFILES_DIR
+  ].filter(Boolean))];
+}
+
+async function readBikeProfilesFromDir(profileDir, actor = {}) {
   try {
-    const entries = await fs.readdir(BROUTER_CUSTOM_PROFILES_DIR, { withFileTypes: true });
+    const entries = await fs.readdir(profileDir, { withFileTypes: true });
     const profiles = [];
 
     for (const entry of entries) {
@@ -258,7 +291,7 @@ async function getBikeProfiles(actor = {}) {
       }
 
       const id = entry.name.replace(/\.brf$/i, '');
-      const filePath = path.join(BROUTER_CUSTOM_PROFILES_DIR, entry.name);
+      const filePath = path.join(profileDir, entry.name);
       const metadata = await readBrouterProfileMetadata(filePath, id);
       profiles.push({
         id,
@@ -269,18 +302,11 @@ async function getBikeProfiles(actor = {}) {
       });
     }
 
-    if (profiles.length) {
-      return profiles.sort((a, b) => a.label.localeCompare(b.label));
-    }
+    return profiles;
   } catch (error) {
-    console.warn('Could not load BRouter custom profiles:', error.message);
+    console.warn(`Could not load BRouter custom profiles from ${profileDir}:`, error.message);
+    return [];
   }
-
-  return [
-    { id: 'road', label: 'Road', kind: 'road', source: 'fallback' },
-    { id: 'gravel', label: 'Gravel', kind: 'gravel', source: 'fallback' },
-    { id: 'mtb', label: 'MTB', kind: 'mtb', source: 'fallback' }
-  ];
 }
 
 async function createBikeProfile(input = {}, actor = {}) {
@@ -1232,7 +1258,7 @@ async function resolveBrouterProfileForRequest(options = {}) {
     return { profile, cleanup: null };
   }
 
-  const sourcePath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${profile}.brf`);
+  const sourcePath = await findBrouterProfilePath(profile);
   if (!(await fileExists(sourcePath))) {
     return { profile, cleanup: null };
   }
@@ -1280,6 +1306,17 @@ function getBrouterRiderOverrides(riderProfile = {}) {
   const bikerPower = clampNumber(Math.round(ftp * 0.72), 80, 420);
 
   return { riderWeight, bikerPower };
+}
+
+async function findBrouterProfilePath(profileId) {
+  for (const profileDir of getBrouterProfileDirs()) {
+    const filePath = path.join(profileDir, `${profileId}.brf`);
+    if (await fileExists(filePath)) {
+      return filePath;
+    }
+  }
+
+  return path.join(BROUTER_CUSTOM_PROFILES_DIR, `${profileId}.brf`);
 }
 
 function extractAssignedNumber(content, variableName) {

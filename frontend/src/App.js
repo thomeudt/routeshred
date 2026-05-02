@@ -97,6 +97,7 @@ function App() {
   }, [groupRideTarget]);
 
   const hasPublicDeepLink = Boolean(sharedRouteTarget || groupRideTarget);
+  const showAuthGate = enabled && !initialized && !hasPublicDeepLink;
   const showLoginScreen = enabled && initialized && !authenticated && !hasPublicDeepLink;
   const handleToggleMapVisibility = () => {
     setIsMapVisible((visible) => !visible);
@@ -105,6 +106,18 @@ function App() {
   const handleSelectTab = (tab) => {
     window.dispatchEvent(new CustomEvent('routeshred:set-tab', { detail: { tab } }));
   };
+
+  if (showAuthGate) {
+    return (
+      <div className="App">
+        <main className="auth-boot-screen">
+          <div className="auth-boot-mark">RouteShred</div>
+          <div className="auth-boot-loader" aria-hidden="true" />
+          <span>{t('common.loading')}</span>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="App">

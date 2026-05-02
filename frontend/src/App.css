@@ -20,6 +20,46 @@ main {
     var(--bg-light);
 }
 
+.auth-boot-screen {
+  flex: 1;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 14px;
+  background:
+    radial-gradient(circle at 16% 12%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 34%),
+    linear-gradient(180deg, #f6f9fc 0%, var(--bg-light) 100%);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.auth-boot-mark {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.auth-boot-loader {
+  width: 34px;
+  height: 34px;
+  border: 3px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: auth-boot-spin 0.8s linear infinite;
+}
+
+@keyframes auth-boot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .login-card {
   width: min(520px, 100%);
   border: 1px solid var(--border);

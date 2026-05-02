@@ -26,11 +26,14 @@ services:
       - NODE_ENV=production
       - PORT=5050
       - OSRM_API=${OSRM_API:-http://router.project-osrm.org}
-      - ROUTING_ENGINE=${ROUTING_ENGINE:-brouter}
+      - ROUTING_ENGINE=brouter
       - BROUTER_API=http://brouter:17777/brouter
+      - BROUTER_CUSTOM_PROFILES_DIR=/app/brouter-data/customprofiles
+      - BROUTER_SEGMENTS_DIR=/app/brouter-data/segments4
       - ROUTESHRED_CACHE_DIR=/app/data/cache
       - ROUTESHRED_PROFILE_DIR=/app/data/profiles
       - ROUTESHRED_ROUTES_DIR=/app/data/routes
+      - ROUTESHRED_GROUP_RIDES_DIR=/app/data/group-rides
       - KEYCLOAK_ENABLED=${KEYCLOAK_ENABLED:-true}
       - KEYCLOAK_URL=http://keycloak:8080/auth
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-routeshred}
@@ -39,6 +42,9 @@ services:
       - ./data/cache:/app/data/cache
       - ./data/profiles:/app/data/profiles
       - ./data/routes:/app/data/routes
+      - ./data/group-rides:/app/data/group-rides
+      - ./brouter-data/segments4:/app/brouter-data/segments4
+      - ./brouter-data/customprofiles:/app/brouter-data/customprofiles
     depends_on:
       - brouter
       - keycloak
