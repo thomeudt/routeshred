@@ -160,6 +160,13 @@ function SavedRoutesPanel({ context = 'mixed' }) {
 
     if (!sharingId || !token) {
       setUserSuggestions([]);
+      setUserSearchLoading(false);
+      return () => { mounted = false; };
+    }
+
+    if (needle.length < 2) {
+      setUserSuggestions([]);
+      setUserSearchLoading(false);
       return () => { mounted = false; };
     }
 
@@ -247,7 +254,7 @@ function SavedRoutesPanel({ context = 'mixed' }) {
     setShareQuery('');
     setShareDraftIds(Array.isArray(savedRoute.sharedWith) ? savedRoute.sharedWith : []);
     setUserSuggestions([]);
-    setUserSearchLoading(true);
+    setUserSearchLoading(false);
   };
 
   const cancelSharing = () => {
@@ -257,10 +264,48 @@ function SavedRoutesPanel({ context = 'mixed' }) {
     setUserSuggestions([]);
   };
 
+  const addSharedUser = (user) => {
+    const userId = String(user?.id || '').trim().toLowerCase();
+    if (!userId) {
+      return;
+    }
+
+    setShareDraftIds((current) => (
+      current.includes(userId) ? current : [...current, userId]
+    ));
+    setSharedUserLabels((current) => ({ ...current, [userId]: { ...user, id: userId } }));
+    setShareQuery('');
+    setUserSuggestions([]);
+    setUserSearchLoading(false);
+  };
+
+  const addManualSharedUser = () => {
+    const userIds = shareQuery
+      .split(',')
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean);
+    if (!userIds.length) {
+      return;
+    }
+
+    setShareDraftIds((current) => [...new Set([...current, ...userIds])]);
+    setSharedUserLabels((current) => {
+      const next = { ...current };
+      userIds.forEach((userId) => {
+        next[userId] = next[userId] || { id: userId, label: userId, detail: userId };
+      });
+      return next;
+    });
+    setShareQuery('');
+    setUserSuggestions([]);
+    setUserSearchLoading(false);
+  };
+
   const commitSharing = async (savedRoute, overrides = {}) => {
+    const nextSharedWith = Array.isArray(overrides.sharedWith) ? overrides.sharedWith : shareDraftIds;
     await updateSavedRouteSharing(token, savedRoute.id, {
       visibility: savedRoute.visibility || 'private',
-      sharedWith: shareDraftIds,
+      sharedWith: nextSharedWith,
       ...overrides
     });
     cancelSharing();
@@ -441,30 +486,44 @@ function SavedRoutesPanel({ context = 'mixed' }) {
                       type="text"
                       value={shareQuery}
                       onChange={(event) => setShareQuery(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          if (userSuggestions.length === 1) {
+                            addSharedUser(userSuggestions[0]);
+                          } else {
+                            addManualSharedUser();
+                          }
+                        }
+                      }}
                       placeholder={t('route.saved.sharePlaceholder')}
                       autoFocus
                     />
                   </div>
-                  {Boolean(userSuggestions.length || userSearchLoading) && (
+                  {Boolean(userSuggestions.length || userSearchLoading || shareQuery.trim().length >= 2) && (
                     <div className="saved-route-user-suggestions">
                       {userSearchLoading && <div>{t('route.saved.searchingUsers')}</div>}
                       {!userSearchLoading && userSuggestions.map((user) => (
                         <button
                           type="button"
                           key={user.id}
-                          onClick={() => {
-                            setShareDraftIds((current) => (
-                              current.includes(user.id) ? current : [...current, user.id]
-                            ));
-                            setShareQuery('');
-                            setSharedUserLabels((current) => ({ ...current, [user.id]: user }));
-                            setUserSuggestions([]);
-                          }}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => addSharedUser(user)}
                         >
                           <span>{user.label}</span>
                           <small>{user.detail}</small>
                         </button>
                       ))}
+                      {!userSearchLoading && shareQuery.trim().length >= 2 && !userSuggestions.some((user) => user.id === shareQuery.trim().toLowerCase()) && (
+                        <button
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={addManualSharedUser}
+                        >
+                          <span>{shareQuery.trim()}</span>
+                          <small>{t('route.saved.shareManual')}</small>
+                        </button>
+                      )}
                     </div>
                   )}
                   <button type="button" onClick={() => commitSharing(savedRoute)}>
