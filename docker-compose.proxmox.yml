@@ -102,6 +102,7 @@ services:
       - KC_DB_PASSWORD=${KC_DB_PASSWORD}
       - KC_HTTP_ENABLED=true
       - KC_PROXY=edge
+      - KC_PROXY_HEADERS=xforwarded
       - KC_HTTP_RELATIVE_PATH=/auth
       - KC_HOSTNAME=${PUBLIC_HOSTNAME}
       - KC_HOSTNAME_STRICT=false

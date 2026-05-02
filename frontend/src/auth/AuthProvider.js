@@ -59,12 +59,12 @@ export function AuthProvider({ children }) {
         if (!keycloakInitPromise) {
           const publicDeepLink = hasPublicDeepLink();
           keycloakInitPromise = client.init({
-            onLoad: publicDeepLink ? 'check-sso' : 'login-required',
+            // Always start with check-sso to avoid hard redirect loops on refresh
+            // in multi-proxy setups (e.g. NPM -> Caddy -> Keycloak).
+            onLoad: 'check-sso',
             checkLoginIframe: false,
             pkceMethod: 'S256',
-            ...(publicDeepLink
-              ? { silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html` }
-              : {})
+            silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`
           });
         }
         const isAuthenticated = await keycloakInitPromise;
