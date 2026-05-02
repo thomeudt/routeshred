@@ -15,14 +15,6 @@ let keycloakClient = null;
 let keycloakInitPromise = null;
 let reauthInProgress = false;
 
-function hasPublicDeepLink() {
-  const params = new URLSearchParams(window.location.search);
-  return Boolean(
-    String(params.get('sharedRoute') || '').trim()
-    || String(params.get('groupRide') || '').trim()
-  );
-}
-
 function getKeycloakClient() {
   if (!KEYCLOAK_ENABLED) {
     return null;
@@ -57,14 +49,12 @@ export function AuthProvider({ children }) {
         // Cache the init promise – React StrictMode runs effects twice in dev.
         // A second init() call on the same instance would fail (code already consumed from URL).
         if (!keycloakInitPromise) {
-          const publicDeepLink = hasPublicDeepLink();
           keycloakInitPromise = client.init({
-            // Always start with check-sso to avoid hard redirect loops on refresh
-            // in multi-proxy setups (e.g. NPM -> Caddy -> Keycloak).
-            onLoad: 'check-sso',
+            // Do not run automatic SSO checks on load in multi-proxy setups.
+            // This avoids browser-dependent hangs on Keycloak's 3p-cookies check pages.
+            // Login remains explicit via the login button.
             checkLoginIframe: false,
-            pkceMethod: 'S256',
-            silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`
+            pkceMethod: 'S256'
           });
         }
         const isAuthenticated = await keycloakInitPromise;
