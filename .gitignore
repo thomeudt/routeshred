@@ -1,0 +1,232 @@
+# -----------------------------------------------------------------------------
+# Dependencies
+# -----------------------------------------------------------------------------
+
+node_modules/
+**/node_modules/
+
+.pnpm-store/
+.yarn/
+.yarn-cache/
+.bun/
+
+
+# -----------------------------------------------------------------------------
+# Build outputs
+# -----------------------------------------------------------------------------
+
+dist/
+build/
+**/dist/
+**/build/
+
+.vite/
+.next/
+.nuxt/
+.out/
+coverage/
+**/coverage/
+
+
+# -----------------------------------------------------------------------------
+# TypeScript / tooling cache
+# -----------------------------------------------------------------------------
+
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+.cache/
+.parcel-cache/
+.turbo/
+.swc/
+
+
+# -----------------------------------------------------------------------------
+# Environment files
+# -----------------------------------------------------------------------------
+
+.env
+.env.*
+!.env.example
+!.env.sample
+
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+!frontend/.env.sample
+
+backend/.env
+backend/.env.*
+!backend/.env.example
+!backend/.env.sample
+
+
+# -----------------------------------------------------------------------------
+# Logs
+# -----------------------------------------------------------------------------
+
+*.log
+logs/
+**/logs/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+
+# -----------------------------------------------------------------------------
+# Runtime data / generated app data
+# -----------------------------------------------------------------------------
+
+data/cache/
+data/profiles/
+data/routes/
+data/tmp/
+data/temp/
+data/uploads/
+
+backend/data/cache/
+backend/data/profiles/
+backend/data/routes/
+backend/data/tmp/
+backend/data/temp/
+backend/data/uploads/
+
+
+# BRouter routing data
+brouter-data/segments4/
+**/segments4/
+*.rd5
+
+
+
+# -----------------------------------------------------------------------------
+# BRouter data
+# -----------------------------------------------------------------------------
+
+segments4/
+**/segments4/
+
+*.rd5
+
+brouter/segments4/
+brouter/customprofiles/generated/
+brouter/tmp/
+brouter/cache/
+
+
+# -----------------------------------------------------------------------------
+# Database files
+# -----------------------------------------------------------------------------
+
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+data/*.sqlite
+data/*.sqlite3
+data/*.db
+
+backend/data/*.sqlite
+backend/data/*.sqlite3
+backend/data/*.db
+
+
+# -----------------------------------------------------------------------------
+# Docker / local container state
+# -----------------------------------------------------------------------------
+
+.docker/
+docker-data/
+docker-volumes/
+
+keycloak-data/
+postgres-data/
+pgdata/
+
+
+# -----------------------------------------------------------------------------
+# Test / temporary files
+# -----------------------------------------------------------------------------
+
+tmp/
+temp/
+.tmp/
+.tmp-*/
+*.tmp
+*.temp
+
+test-results/
+playwright-report/
+cypress/screenshots/
+cypress/videos/
+
+
+# -----------------------------------------------------------------------------
+# IDE / editor files
+# -----------------------------------------------------------------------------
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+.idea/
+*.iml
+
+*.sublime-workspace
+*.sublime-project
+
+
+# -----------------------------------------------------------------------------
+# OS files
+# -----------------------------------------------------------------------------
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+
+# -----------------------------------------------------------------------------
+# Certificates / secrets / keys
+# -----------------------------------------------------------------------------
+
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+
+secrets/
+credentials/
+private/
+
+
+# -----------------------------------------------------------------------------
+# Package manager lock alternatives
+# -----------------------------------------------------------------------------
+# Keep package-lock.json if this is an npm project.
+# Ignore alternative lockfiles unless you intentionally migrate package managers.
+
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+
+# -----------------------------------------------------------------------------
+# Misc
+# -----------------------------------------------------------------------------
+
+*.bak
+*.orig
+*.rej
