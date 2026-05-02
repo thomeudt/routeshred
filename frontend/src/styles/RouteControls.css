@@ -1,0 +1,606 @@
+.route-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.route-controls-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.route-controls h2 {
+  font-size: 18px;
+  color: var(--text-primary);
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.engine-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 7px;
+  border-radius: 0;
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-group label {
+  font-weight: 800;
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.preference-buttons {
+  display: grid;
+  gap: 8px;
+}
+
+.preference-buttons {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.bike-profile-select {
+  position: relative;
+}
+
+.bike-profile-select::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid var(--text-primary);
+  border-bottom: 1px solid var(--text-primary);
+  pointer-events: none;
+  transform: translateY(-70%) rotate(45deg);
+}
+
+.bike-profile-select select {
+  width: 100%;
+  appearance: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  padding: 12px 36px 12px 12px;
+  text-transform: uppercase;
+}
+
+.bike-profile-select select:hover,
+.bike-profile-select select:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.bike-profile-select select:disabled {
+  cursor: wait;
+  color: var(--text-secondary);
+}
+
+.bike-model-tag {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 2px;
+  padding-left: 2px;
+}
+
+/* ── Location search ───────────────────────────────────────────────── */
+
+.location-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.location-input {
+  position: relative;
+}
+
+.location-input__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.location-input__label span,
+.location-input__label small {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.location-input__label small {
+  color: var(--text-primary);
+  letter-spacing: 0.04em;
+}
+
+.location-input__field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.location-input__field:focus-within {
+  border-color: var(--primary);
+}
+
+.location-input__field input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 10px 8px 10px 10px;
+}
+
+.location-input__field input:focus {
+  outline: none;
+}
+
+.location-input__field button,
+.waypoint-remove {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+}
+
+.location-input__field button:hover,
+.waypoint-remove:hover {
+  color: var(--primary);
+}
+
+.location-results {
+  position: absolute;
+  z-index: 1200;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--primary);
+  background: var(--surface);
+}
+
+.location-results button,
+.location-results__state {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px;
+  text-align: left;
+}
+
+.location-results button:hover {
+  background: var(--surface-subtle);
+}
+
+.location-results button span {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.location-results button small,
+.location-results__state {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.waypoint-row {
+  display: grid;
+  grid-template-columns: 1fr 34px;
+  gap: 6px;
+  align-items: end;
+}
+
+.waypoint-remove {
+  height: 38px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.btn-compact {
+  padding: 8px 10px;
+}
+
+/* ── Ride-type buttons ──────────────────────────────────────────────── */
+
+.ride-type-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.ride-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 4px 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 0;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  color: var(--text-primary);
+  gap: 3px;
+}
+
+.ride-type-btn:hover {
+  border-color: var(--primary);
+  background: var(--surface-subtle);
+}
+
+.ride-type-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.rt-label { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; }
+.rt-sub   { font-size: 9px;  opacity: 0.72;  letter-spacing: 0.04em; text-transform: uppercase; }
+
+.ride-type-btn.active .rt-sub { opacity: 0.85; }
+
+/* ── Rider profile inputs ───────────────────────────────────────────── */
+
+.rider-profile-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.rider-profile-inputs label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.rider-profile-inputs label > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.rider-input {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.rider-input:focus-within {
+  border-color: var(--primary);
+}
+
+.rider-input input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  padding: 9px 4px 9px 10px;
+}
+
+.rider-input input:focus {
+  outline: none;
+}
+
+.rider-input small {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding-right: 10px;
+  text-transform: uppercase;
+}
+
+/* ── Power Zone Card (post-route) ───────────────────────────────────── */
+
+.power-zone-card {
+  margin-top: 10px;
+  border-radius: 0;
+  border: 1px solid color-mix(in srgb, var(--pz-color, #3b82f6) 50%, var(--border));
+  background: color-mix(in srgb, var(--pz-color, #3b82f6) 5%, white);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pz-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pz-label {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--pz-color, #3b82f6);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.pz-watts {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.pz-range {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--pz-color, #3b82f6);
+  letter-spacing: 0;
+}
+
+.pz-target {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pz-load {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--pz-color, #3b82f6) 20%, transparent);
+}
+
+.pz-load-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.pz-load-item span { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.pz-load-item small { font-size: 9px; color: var(--text-secondary); text-transform: uppercase; }
+
+.pz-load-divider {
+  width: 1px;
+  height: 28px;
+  background: color-mix(in srgb, var(--pz-color, #3b82f6) 25%, transparent);
+}
+
+/* ── Power Zone Preview (pre-route) ─────────────────────────────────── */
+
+.power-zone-preview {
+  border-radius: 0;
+  border: 1px solid color-mix(in srgb, var(--pz-color, #3b82f6) 40%, transparent);
+  background: color-mix(in srgb, var(--pz-color, #3b82f6) 6%, white);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pz-preview-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pz-color, #3b82f6);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.pz-preview-watts {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pz-preview-watts span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.preference-buttons button {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  color: var(--text-primary);
+}
+
+.preference-buttons button:hover {
+  border-color: var(--primary-light);
+  background: var(--surface-subtle);
+}
+
+.preference-buttons button.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 800;
+  border-radius: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  font-size: 11px;
+  border-radius: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.btn-secondary:hover {
+  background: var(--surface-subtle);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-danger {
+  color: #b42318;
+  border-color: rgba(180, 35, 24, 0.28);
+  background: rgba(180, 35, 24, 0.06);
+}
+
+.btn-danger:hover:not(:disabled) {
+  color: #8a1c13;
+  border-color: rgba(180, 35, 24, 0.45);
+  background: white;
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.route-info {
+  background: var(--surface-subtle);
+  border-left: 3px solid var(--accent);
+  padding: 12px;
+  border-radius: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.route-info p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+  color: var(--text-primary);
+}
+
+.route-stats {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 12px;
+}
+
+.route-stats h3 {
+  font-size: 12px;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.stat-item:last-child {
+  border-bottom: none;
+}
+
+.stat-item strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.export-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}

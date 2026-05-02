@@ -1,0 +1,61 @@
+.elevation-profile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 15px;
+}
+
+.elevation-profile h3 {
+  font-size: 12px;
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.elevation-profile__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.elevation-profile__header span {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.elevation-profile.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.recharts-wrapper {
+  width: 100% !important;
+}
+
+.recharts-surface {
+  border-radius: 0;
+}
+
+.recharts-tooltip {
+  border-radius: 0;
+  box-shadow: none !important;
+}
+
+.recharts-line {
+  stroke: var(--accent) !important;
+}

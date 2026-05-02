@@ -1,0 +1,31 @@
+{
+  "name": "routeshred",
+  "version": "0.1.0",
+  "description": "RouteShred - Open-source bike route planner for road and gravel bikes",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=frontend\" \"npm run dev --workspace=backend\"",
+    "dev:free-frontend-port": "sh -c 'pids=$(lsof -ti tcp:3000); if [ -n \"$pids\" ]; then echo Stopping existing frontend on :3000 \"$pids\"; kill $pids; fi'",
+    "dev:free-backend-port": "sh -c 'pids=$(lsof -ti tcp:5050); if [ -n \"$pids\" ]; then echo Stopping existing backend on :5050 \"$pids\"; kill $pids; fi'",
+    "dev:brouter": "npm run dev:free-frontend-port && npm run dev:free-backend-port && ROUTING_ENGINE=brouter BROUTER_API=http://localhost:17777/brouter concurrently \"npm run dev --workspace=frontend\" \"npm run dev --workspace=backend\"",
+    "brouter:build": "docker compose build brouter",
+    "brouter:up": "docker compose up -d --build brouter",
+    "brouter:down": "docker compose stop brouter",
+    "dev:brouter:docker": "sh -c 'npm run brouter:up; cleanup(){ npm run brouter:down >/dev/null 2>&1 || true; }; trap cleanup EXIT INT TERM; npm run dev:brouter'",
+    "build": "npm run build --workspace=frontend && npm run build --workspace=backend",
+    "start": "npm start --workspace=backend",
+    "test": "npm test --workspace=frontend && npm test --workspace=backend",
+    "install-all": "npm install && npm install --workspace=frontend && npm install --workspace=backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

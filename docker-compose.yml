@@ -1,0 +1,61 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5050:5050"
+    environment:
+      - NODE_ENV=development
+      - PORT=5050
+      - OSRM_API=http://router.project-osrm.org
+      - ROUTING_ENGINE=${ROUTING_ENGINE:-osrm}
+      - BROUTER_API=${BROUTER_API:-http://host.docker.internal:17777/brouter}
+      - ROUTESHRED_CACHE_DIR=/app/data/cache
+    volumes:
+      - ./backend/src:/app/src
+      - ./data/cache:/app/data/cache
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=/api
+      - REACT_APP_TILE_URL=${REACT_APP_TILE_URL:-https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=007b5abe80db44699c19474ee8d9500b}
+      - REACT_APP_TILE_ATTRIBUTION=${REACT_APP_TILE_ATTRIBUTION:-&copy; OpenCycleMap}
+    volumes:
+      - ./frontend/src:/app/src
+    depends_on:
+      - backend
+    command: npm run dev
+
+  # Optional: Self-hosted OSRM instance
+  # osrm:
+  #   image: osrm/osrm-backend
+  #   ports:
+  #     - "5001:5000"
+  #   volumes:
+  #     - ./data:/data
+  #   command: osrm-routed --algorithm mld /data/germany-latest.osm.pbf
+
+  # Local BRouter service for dev mode bike-optimized routing.
+  brouter:
+    build:
+      context: https://github.com/abrensch/brouter.git#v1.7.9
+    image: routeshred-brouter:1.7.9
+    ports:
+      - "17777:17777"
+    volumes:
+      - ./brouter-data/segments4:/segments4
+      - ./brouter-data/customprofiles:/customprofiles
+      # Bind custom profiles directly into profiles2 so BRouter's REST API finds them by name
+      - ./brouter-data/customprofiles/pinarello-dogma.brf:/profiles2/pinarello-dogma.brf
+      - ./brouter-data/customprofiles/3t-racemax.brf:/profiles2/3t-racemax.brf
+    restart: unless-stopped
+
+volumes:
+  osm_data:
