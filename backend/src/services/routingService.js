@@ -1136,8 +1136,8 @@ async function ensureBrouterSegments(points) {
     return;
   }
 
-  // Only auto-fetch for local BRouter setups to avoid touching remote servers.
-  if (!/localhost|127\.0\.0\.1|host\.docker\.internal/i.test(BROUTER_API)) {
+  // Only auto-fetch for local/container BRouter setups to avoid touching remote servers.
+  if (!/localhost|127\.0\.0\.1|host\.docker\.internal|\/\/brouter(?::|\/|$)/i.test(BROUTER_API)) {
     return;
   }
 
