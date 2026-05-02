@@ -4,8 +4,7 @@ services:
     container_name: routeshred-proxy
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
     environment:
       - PUBLIC_HOSTNAME=${PUBLIC_HOSTNAME}
     volumes:
