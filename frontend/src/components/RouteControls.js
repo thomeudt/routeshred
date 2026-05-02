@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouteStore } from '../store/routeStore';
 import { t } from '../i18n';
 import {
@@ -12,6 +12,7 @@ import {
   FiNavigation,
   FiPlus,
   FiTrash2,
+  FiUpload,
   FiZap,
   FiX
 } from 'react-icons/fi';
@@ -129,12 +130,111 @@ function getWeatherAgeLabel(weatherAlerts) {
   return t('route.weatherAlerts.updatedMinutesAgo', { minutes: ageMinutes });
 }
 
+function parseGpxCoordinates(gpxContent) {
+  if (typeof DOMParser === 'undefined') {
+    throw new Error('GPX parsing is not available in this environment');
+  }
+
+  const xml = new DOMParser().parseFromString(String(gpxContent || ''), 'application/xml');
+  if (xml.querySelector('parsererror')) {
+    throw new Error('Invalid GPX XML');
+  }
+
+  const trkptNodes = Array.from(xml.getElementsByTagName('trkpt'));
+  const rteptNodes = Array.from(xml.getElementsByTagName('rtept'));
+  const nodes = trkptNodes.length >= 2 ? trkptNodes : rteptNodes;
+
+  const coordinates = nodes
+    .map((node) => {
+      const lat = Number(node.getAttribute('lat'));
+      const lon = Number(node.getAttribute('lon'));
+      return Number.isFinite(lat) && Number.isFinite(lon) ? [lat, lon] : null;
+    })
+    .filter(Boolean);
+
+  if (coordinates.length < 2) {
+    throw new Error('GPX needs at least start and end coordinates');
+  }
+
+  return coordinates;
+}
+
+async function parseFitCoordinates(file) {
+  const { default: FitParser } = await import('fit-file-parser');
+  const fitParser = new FitParser({
+    force: true,
+    mode: 'both'
+  });
+
+  const buffer = new Uint8Array(await file.arrayBuffer());
+  const parsed = await fitParser.parseAsync(buffer);
+
+  const records = Array.isArray(parsed && parsed.records) ? parsed.records : [];
+  const coursePoints = Array.isArray(parsed && parsed.course_points) ? parsed.course_points : [];
+  const source = records.length ? records : coursePoints;
+
+  const coordinates = source
+    .map((point) => {
+      const lat = Number(point && point.position_lat);
+      const lon = Number(point && point.position_long);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        return null;
+      }
+      if (Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+        return null;
+      }
+      return [lat, lon];
+    })
+    .filter(Boolean);
+
+  if (coordinates.length < 2) {
+    throw new Error('FIT needs at least start and end coordinates');
+  }
+
+  return coordinates;
+}
+
+function sampleGpxWaypoints(coordinates, maxWaypoints = 6) {
+  if (!Array.isArray(coordinates) || coordinates.length <= 2 || maxWaypoints <= 0) {
+    return [];
+  }
+
+  const steps = Math.min(maxWaypoints, coordinates.length - 2);
+  const used = new Set();
+  const waypoints = [];
+
+  for (let i = 1; i <= steps; i += 1) {
+    const idx = Math.round((i * (coordinates.length - 1)) / (steps + 1));
+    if (idx <= 0 || idx >= coordinates.length - 1 || used.has(idx)) {
+      continue;
+    }
+    used.add(idx);
+    waypoints.push(coordinates[idx]);
+  }
+
+  return waypoints;
+}
+
 function RouteControls() {
   const { enabled: authEnabled, authenticated, token } = useAuth();
   const [engine, setEngine] = useState('unknown');
   const [activeTab, setActiveTab] = useState('plan');
   const [dragWaypointId, setDragWaypointId] = useState(null);
   const [dragGapIndex, setDragGapIndex] = useState(null);
+  const [newProfileName, setNewProfileName] = useState('');
+  const [newProfileBaseId, setNewProfileBaseId] = useState('');
+  const [profileCreateState, setProfileCreateState] = useState('idle');
+  const [profileCreateError, setProfileCreateError] = useState('');
+  const [profileManageError, setProfileManageError] = useState('');
+  const [renameProfileName, setRenameProfileName] = useState('');
+  const [profileRenameState, setProfileRenameState] = useState('idle');
+  const [profileDeleteState, setProfileDeleteState] = useState('idle');
+  const [profileEditContent, setProfileEditContent] = useState('');
+  const [profileEditState, setProfileEditState] = useState('idle');
+  const [profileEditError, setProfileEditError] = useState('');
+  const [gpxImportError, setGpxImportError] = useState('');
+  const [gpxImportSuccess, setGpxImportSuccess] = useState('');
+  const gpxInputRef = useRef(null);
   const {
     startPoint, endPoint,
     startLabel, endLabel, waypoints,
@@ -166,9 +266,15 @@ function RouteControls() {
 
   useEffect(() => {
     if (!bikeProfiles.length) {
-      loadBikeProfiles();
+      loadBikeProfiles(token);
     }
-  }, [bikeProfiles.length, loadBikeProfiles]);
+  }, [bikeProfiles.length, loadBikeProfiles, token]);
+
+  useEffect(() => {
+    if (authEnabled && authenticated && token) {
+      loadBikeProfiles(token);
+    }
+  }, [authEnabled, authenticated, token, loadBikeProfiles]);
 
   useEffect(() => {
     if (authEnabled && authenticated && token) {
@@ -186,6 +292,56 @@ function RouteControls() {
   const handleExportTCX = () => { if (route) exportRoute('tcx'); };
   const handleExportGPX = () => { if (route) exportRoute('gpx'); };
   const handleResetRoute = () => { resetRoute(); };
+  const handleOpenGpxPicker = () => {
+    if (gpxInputRef.current) {
+      gpxInputRef.current.click();
+    }
+  };
+  const handleImportRouteFile = async (event) => {
+    const file = event && event.target && event.target.files ? event.target.files[0] : null;
+    if (!file) {
+      return;
+    }
+
+    setGpxImportError('');
+    setGpxImportSuccess('');
+
+    try {
+      const lowerName = String(file.name || '').toLowerCase();
+      const isFit = lowerName.endsWith('.fit');
+      const coordinates = isFit
+        ? await parseFitCoordinates(file)
+        : parseGpxCoordinates(await file.text());
+      const waypointsFromGpx = sampleGpxWaypoints(coordinates, 6);
+      const start = coordinates[0];
+      const end = coordinates[coordinates.length - 1];
+
+      resetRoute();
+      await setStartPoint(start, 'GPX Start');
+      await setEndPoint(end, 'GPX End');
+
+      for (let index = 0; index < waypointsFromGpx.length; index += 1) {
+        await insertWaypoint(waypointsFromGpx[index], `GPX W${index + 1}`, index);
+      }
+
+      setGpxImportSuccess(t(isFit ? 'route.fitImport.success' : 'route.gpxImport.success', { count: waypointsFromGpx.length }));
+    } catch (error) {
+      const message = String(error && error.message ? error.message : '');
+      if (message.includes('at least start and end')) {
+        setGpxImportError(t('route.errors.gpxTooShort'));
+      } else if (message.includes('Invalid GPX XML')) {
+        setGpxImportError(t('route.errors.invalidGpx'));
+      } else if (message.includes('FIT')) {
+        setGpxImportError(t('route.errors.fitReadFailed'));
+      } else {
+        setGpxImportError(t('route.errors.gpxReadFailed'));
+      }
+    } finally {
+      if (event && event.target) {
+        event.target.value = '';
+      }
+    }
+  };
   const handleRiderProfileChange = (field, value) => {
     const numericValue = Number(value);
     if (!Number.isFinite(numericValue) || numericValue <= 0) {
@@ -219,6 +375,211 @@ function RouteControls() {
   const weatherAlertItems = getWeatherAlertItems(weatherAlerts);
   const hasWeatherWarnings = weatherAlertItems.length > 0;
   const weatherAgeLabel = getWeatherAgeLabel(weatherAlerts);
+  const canManageProfiles = authEnabled && authenticated;
+  const selectedProfileId = selectedProfile ? selectedProfile.id : '';
+  const selectedProfileLabel = selectedProfile ? selectedProfile.label : '';
+  const selectedProfileOwned = Boolean(selectedProfile && selectedProfile.owned);
+  const isOwnedSelectedProfile = Boolean(canManageProfiles && selectedProfile && selectedProfile.owned);
+
+  useEffect(() => {
+    if (!newProfileBaseId && selectedProfileId) {
+      setNewProfileBaseId(selectedProfileId);
+    }
+  }, [newProfileBaseId, selectedProfileId]);
+
+  useEffect(() => {
+    if (selectedProfileOwned) {
+      setRenameProfileName(selectedProfileLabel || selectedProfileId || '');
+    }
+    setProfileManageError('');
+    setProfileEditContent('');
+    setProfileEditError('');
+    setProfileEditState('idle');
+  }, [selectedProfileId, selectedProfileLabel, selectedProfileOwned]);
+
+  const loadProfiles = async () => {
+    return loadBikeProfiles(token);
+  };
+
+  const handleCreateBikeProfile = async () => {
+    const name = String(newProfileName || '').trim();
+    if (!name || !token) {
+      return;
+    }
+
+    setProfileCreateState('saving');
+    setProfileCreateError('');
+    try {
+      const response = await fetch('/api/routing/profiles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name,
+          baseProfileId: newProfileBaseId || (selectedProfile && selectedProfile.id) || undefined
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data && data.message ? data.message : t('route.profileCreator.errors.createFailed'));
+      }
+
+      const profiles = await loadProfiles();
+      if (data && data.profile && data.profile.id) {
+        await setBikeType(data.profile.id);
+        setNewProfileBaseId(data.profile.id);
+      } else if (profiles && profiles[0]) {
+        await setBikeType(profiles[0].id);
+      }
+      setNewProfileName('');
+      setProfileCreateState('saved');
+      setTimeout(() => setProfileCreateState('idle'), 1600);
+    } catch (error) {
+      setProfileCreateState('error');
+      setProfileCreateError(error.message || t('route.profileCreator.errors.createFailed'));
+    }
+  };
+
+  const handleRenameBikeProfile = async () => {
+    if (!token || !selectedProfile || !selectedProfile.owned) {
+      return;
+    }
+
+    const nextName = String(renameProfileName || '').trim();
+    if (!nextName) {
+      return;
+    }
+
+    setProfileRenameState('saving');
+    setProfileManageError('');
+    try {
+      const response = await fetch(`/api/routing/profiles/${encodeURIComponent(selectedProfile.id)}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: nextName })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data && data.message ? data.message : t('route.profileCreator.errors.renameFailed'));
+      }
+
+      const profiles = await loadProfiles();
+      if (data && data.profile && data.profile.id) {
+        await setBikeType(data.profile.id);
+      } else if (profiles && profiles[0]) {
+        await setBikeType(profiles[0].id);
+      }
+      setProfileRenameState('saved');
+      setTimeout(() => setProfileRenameState('idle'), 1500);
+    } catch (error) {
+      setProfileRenameState('error');
+      setProfileManageError(error.message || t('route.profileCreator.errors.renameFailed'));
+    }
+  };
+
+  const handleDeleteBikeProfile = async () => {
+    if (!token || !selectedProfile || !selectedProfile.owned) {
+      return;
+    }
+
+    const confirmed = window.confirm(t('route.profileCreator.confirmDelete', { name: selectedProfile.label || selectedProfile.id }));
+    if (!confirmed) {
+      return;
+    }
+
+    setProfileDeleteState('saving');
+    setProfileManageError('');
+    try {
+      const response = await fetch(`/api/routing/profiles/${encodeURIComponent(selectedProfile.id)}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data && data.message ? data.message : t('route.profileCreator.errors.deleteFailed'));
+      }
+
+      const profiles = await loadProfiles();
+      const next = (profiles && profiles[0]) ? profiles[0].id : 'road';
+      await setBikeType(next);
+      setProfileDeleteState('saved');
+      setProfileEditContent('');
+      setTimeout(() => setProfileDeleteState('idle'), 1500);
+    } catch (error) {
+      setProfileDeleteState('error');
+      setProfileManageError(error.message || t('route.profileCreator.errors.deleteFailed'));
+    }
+  };
+
+  const handleLoadProfileContent = async () => {
+    if (!token || !selectedProfile || !selectedProfile.owned) {
+      return;
+    }
+
+    setProfileEditState('saving');
+    setProfileEditError('');
+    try {
+      const response = await fetch(`/api/routing/profiles/${encodeURIComponent(selectedProfile.id)}/content`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data && data.message ? data.message : t('route.profileCreator.errors.loadContentFailed'));
+      }
+      setProfileEditContent(String(data && data.profile && data.profile.content ? data.profile.content : ''));
+      setProfileEditState('idle');
+    } catch (error) {
+      setProfileEditState('error');
+      setProfileEditError(error.message || t('route.profileCreator.errors.loadContentFailed'));
+    }
+  };
+
+  const handleSaveProfileContent = async () => {
+    if (!token || !selectedProfile || !selectedProfile.owned) {
+      return;
+    }
+
+    setProfileEditState('saving');
+    setProfileEditError('');
+    try {
+      const response = await fetch(`/api/routing/profiles/${encodeURIComponent(selectedProfile.id)}/content`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ content: profileEditContent })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data && data.message ? data.message : t('route.profileCreator.errors.saveContentFailed'));
+      }
+      setProfileEditState('saved');
+      setTimeout(() => setProfileEditState('idle'), 1500);
+    } catch (error) {
+      setProfileEditState('error');
+      setProfileEditError(error.message || t('route.profileCreator.errors.saveContentFailed'));
+    }
+  };
+
+  const formatProfileOptionLabel = (profile) => {
+    if (!profile) {
+      return t('common.unknown');
+    }
+    return profile.owned
+      ? `${profile.label} • ${t('route.profileCreator.ownBadge')}`
+      : profile.label;
+  };
 
   const clearWaypointDrag = () => {
     setDragWaypointId(null);
@@ -428,6 +789,21 @@ function RouteControls() {
           </div>
 
           <div className="plan-action-bar">
+            <input
+              ref={gpxInputRef}
+              className="gpx-file-input"
+              type="file"
+              accept=".gpx,.fit,application/gpx+xml,application/xml,text/xml"
+              onChange={handleImportRouteFile}
+            />
+            <button
+              className="btn-secondary"
+              onClick={handleOpenGpxPicker}
+              disabled={loading}
+              type="button"
+            >
+              <FiUpload /> {t('route.importRouteFile')}
+            </button>
             <button
               className="btn-primary"
               onClick={handleCalculate}
@@ -445,6 +821,9 @@ function RouteControls() {
                 <FiTrash2 /> {t('route.delete')}
               </button>
             )}
+
+            {gpxImportSuccess && <small className="gpx-import-success">{gpxImportSuccess}</small>}
+            {gpxImportError && <small className="gpx-import-error">{gpxImportError}</small>}
           </div>
 
           {route && (
@@ -577,96 +956,238 @@ function RouteControls() {
 
       {activeTab === 'setup' && (
         <>
-          <div className="control-group">
-            <label>{t('route.bike')}</label>
-            <div className="bike-profile-select">
-              <select
-                value={bikeType || selectedProfile.id}
-                onChange={(event) => setBikeType(event.target.value)}
-                disabled={!bikeProfiles.length}
-              >
-                {profileOptions.map((profile) => (
-                  <option key={profile.id} value={profile.id}>
-                    {profile.label}
-                  </option>
+          <section className="setup-section">
+            <h3 className="setup-section-title">{t('route.setupSections.bike')}</h3>
+            <p className="setup-section-subtitle">{t('route.setupSections.bikeHint')}</p>
+
+            <div className="control-group">
+              <label>{t('route.bike')}</label>
+              <div className="bike-profile-select">
+                <select
+                  value={bikeType || selectedProfile.id}
+                  onChange={(event) => setBikeType(event.target.value)}
+                  disabled={!bikeProfiles.length}
+                >
+                  {profileOptions.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {formatProfileOptionLabel(profile)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="bike-model-tag">
+                {selectedProfile.source === 'brouter'
+                  ? t('route.brouterProfile')
+                  : t('route.routingProfile')}
+              </div>
+            </div>
+
+            <details className="profile-tools">
+              <summary>{t('route.profileCreator.toolsTitle')}</summary>
+              <div className="profile-tools-body">
+                <div className="control-group profile-flow-card profile-creator">
+                  <label>{t('route.profileCreator.stepCreate')}</label>
+                  <small className="profile-creator-hint">{t('route.profileCreator.stepCreateHint')}</small>
+                  {!canManageProfiles ? (
+                    <small className="profile-creator-hint">{t('route.profileCreator.authRequired')}</small>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        value={newProfileName}
+                        placeholder={t('route.profileCreator.namePlaceholder')}
+                        onChange={(event) => setNewProfileName(event.target.value)}
+                        maxLength={64}
+                      />
+                      <label className="profile-sub-label">{t('route.profileCreator.baseProfileLabel')}</label>
+                      <small className="profile-creator-hint">{t('route.profileCreator.baseProfileHint')}</small>
+                      <div className="bike-profile-select">
+                        <select
+                          value={newProfileBaseId || (selectedProfile && selectedProfile.id) || ''}
+                          onChange={(event) => setNewProfileBaseId(event.target.value)}
+                        >
+                          {profileOptions.map((profile) => (
+                            <option key={`base-${profile.id}`} value={profile.id}>
+                              {formatProfileOptionLabel(profile)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        className="btn-secondary"
+                        type="button"
+                        onClick={handleCreateBikeProfile}
+                        disabled={!newProfileName.trim() || profileCreateState === 'saving'}
+                      >
+                        {profileCreateState === 'saving'
+                          ? t('route.profileCreator.creating')
+                          : t('route.profileCreator.create')}
+                      </button>
+                      {profileCreateState === 'saved' && (
+                        <small className="profile-creator-success">{t('route.profileCreator.created')}</small>
+                      )}
+                      {profileCreateError && (
+                        <small className="profile-creator-error">{profileCreateError}</small>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="control-group profile-flow-card profile-manager">
+                  <label>{t('route.profileCreator.stepManage')}</label>
+                  <small className="profile-creator-hint">{t('route.profileCreator.stepManageHint')}</small>
+
+                  {!isOwnedSelectedProfile ? (
+                    <small className="profile-creator-hint">{t('route.profileCreator.selectOwnFirst')}</small>
+                  ) : (
+                    <>
+                    <input
+                      type="text"
+                      value={renameProfileName}
+                      onChange={(event) => setRenameProfileName(event.target.value)}
+                      maxLength={64}
+                    />
+                    <div className="profile-manager-actions">
+                      <button
+                        className="btn-secondary"
+                        type="button"
+                        onClick={handleRenameBikeProfile}
+                        disabled={!renameProfileName.trim() || profileRenameState === 'saving'}
+                      >
+                        {profileRenameState === 'saving'
+                          ? t('route.profileCreator.renaming')
+                          : t('route.profileCreator.rename')}
+                      </button>
+                      <button
+                        className="btn-secondary btn-danger"
+                        type="button"
+                        onClick={handleDeleteBikeProfile}
+                        disabled={profileDeleteState === 'saving'}
+                      >
+                        {profileDeleteState === 'saving'
+                          ? t('route.profileCreator.deleting')
+                          : t('route.profileCreator.delete')}
+                      </button>
+                    </div>
+
+                    <details className="profile-editor-panel">
+                      <summary>{t('route.profileCreator.editorTitle')}</summary>
+                      <div className="profile-editor-panel-body">
+                        <div className="profile-manager-actions">
+                          <button className="btn-secondary" type="button" onClick={handleLoadProfileContent}>
+                            {t('route.profileCreator.loadContent')}
+                          </button>
+                          <button
+                            className="btn-secondary"
+                            type="button"
+                            onClick={handleSaveProfileContent}
+                            disabled={!profileEditContent.trim() || profileEditState === 'saving'}
+                          >
+                            {profileEditState === 'saving'
+                              ? t('route.profileCreator.savingContent')
+                              : t('route.profileCreator.saveContent')}
+                          </button>
+                        </div>
+                        <textarea
+                          className="profile-editor"
+                          value={profileEditContent}
+                          onChange={(event) => setProfileEditContent(event.target.value)}
+                          placeholder={t('route.profileCreator.editorPlaceholder')}
+                        />
+                        {profileEditError && (
+                          <small className="profile-creator-error">{profileEditError}</small>
+                        )}
+                      </div>
+                    </details>
+
+                    {profileManageError && (
+                      <small className="profile-creator-error">{profileManageError}</small>
+                    )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </details>
+          </section>
+
+          <section className="setup-section">
+            <h3 className="setup-section-title">{t('route.setupSections.user')}</h3>
+            <p className="setup-section-subtitle">{t('route.setupSections.userHint')}</p>
+
+            <div className="control-group">
+              <label>{t('route.riderProfile.title')}</label>
+              <div className="rider-profile-inputs">
+                <label>
+                  <span><FiZap size={12} /> {t('route.riderProfile.ftp')}</span>
+                  <div className="rider-input">
+                    <input
+                      type="number"
+                      min="50"
+                      max="600"
+                      step="1"
+                      value={riderProfile.ftp}
+                      onChange={(event) => handleRiderProfileChange('ftp', event.target.value)}
+                    />
+                    <small>W</small>
+                  </div>
+                </label>
+                <label>
+                  <span>{t('route.riderProfile.weight')}</span>
+                  <div className="rider-input">
+                    <input
+                      type="number"
+                      min="30"
+                      max="180"
+                      step="0.5"
+                      value={riderProfile.weight}
+                      onChange={(event) => handleRiderProfileChange('weight', event.target.value)}
+                    />
+                    <small>kg</small>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section className="setup-section">
+            <h3 className="setup-section-title">{t('route.setupSections.training')}</h3>
+            <p className="setup-section-subtitle">{t('route.setupSections.trainingHint')}</p>
+
+            <div className="control-group">
+              <label>{t('route.rideType')}</label>
+              <div className="ride-type-buttons">
+                {RIDE_TYPES.map(({ id }) => (
+                  <button
+                    key={id}
+                    className={`ride-type-btn${rideType === id ? ' active' : ''}`}
+                    onClick={() => setRideType(id)}
+                  >
+                    <span className="rt-label">{t(`rideTypes.${id}.label`)}</span>
+                    <span className="rt-sub">{t(`rideTypes.${id}.subtitle`)}</span>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
-            <div className="bike-model-tag">
-              {selectedProfile.source === 'brouter'
-                ? t('route.brouterProfile')
-                : t('route.routingProfile')}
-            </div>
-          </div>
 
-          <div className="control-group">
-            <label>{t('route.rideType')}</label>
-            <div className="ride-type-buttons">
-              {RIDE_TYPES.map(({ id }) => (
-                <button
-                  key={id}
-                  className={`ride-type-btn${rideType === id ? ' active' : ''}`}
-                  onClick={() => setRideType(id)}
-                >
-                  <span className="rt-label">{t(`rideTypes.${id}.label`)}</span>
-                  <span className="rt-sub">{t(`rideTypes.${id}.subtitle`)}</span>
-                </button>
-              ))}
+            <div className="control-group">
+              <label>{t('route.style')}</label>
+              <div className="preference-buttons">
+                {['fastest', 'scenic', 'offroad'].map((id) => (
+                  <button
+                    key={id}
+                    className={preference === id ? 'active' : ''}
+                    onClick={() => setPreference(id)}
+                  >
+                    {t(`preferences.${id}`)}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="control-group">
-            <label>{t('route.riderProfile.title')}</label>
-            <div className="rider-profile-inputs">
-              <label>
-                <span><FiZap size={12} /> {t('route.riderProfile.ftp')}</span>
-                <div className="rider-input">
-                  <input
-                    type="number"
-                    min="50"
-                    max="600"
-                    step="1"
-                    value={riderProfile.ftp}
-                    onChange={(event) => handleRiderProfileChange('ftp', event.target.value)}
-                  />
-                  <small>W</small>
-                </div>
-              </label>
-              <label>
-                <span>{t('route.riderProfile.weight')}</span>
-                <div className="rider-input">
-                  <input
-                    type="number"
-                    min="30"
-                    max="180"
-                    step="0.5"
-                    value={riderProfile.weight}
-                    onChange={(event) => handleRiderProfileChange('weight', event.target.value)}
-                  />
-                  <small>kg</small>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <div className="control-group">
-            <label>{t('route.style')}</label>
-            <div className="preference-buttons">
-              {['fastest', 'scenic', 'offroad'].map((id) => (
-                <button
-                  key={id}
-                  className={preference === id ? 'active' : ''}
-                  onClick={() => setPreference(id)}
-                >
-                  {t(`preferences.${id}`)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {rideType && riderProfile.ftp && !route && (
-            <PowerZonePreview rideType={rideType} ftp={riderProfile.ftp} />
-          )}
+            {rideType && riderProfile.ftp && !route && (
+              <PowerZonePreview rideType={rideType} ftp={riderProfile.ftp} />
+            )}
+          </section>
         </>
       )}
     </div>

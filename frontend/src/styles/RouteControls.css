@@ -76,6 +76,83 @@
   gap: 8px;
 }
 
+.setup-section {
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 88%, white);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.setup-section-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.setup-section-subtitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.profile-tools {
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+
+.profile-tools summary {
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  padding: 9px 10px;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.profile-tools-body {
+  border-top: 1px solid var(--border);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.profile-flow-card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 10px;
+}
+
+.profile-editor-panel {
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+
+.profile-editor-panel summary {
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  padding: 8px 10px;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.profile-editor-panel-body {
+  border-top: 1px solid var(--border);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .control-group label {
   font-weight: 800;
   font-size: 10px;
@@ -146,6 +223,73 @@
   text-transform: uppercase;
   margin-top: 2px;
   padding-left: 2px;
+}
+
+.profile-creator input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 10px;
+}
+
+.profile-sub-label {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.profile-creator input:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.profile-creator-hint,
+.profile-creator-error,
+.profile-creator-success {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.profile-creator-hint {
+  color: var(--text-secondary);
+}
+
+.profile-creator-success {
+  color: #166534;
+}
+
+.profile-creator-error {
+  color: #991b1b;
+}
+
+.profile-manager-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.profile-editor {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  padding: 10px;
+}
+
+.profile-editor:focus {
+  border-color: var(--primary);
+  outline: none;
 }
 
 /* ── Saved routes ──────────────────────────────────────────────────── */
@@ -535,6 +679,46 @@
 .location-input__field button:hover,
 .waypoint-remove:hover {
   color: var(--primary);
+}
+
+.location-quick-filters {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.location-quick-filters > span {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.location-quick-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.location-quick-filter-row button {
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 6px 8px;
+  text-transform: uppercase;
+}
+
+.location-quick-filter-row button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--surface);
 }
 
 .location-results {
@@ -1010,6 +1194,25 @@
 .plan-action-bar {
   display: grid;
   gap: 8px;
+}
+
+.gpx-file-input {
+  display: none;
+}
+
+.gpx-import-success,
+.gpx-import-error {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.gpx-import-success {
+  color: #166534;
+}
+
+.gpx-import-error {
+  color: #991b1b;
 }
 
 .route-stats {

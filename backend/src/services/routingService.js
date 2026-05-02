@@ -63,6 +63,7 @@ async function getRoute(start, end, options = {}) {
       continue_straight: preference === 'fastest',
       bikeType,
       preference,
+      riderProfile,
       routeContext
     });
 
@@ -93,6 +94,7 @@ async function getRoute(start, end, options = {}) {
             bikeType,
             preference: effectivePreference,
             rideType,
+            riderProfile,
             routeContext: { requestedPoints: [start, ...normalizeWaypoints(waypoints), viaPoint, end] }
           });
 
@@ -206,7 +208,7 @@ async function getRoute(start, end, options = {}) {
   }
 }
 
-async function getBikeProfiles() {
+async function getBikeProfiles(actor = {}) {
   try {
     const entries = await fs.readdir(BROUTER_CUSTOM_PROFILES_DIR, { withFileTypes: true });
     const profiles = [];
@@ -218,11 +220,13 @@ async function getBikeProfiles() {
 
       const id = entry.name.replace(/\.brf$/i, '');
       const filePath = path.join(BROUTER_CUSTOM_PROFILES_DIR, entry.name);
+      const metadata = await readBrouterProfileMetadata(filePath, id);
       profiles.push({
         id,
-        label: await readBrouterProfileLabel(filePath, id),
+        label: metadata.label,
         kind: inferBikeKind(id),
-        source: 'brouter'
+        source: 'brouter',
+        owned: isProfileOwnedByActor(metadata, actor)
       });
     }
 
@@ -240,25 +244,245 @@ async function getBikeProfiles() {
   ];
 }
 
-async function readBrouterProfileLabel(filePath, id) {
+async function createBikeProfile(input = {}, actor = {}) {
+  const profileName = String(input.name || '').trim();
+  if (!profileName) {
+    throw new Error('Profile name is required');
+  }
+
+  const requestedBaseId = String(input.baseProfileId || '').trim();
+  const availableProfiles = await getBikeProfiles();
+  const fallbackBaseId = availableProfiles[0] ? availableProfiles[0].id : '3t-racemax';
+  const baseProfileId = requestedBaseId || fallbackBaseId;
+
+  const baseProfilePath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${baseProfileId}.brf`);
+  let baseContent;
+  try {
+    baseContent = await fs.readFile(baseProfilePath, 'utf8');
+  } catch (_) {
+    throw new Error(`Base profile not found: ${baseProfileId}`);
+  }
+
+  const profileId = toProfileId(profileName);
+  if (!/^[a-z0-9][a-z0-9-]{2,48}$/.test(profileId)) {
+    throw new Error('Profile name must produce a valid id (3-49 chars, a-z, 0-9, -)');
+  }
+
+  const targetPath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${profileId}.brf`);
+  const actorLabel = profileOwnerToken(actor);
+  const header = [
+    `# ${profileName}`,
+    `# Cloned from: ${baseProfileId}`,
+    `# Created by: ${actorLabel}`,
+    `# Created at: ${new Date().toISOString()}`,
+    ''
+  ].join('\n');
+
+  try {
+    await fs.writeFile(targetPath, `${header}${baseContent}`, { encoding: 'utf8', flag: 'wx' });
+  } catch (error) {
+    if (error && error.code === 'EEXIST') {
+      throw new Error(`Profile already exists: ${profileId}`);
+    }
+    throw error;
+  }
+
+  return {
+    id: profileId,
+    label: profileName,
+    baseProfileId,
+    kind: inferBikeKind(profileId),
+    source: 'brouter',
+    owned: true
+  };
+}
+
+async function renameBikeProfile(profileId, nextName, actor = {}) {
+  const currentId = String(profileId || '').trim();
+  const newName = String(nextName || '').trim();
+  if (!currentId || !newName) {
+    throw new Error('Profile id and new name are required');
+  }
+
+  const currentPath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${currentId}.brf`);
+  const metadata = await readBrouterProfileMetadata(currentPath, currentId);
+  ensureOwnProfile(metadata, actor, currentId);
+
+  const nextId = toProfileId(newName);
+  if (!/^[a-z0-9][a-z0-9-]{2,48}$/.test(nextId)) {
+    throw new Error('New profile name must produce a valid id (3-49 chars, a-z, 0-9, -)');
+  }
+
+  const currentContent = await fs.readFile(currentPath, 'utf8');
+  const nextContent = rewriteProfileHeaderName(currentContent, newName);
+
+  if (nextId !== currentId) {
+    const targetPath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${nextId}.brf`);
+    try {
+      await fs.access(targetPath);
+      throw new Error(`Profile already exists: ${nextId}`);
+    } catch (error) {
+      if (!(error && error.code === 'ENOENT')) {
+        throw error;
+      }
+    }
+    await fs.writeFile(targetPath, nextContent, 'utf8');
+    await fs.unlink(currentPath);
+  } else {
+    await fs.writeFile(currentPath, nextContent, 'utf8');
+  }
+
+  return {
+    id: nextId,
+    label: newName,
+    kind: inferBikeKind(nextId),
+    source: 'brouter',
+    owned: true
+  };
+}
+
+async function deleteBikeProfile(profileId, actor = {}) {
+  const id = String(profileId || '').trim();
+  if (!id) {
+    throw new Error('Profile id is required');
+  }
+
+  const filePath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${id}.brf`);
+  const metadata = await readBrouterProfileMetadata(filePath, id);
+  ensureOwnProfile(metadata, actor, id);
+  await fs.unlink(filePath);
+  return { id, deleted: true };
+}
+
+async function getBikeProfileContent(profileId, actor = {}) {
+  const id = String(profileId || '').trim();
+  if (!id) {
+    throw new Error('Profile id is required');
+  }
+
+  const filePath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${id}.brf`);
+  const metadata = await readBrouterProfileMetadata(filePath, id);
+  ensureOwnProfile(metadata, actor, id);
+  return {
+    id,
+    label: metadata.label,
+    content: metadata.content,
+    owned: true
+  };
+}
+
+async function updateBikeProfileContent(profileId, nextContent, actor = {}) {
+  const id = String(profileId || '').trim();
+  if (!id) {
+    throw new Error('Profile id is required');
+  }
+
+  const content = String(nextContent || '').trim();
+  if (!content) {
+    throw new Error('Profile content must not be empty');
+  }
+  if (content.length > 250000) {
+    throw new Error('Profile content is too large');
+  }
+
+  const filePath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${id}.brf`);
+  const metadata = await readBrouterProfileMetadata(filePath, id);
+  ensureOwnProfile(metadata, actor, id);
+  await fs.writeFile(filePath, `${content}\n`, 'utf8');
+  return {
+    id,
+    label: metadata.label,
+    owned: true
+  };
+}
+
+function toProfileId(value) {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-')
+    .slice(0, 49);
+}
+
+async function readBrouterProfileMetadata(filePath, id) {
+  const result = {
+    label: titleCaseProfile(id.replace(/-/g, ' ')),
+    ownerToken: '',
+    content: ''
+  };
+
   try {
     const content = await fs.readFile(filePath, 'utf8');
+    result.content = content;
     const firstComment = content
       .split('\n')
       .map(line => line.replace(/^#\s*/, '').trim())
       .find(line => line && !line.endsWith('.brf'));
 
+    const ownerLine = content
+      .split('\n')
+      .map(line => line.trim())
+      .find(line => /^#\s*Created by:/i.test(line));
+    if (ownerLine) {
+      result.ownerToken = ownerLine.replace(/^#\s*Created by:\s*/i, '').trim();
+    }
+
     if (firstComment) {
       const match = firstComment.match(/for (?:a |an )?(.+?)(?: bike|\.|$)/i);
       if (match && match[1]) {
-        return titleCaseProfile(match[1]);
+        result.label = titleCaseProfile(match[1]);
+        return result;
       }
+
+      result.label = firstComment;
+      return result;
     }
   } catch (_) {
     // Fall through to filename label.
   }
 
-  return titleCaseProfile(id.replace(/-/g, ' '));
+  return result;
+}
+
+function profileOwnerToken(actor = {}) {
+  return String(actor.preferred_username || actor.sub || actor.name || 'unknown').trim();
+}
+
+function isProfileOwnedByActor(metadata = {}, actor = {}) {
+  const ownerToken = String(metadata.ownerToken || '').trim();
+  if (!ownerToken) {
+    return false;
+  }
+
+  const actorTokens = [
+    actor.preferred_username,
+    actor.sub,
+    actor.name,
+    actor.email
+  ]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+
+  return actorTokens.includes(ownerToken);
+}
+
+function ensureOwnProfile(metadata = {}, actor = {}, profileId = '') {
+  if (!isProfileOwnedByActor(metadata, actor)) {
+    throw new Error(`Not allowed to modify profile: ${profileId}`);
+  }
+}
+
+function rewriteProfileHeaderName(content, newName) {
+  const lines = String(content || '').split('\n');
+  if (lines.length && /^#\s*/.test(lines[0])) {
+    lines[0] = `# ${newName}`;
+  } else {
+    lines.unshift(`# ${newName}`);
+  }
+  return lines.join('\n');
 }
 
 function titleCaseProfile(value) {
@@ -720,32 +944,38 @@ async function requestRouteBrouter(points, options = {}) {
   const alternatives = options.alternatives ? [0, 1, 2] : [0];
   const routes = [];
   const errors = [];
-  const profile = resolveBrouterProfile(options);
+  const { profile, cleanup } = await resolveBrouterProfileForRequest(options);
 
-  for (const alternativeidx of alternatives) {
-    try {
-      const response = await axios.get(BROUTER_API, {
-        params: {
-          lonlats: points.map((p) => `${p[1]},${p[0]}`).join('|'),
-          profile,
-          alternativeidx,
-          format: 'geojson'
-        },
-        timeout: 25000
-      });
+  try {
+    for (const alternativeidx of alternatives) {
+      try {
+        const response = await axios.get(BROUTER_API, {
+          params: {
+            lonlats: points.map((p) => `${p[1]},${p[0]}`).join('|'),
+            profile,
+            alternativeidx,
+            format: 'geojson'
+          },
+          timeout: 25000
+        });
 
-      const feature = response.data && Array.isArray(response.data.features)
-        ? response.data.features[0]
-        : null;
-      if (!feature || !feature.geometry || !Array.isArray(feature.geometry.coordinates)) {
-        errors.push(`alt ${alternativeidx}: empty GeoJSON response`);
-        continue;
+        const feature = response.data && Array.isArray(response.data.features)
+          ? response.data.features[0]
+          : null;
+        if (!feature || !feature.geometry || !Array.isArray(feature.geometry.coordinates)) {
+          errors.push(`alt ${alternativeidx}: empty GeoJSON response`);
+          continue;
+        }
+
+        routes.push(normalizeBrouterFeature(feature, options.routeContext));
+      } catch (error) {
+        errors.push(`alt ${alternativeidx}: ${formatBrouterError(error)}`);
+        // Try next alternative candidate.
       }
-
-      routes.push(normalizeBrouterFeature(feature, options.routeContext));
-    } catch (error) {
-      errors.push(`alt ${alternativeidx}: ${formatBrouterError(error)}`);
-      // Try next alternative candidate.
+    }
+  } finally {
+    if (typeof cleanup === 'function') {
+      await cleanup();
     }
   }
 
@@ -947,6 +1177,101 @@ function resolveBrouterProfile(options = {}) {
 
   // Generic fallback.
   return preference === 'fastest' ? 'fastbike' : 'trekking';
+}
+
+async function resolveBrouterProfileForRequest(options = {}) {
+  const profile = resolveBrouterProfile(options);
+  const overrides = getBrouterRiderOverrides(options.riderProfile || {});
+
+  if (!overrides) {
+    return { profile, cleanup: null };
+  }
+
+  const sourcePath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${profile}.brf`);
+  if (!(await fileExists(sourcePath))) {
+    return { profile, cleanup: null };
+  }
+
+  const source = await fs.readFile(sourcePath, 'utf8');
+  const sourceMass = extractAssignedNumber(source, 'totalMass');
+  const sourceRiderWeight = extractRiderWeightHint(source);
+  const fallbackBikeMass = 10;
+  const inferredBikeMass = Number.isFinite(sourceMass) && Number.isFinite(sourceRiderWeight)
+    ? sourceMass - sourceRiderWeight
+    : fallbackBikeMass;
+  const bikeMass = clampNumber(inferredBikeMass, 6, 25);
+  const adjustedMass = Number((overrides.riderWeight + bikeMass).toFixed(1));
+
+  const withPower = upsertAssignedNumber(source, 'bikerPower', overrides.bikerPower);
+  const adjusted = upsertAssignedNumber(withPower, 'totalMass', adjustedMass);
+
+  const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const tempProfile = `${profile}-rt-${requestId}`;
+  const tempPath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${tempProfile}.brf`);
+  await fs.writeFile(tempPath, adjusted, { encoding: 'utf8', flag: 'wx' });
+
+  return {
+    profile: tempProfile,
+    cleanup: async () => {
+      try {
+        await fs.unlink(tempPath);
+      } catch (_) {
+        // Ignore cleanup errors for temp profile removal.
+      }
+    }
+  };
+}
+
+function getBrouterRiderOverrides(riderProfile = {}) {
+  const ftp = Number(riderProfile.ftp);
+  const weight = Number(riderProfile.weight);
+
+  if (!Number.isFinite(ftp) || ftp <= 0 || !Number.isFinite(weight) || weight <= 0) {
+    return null;
+  }
+
+  const riderWeight = clampNumber(weight, 30, 180);
+  // Approximation of sustainable power for routing speed model.
+  const bikerPower = clampNumber(Math.round(ftp * 0.72), 80, 420);
+
+  return { riderWeight, bikerPower };
+}
+
+function extractAssignedNumber(content, variableName) {
+  const re = new RegExp(`^\\s*assign\\s+${variableName}\\s*=?\\s*([0-9]+(?:\\.[0-9]+)?)\\s*$`, 'im');
+  const match = String(content || '').match(re);
+  return match ? Number(match[1]) : Number.NaN;
+}
+
+function extractRiderWeightHint(content) {
+  const match = String(content || '').match(/Rider:\s*([0-9]+(?:\.[0-9]+)?)\s*kg/i);
+  return match ? Number(match[1]) : Number.NaN;
+}
+
+function upsertAssignedNumber(content, variableName, value) {
+  const next = Number(value);
+  if (!Number.isFinite(next)) {
+    return String(content || '');
+  }
+
+  const line = `assign ${variableName} = ${next}`;
+  const source = String(content || '');
+  const re = new RegExp(`^\\s*assign\\s+${variableName}\\s*=?.*$`, 'im');
+  if (re.test(source)) {
+    return source.replace(re, line);
+  }
+
+  const globalMarker = '---context:way';
+  const idx = source.indexOf(globalMarker);
+  if (idx >= 0) {
+    return `${source.slice(0, idx).trimEnd()}\n${line}\n\n${source.slice(idx)}`;
+  }
+
+  return `${source.trimEnd()}\n${line}\n`;
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(max, Math.max(min, Number(value)));
 }
 
 function inferBikeKind(profileId) {
@@ -2335,6 +2660,11 @@ async function analyzeRoute(coordinates) {
 module.exports = {
   getRoute,
   getBikeProfiles,
+  createBikeProfile,
+  renameBikeProfile,
+  deleteBikeProfile,
+  getBikeProfileContent,
+  updateBikeProfileContent,
   analyzeRoute,
   getRoutingEngineInfo,
   PROFILES,

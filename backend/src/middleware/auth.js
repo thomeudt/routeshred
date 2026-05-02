@@ -39,7 +39,32 @@ async function requireAuth(req, res, next) {
   }
 }
 
+async function optionalAuth(req, _res, next) {
+  const cfg = getKeycloakConfig();
+  if (!cfg.enabled) {
+    return next();
+  }
+
+  const token = parseBearerToken(req.headers.authorization);
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const userInfo = await fetchUserInfo(token);
+    req.auth = {
+      token,
+      user: userInfo
+    };
+  } catch (_) {
+    // Ignore invalid optional tokens and continue anonymously.
+  }
+
+  return next();
+}
+
 module.exports = {
   requireAuth,
+  optionalAuth,
   parseBearerToken
 };

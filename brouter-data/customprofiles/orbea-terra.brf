@@ -1,0 +1,319 @@
+# Orbea Terra
+# Cloned from: 3t-racemax
+# Adapted by: ChatGPT for Thorsten
+# Adapted at: 2026-05-02
+# orbea-terra-m31e-newmen-g34-gp5000-as-tr-35.brf
+#
+# Custom BRouter profile for a 2025 Orbea Terra M31e
+# Wheels: Newmen Advanced G.34
+# Tires: Continental GP5000 AS TR 35 mm
+# Frame size: L
+# Rider: 87 kg, FTP ~250 W
+#
+# Key characteristics:
+#   - Orbea Terra with 35 mm GP5000 AS TR is a fast allroad / road-plus setup
+#   - Strong preference for asphalt, cycleways, quiet roads and paved rural lanes
+#   - Fine gravel and compacted paths are acceptable, but not actively sought
+#   - Rough dirt, grass, sand, mud, grade3+ tracks and technical paths are heavily penalized
+#   - Designed for "roadier Terra", not full gravel adventure
+#   - Avoids Bundesstrassen / primary roads where quieter alternatives exist
+#   - Climbing weighted normally; no artificial avoidance of hills
+#   - Intended use: fast mixed-surface road rides, road-like gravel, endurance, cafe loops
+
+---context:global
+
+assign validForBikes true
+assign turnInstructionMode          1
+assign turnInstructionRoundabouts   true
+assign considerTurnRestrictions     true
+assign correctMisplacedViaPoints    true
+assign correctMisplacedViaPointsDistance 1200
+assign pass1coefficient 4
+
+assign allow_steps     false
+assign allow_ferries   true
+assign allow_motorways false
+
+assign consider_traffic      true
+assign consider_elevation    true
+assign prefer_unpaved_paths  false
+assign assume_wet_conditions false
+
+# Kinematic model
+# 87 kg rider + approx. 9.5-10 kg Terra setup = approx. 97 kg total
+assign totalMass  = 97
+
+# Average sustainable output on mixed allroad terrain
+assign bikerPower = 180
+
+# Road-oriented allroad position.
+# Slightly less aero than pure road, but faster than wide gravel setup.
+assign S_C_x      = 0.240
+
+# 35 mm Continental GP5000 AS TR.
+# Fast allroad tire; lower rolling resistance than real gravel tires.
+assign C_r        = 0.0048
+
+assign maxSpeed   = 52
+
+# Elevation
+# Keep hills neutral: this bike is meant to ride proper road terrain,
+# not avoid climbing, but also not hunt rough uphill tracks.
+assign downhillcost   20
+assign downhillcutoff 1.5
+assign uphillcost     0
+assign uphillcutoff   1.5
+
+assign use_proposed_cycleroutes false
+
+---context:way
+
+# -- Surface classification --------------------------------------------------
+
+assign ispaved
+  or surface=asphalt or surface=concrete or surface=paved
+  or surface=paving_stones or surface=sett
+  or smoothness=excellent smoothness=good
+
+assign isfinegravel
+  or surface=fine_gravel or surface=compacted surface=gravel
+
+assign ismediumgravel
+  surface=gravel
+
+assign isrough
+  or surface=ground or surface=dirt or surface=mud
+  or surface=grass or surface=sand surface=earth
+
+assign has_decent_surface
+  or ispaved isfinegravel
+
+# -- Bad on steep slopes -----------------------------------------------------
+# With 35 mm GP5000 AS TR, steep rough tracks are a no.
+# The tire can survive a lot, but this profile should avoid ugly routing.
+
+assign bad_when_steep
+  and highway=track|path
+    not or tracktype=grade1 has_decent_surface
+
+# -- Surface quality penalty -------------------------------------------------
+
+assign smoothnesspenalty
+  switch smoothness=excellent     1.00
+  switch smoothness=good          1.05
+  switch smoothness=intermediate  1.35
+  switch smoothness=bad           2.80
+  switch smoothness=very_bad      7.00
+  switch smoothness=horrible      15.00
+  switch smoothness=impassable    100.00
+
+  # Estimate from surface tag.
+  # This Terra setup is road-biased: asphalt is home terrain.
+  switch surface=asphalt          1.00
+  switch surface=concrete         1.03
+  switch surface=paved            1.00
+  switch surface=paving_stones    1.20
+  switch surface=sett             1.70
+
+  # Acceptable allroad surfaces.
+  switch surface=fine_gravel      1.18
+  switch surface=compacted        1.20
+  switch surface=gravel           1.45
+
+  # Unpleasant but sometimes survivable.
+  switch surface=pebblestone      1.90
+  switch surface=cobblestone      2.40
+
+  # Avoid for this tire/bike intent.
+  switch surface=ground|dirt      4.00
+  switch surface=earth            4.50
+  switch surface=grass            6.50
+  switch surface=mud|sand         12.00
+
+  # Estimate from tracktype for unmarked tracks.
+  switch highway=track
+    switch tracktype=grade1       1.20
+    switch tracktype=grade2       1.65
+    switch tracktype=grade3       4.00
+    switch tracktype=grade4       9.00
+    switch tracktype=grade5       18.00
+    switch has_decent_surface     1.45
+                                  4.00
+
+  # Fallbacks for normal roads.
+  switch highway=primary|primary_link|secondary|secondary_link|tertiary|tertiary_link 1.00
+  switch highway=service|unclassified|living_street|residential 1.00
+  switch highway=cycleway         1.00
+
+  1.80
+
+# -- Cycle route bonus -------------------------------------------------------
+
+assign any_cycleroute
+  or route_bicycle_icn=yes or route_bicycle_ncn=yes
+  or route_bicycle_rcn=yes route_bicycle_lcn=yes
+
+# Slight bonus only.
+# Do not blindly chase bad official cycle routes if surface is poor.
+assign notcycleroutepenalty switch any_cycleroute 1.00 1.06
+
+# -- Access / bike access logic ---------------------------------------------
+
+assign defaultaccess
+  switch access=
+    switch or highway=motorway or highway=motorway_link motorroad=yes
+      false
+      true
+    switch or access=private access=no
+      false
+      true
+
+assign bikeaccess
+  switch bicycle=
+    switch bicycle_road=yes true
+      switch vehicle=
+        switch highway=footway false defaultaccess
+        not vehicle=private|no
+    not or bicycle=private or bicycle=no or bicycle=dismount bicycle=use_sidepath
+
+assign footaccess
+  or bicycle=dismount
+    switch foot= defaultaccess
+      not or foot=private or foot=no foot=use_sidepath
+
+assign accesspenalty
+  switch bikeaccess 0
+    switch footaccess 5
+      switch highway=footway|pedestrian 6 10000
+
+# -- One-way -----------------------------------------------------------------
+
+assign badoneway
+  switch reversedirection=yes
+    switch oneway:bicycle=yes true
+      switch oneway= junction=roundabout
+                     oneway=yes|true|1
+    oneway=-1
+
+assign hascycleway
+  not and or cycleway= cycleway=no|none
+          or cycleway:left=no| cycleway:right=no|
+
+assign onewaypenalty
+  switch badoneway
+    switch or hascycleway oneway:bicycle=no 0
+      switch not footaccess 100
+        switch junction=roundabout|circular 60
+          switch highway=primary|primary_link 50
+            switch highway=secondary|secondary_link 30 6
+    0
+
+# -- Traffic estimation ------------------------------------------------------
+
+assign trafficpenalty
+  switch consider_traffic
+    switch hascycleway 0
+      switch estimated_traffic_class=|1|2 0
+        switch estimated_traffic_class=3 0.35
+          switch estimated_traffic_class=4 0.90
+            switch estimated_traffic_class=5 1.70
+              switch estimated_traffic_class=6|7 3.00 0
+    0
+
+# -- Core cost factor --------------------------------------------------------
+
+assign turncost switch junction=roundabout 15 65
+
+assign initialcost
+  switch route=ferry   20000
+  switch highway=trunk|trunk_link 950
+  switch highway=primary|primary_link 760
+  switch highway=secondary|secondary_link 190
+  switch highway=tertiary|tertiary_link 35 20
+
+assign costfactor
+  switch and highway= not route=ferry 10000
+  switch or highway=proposed highway=abandoned 10000
+  min 9999
+  add max onewaypenalty accesspenalty
+  add trafficpenalty
+
+  multiply notcycleroutepenalty
+  multiply smoothnesspenalty
+
+  # Hard exclusions / near-exclusions.
+  switch or highway=motorway highway=motorway_link
+    switch allow_motorways 1.5 10000
+
+  # Big roads: avoid unless necessary.
+  switch or highway=trunk highway=trunk_link 14.00
+  switch or highway=primary highway=primary_link 4.80
+  switch or highway=secondary highway=secondary_link 1.60
+
+  # Good road terrain.
+  switch or highway=tertiary highway=tertiary_link 0.92
+  switch highway=unclassified   0.82
+  switch highway=residential    0.82
+  switch highway=living_street  0.84
+  switch highway=service        0.95
+
+  # Bike infrastructure.
+  # Good, but not blindly preferred over excellent quiet asphalt.
+  switch highway=cycleway       0.74
+
+  # Pedestrian areas only if explicitly bike-friendly.
+  switch highway=pedestrian     switch hascycleway 1.45 4.50
+
+  # Bridleways: only acceptable with decent surface.
+  switch highway=bridleway
+              switch has_decent_surface 1.70 7.00
+
+  switch highway=steps          switch allow_steps 60 10000
+  switch route=ferry            switch allow_ferries 5 10000
+
+  # Tracks and paths.
+  # Main difference to the 3T RaceMax profile:
+  # this Terra setup is road-biased and should not be tempted into chunky stuff.
+  switch or highway=track or highway=path or highway=road highway=footway
+    switch tracktype=grade1        switch ispaved 1.12 switch isfinegravel 1.30 1.70
+    switch tracktype=grade2        switch has_decent_surface 1.85 3.80
+    switch tracktype=grade3        switch has_decent_surface 4.50 8.00
+    switch tracktype=grade4        switch has_decent_surface 9.00 14.00
+    switch tracktype=grade5        22.00
+    switch ispaved                 1.18
+    switch isfinegravel            1.45
+    switch ismediumgravel          2.40
+    switch isrough                 8.00
+                                   3.50
+
+  1.50
+
+# -- Voice hint priorities ---------------------------------------------------
+
+assign priorityclassifier
+  if      highway=motorway      then 30
+  else if highway=trunk         then 28
+  else if highway=primary       then 26
+  else if highway=secondary     then 24
+  else if highway=tertiary      then 22
+  else if highway=unclassified  then 20
+  else if highway=residential   then 18
+  else if highway=living_street then 16
+  else if highway=service       then 14
+  else if highway=cycleway      then 12
+  else if highway=path          then 10
+  else if highway=track         then 8
+  else if highway=footway       then 6
+  else 0
+
+---context:node
+
+assign defaultpenalty 0
+
+---context:relation
+
+assign onewayweight 0.05
+
+---context:global
+
+assign turncostbase 90

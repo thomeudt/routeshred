@@ -32,14 +32,16 @@ export const useRouteStore = create((set, get) => ({
   error: null,
 
   // Actions
-  loadBikeProfiles: async () => {
+  loadBikeProfiles: async (token = '') => {
     try {
-      const response = await axios.get(`${API_BASE}/routing/profiles`);
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+      const response = await axios.get(`${API_BASE}/routing/profiles`, { headers });
       const profiles = Array.isArray(response.data?.profiles) ? response.data.profiles : [];
       set((state) => ({
         bikeProfiles: profiles,
         bikeType: state.bikeType || profiles[0]?.id || 'road'
       }));
+      return profiles;
     } catch (error) {
       const fallbackProfiles = [
         { id: 'road', label: 'Road', kind: 'road', source: 'fallback' },
@@ -50,6 +52,7 @@ export const useRouteStore = create((set, get) => ({
         bikeProfiles: fallbackProfiles,
         bikeType: state.bikeType || fallbackProfiles[0].id
       }));
+      return fallbackProfiles;
     }
   },
   setStartPoint: async (point, label = '') => {

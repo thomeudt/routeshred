@@ -230,6 +230,57 @@ REACT_APP_KEYCLOAK_CLIENT_ID=routeshred-frontend
 The header now shows login/logout and a profile save action. Saved profile data
 includes rider FTP/weight, selected bike profile and ride type.
 
+## Proxmox One-Stack Deployment
+
+If you want a single deployment (frontend + backend + BRouter + Keycloak + reverse proxy),
+use the dedicated compose file:
+
+```bash
+docker compose -f docker-compose.proxmox.yml up -d --build
+```
+
+### 1. Prepare environment
+
+Copy and edit `.env` from `.env.example` and set at least:
+
+```env
+PUBLIC_HOSTNAME=route.example.com
+PUBLIC_BASE_URL=https://route.example.com
+
+KEYCLOAK_ADMIN=your-admin-user
+KEYCLOAK_ADMIN_PASSWORD=your-admin-password
+KC_DB_USER=kc_routeshred
+KC_DB_PASSWORD=strong-db-password
+```
+
+### 2. DNS / Networking
+
+- Point `PUBLIC_HOSTNAME` to your Proxmox host IP.
+- Open inbound `80` and `443` to the VM/LXC running Docker.
+
+### 3. Reverse Proxy and Paths
+
+The stack includes Caddy as reverse proxy (`deploy/Caddyfile`) and routes:
+
+- `/` -> frontend
+- `/api/*` -> backend
+- `/auth*` -> Keycloak
+
+Keycloak runs in the same stack and is served under `/auth`.
+
+### 4. Update / Restart
+
+```bash
+docker compose -f docker-compose.proxmox.yml pull
+docker compose -f docker-compose.proxmox.yml up -d --build
+```
+
+### 5. Stop
+
+```bash
+docker compose -f docker-compose.proxmox.yml down
+```
+
 ## 🗺️ How to Use
 
 1. Open your browser to `http://localhost:3000`

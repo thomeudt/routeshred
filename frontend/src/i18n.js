@@ -31,7 +31,14 @@ const translations = {
         addWaypoint: 'Wegpunkt hinzufügen',
         searchPlaceholder: 'Adresse oder POI suchen',
         searching: 'Suche...',
-        noResults: 'Keine Treffer'
+        noResults: 'Keine Treffer',
+        quickFiltersTitle: 'Schnellfilter',
+        quickFilters: {
+          hotel: 'Hotel',
+          shop: 'Shop',
+          cafe: 'Cafe/Restaurant',
+          bike: 'Bike Shop'
+        }
       },
       style: 'Routenstil',
       start: 'Start',
@@ -101,10 +108,61 @@ const translations = {
         sidewindWarning: 'Starker Seitenwind wahrscheinlich ({{crosswind}} km/h, Wind aus {{direction}}).'
       },
       fallback: 'Fallback',
+      importGpx: 'GPX importieren',
+      importRouteFile: 'GPX/FIT importieren',
       exportTcx: 'TCX exportieren (Wahoo/Garmin)',
       exportGpx: 'GPX exportieren',
-      brouterProfile: 'BRouter Custom Profile',
+      gpxImport: {
+        success: 'GPX importiert: Start, Ziel und {{count}} Wegpunkte uebernommen.'
+      },
+      fitImport: {
+        success: 'FIT importiert: Start, Ziel und {{count}} Wegpunkte uebernommen.'
+      },
+      brouterProfile: 'Bike Profil',
       routingProfile: 'Routing-Profil',
+      profileCreator: {
+        title: 'Eigenes Profil',
+        toolsTitle: 'Eigene Bike-Profile verwalten',
+        stepCreate: '1. Neues Profil anlegen',
+        stepCreateHint: 'Auf Basis eines vorhandenen Profils ein neues eigenes Profil erzeugen.',
+        stepManage: '2. Ausgewaehltes eigenes Profil verwalten',
+        stepManageHint: 'Name aendern, loeschen oder optional den BRF-Inhalt bearbeiten.',
+        selectOwnFirst: 'Waehle oben ein eigenes Profil (markiert mit "mein Profil"), um es zu verwalten.',
+        editorTitle: '3. BRF-Editor (optional)',
+        authRequired: 'Zum Anlegen eigener Profile bitte einloggen.',
+        namePlaceholder: 'Name für neues Profil',
+        baseProfileLabel: 'Basisprofil',
+        baseProfileHint: 'Dieses Profil dient als Ausgangspunkt. Dessen Basiswerte werden für das neue Profil übernommen.',
+        create: 'Profil anlegen',
+        creating: 'Wird angelegt...',
+        created: 'Profil angelegt und ausgewählt.',
+        ownBadge: 'mein Profil',
+        manageTitle: 'Profil verwalten',
+        rename: 'Umbenennen',
+        renaming: 'Wird umbenannt...',
+        delete: 'Löschen',
+        deleting: 'Wird gelöscht...',
+        loadContent: 'BRF laden',
+        saveContent: 'BRF speichern',
+        savingContent: 'Wird gespeichert...',
+        editorPlaceholder: 'BRF-Inhalt für dieses Profil',
+        confirmDelete: 'Profil "{{name}}" wirklich löschen?',
+        errors: {
+          createFailed: 'Profil konnte nicht angelegt werden',
+          renameFailed: 'Profil konnte nicht umbenannt werden',
+          deleteFailed: 'Profil konnte nicht gelöscht werden',
+          loadContentFailed: 'Profilinhalt konnte nicht geladen werden',
+          saveContentFailed: 'Profilinhalt konnte nicht gespeichert werden'
+        }
+      },
+      setupSections: {
+        bike: 'Bike-Profil',
+        bikeHint: 'Fahrrad-spezifisches Routingprofil auswählen oder eigene Profile verwalten.',
+        user: 'Fahrerprofil',
+        userHint: 'Persönliche Leistungsdaten für die Trainings- und Leistungsberechnung.',
+        training: 'Training & Route',
+        trainingHint: 'Trainingsziel und Routenstil für die Berechnung festlegen.'
+      },
       calculating: 'Route wird berechnet...',
       details: 'Routendetails',
       detailsComingSoon: 'Routendetailansicht folgt...',
@@ -127,7 +185,11 @@ const translations = {
         missingPoints: 'Start und Ziel erforderlich',
         calculateFailed: 'Route konnte nicht berechnet werden',
         noRouteToExport: 'Keine Route zum Exportieren vorhanden',
-        exportFailed: 'Export als {{format}} fehlgeschlagen'
+        exportFailed: 'Export als {{format}} fehlgeschlagen',
+        invalidGpx: 'GPX-Datei ist ungueltig.',
+        gpxTooShort: 'GPX-Datei braucht mindestens Start und Ziel.',
+        gpxReadFailed: 'GPX-Datei konnte nicht importiert werden',
+        fitReadFailed: 'FIT-Datei konnte nicht importiert werden'
       }
     },
     bikes: {
@@ -223,7 +285,14 @@ const translations = {
         addWaypoint: 'Add waypoint',
         searchPlaceholder: 'Search address or POI',
         searching: 'Searching...',
-        noResults: 'No results'
+        noResults: 'No results',
+        quickFiltersTitle: 'Quick filters',
+        quickFilters: {
+          hotel: 'Hotel',
+          shop: 'Shop',
+          cafe: 'Cafe/Restaurant',
+          bike: 'Bike shop'
+        }
       },
       style: 'Route Style',
       start: 'Start',
@@ -293,10 +362,61 @@ const translations = {
         sidewindWarning: 'Strong crosswind likely ({{crosswind}} km/h, wind from {{direction}}).'
       },
       fallback: 'Fallback',
+      importGpx: 'Import GPX',
+      importRouteFile: 'Import GPX/FIT',
       exportTcx: 'Export TCX (Wahoo/Garmin)',
       exportGpx: 'Export GPX',
+      gpxImport: {
+        success: 'GPX imported: start, end and {{count}} waypoints applied.'
+      },
+      fitImport: {
+        success: 'FIT imported: start, end and {{count}} waypoints applied.'
+      },
       brouterProfile: 'BRouter Custom Profile',
       routingProfile: 'Routing Profile',
+      profileCreator: {
+        title: 'Custom profile',
+        toolsTitle: 'Manage custom bike profiles',
+        stepCreate: '1. Create new profile',
+        stepCreateHint: 'Build a new custom profile using an existing base profile.',
+        stepManage: '2. Manage selected custom profile',
+        stepManageHint: 'Rename, delete, or optionally edit the BRF content.',
+        selectOwnFirst: 'Select one of your own profiles above (marked with "my profile") to manage it.',
+        editorTitle: '3. BRF editor (optional)',
+        authRequired: 'Please log in to create custom profiles.',
+        namePlaceholder: 'Name for new profile',
+        baseProfileLabel: 'Base profile',
+        baseProfileHint: 'This profile is used as the starting point. Its base values are copied into the new profile.',
+        create: 'Create profile',
+        creating: 'Creating...',
+        created: 'Profile created and selected.',
+        ownBadge: 'my profile',
+        manageTitle: 'Manage profile',
+        rename: 'Rename',
+        renaming: 'Renaming...',
+        delete: 'Delete',
+        deleting: 'Deleting...',
+        loadContent: 'Load BRF',
+        saveContent: 'Save BRF',
+        savingContent: 'Saving...',
+        editorPlaceholder: 'BRF content for this profile',
+        confirmDelete: 'Delete profile "{{name}}"?',
+        errors: {
+          createFailed: 'Could not create profile',
+          renameFailed: 'Could not rename profile',
+          deleteFailed: 'Could not delete profile',
+          loadContentFailed: 'Could not load profile content',
+          saveContentFailed: 'Could not save profile content'
+        }
+      },
+      setupSections: {
+        bike: 'Bike profile',
+        bikeHint: 'Choose bike-specific routing profile or manage custom profiles.',
+        user: 'Rider profile',
+        userHint: 'Personal performance values for training and power estimates.',
+        training: 'Training & route',
+        trainingHint: 'Set training target and route style for route calculation.'
+      },
       calculating: 'Calculating route...',
       details: 'Route Details',
       detailsComingSoon: 'Route detail view coming soon...',
@@ -319,7 +439,11 @@ const translations = {
         missingPoints: 'Start and end points required',
         calculateFailed: 'Failed to calculate route',
         noRouteToExport: 'No route to export',
-        exportFailed: 'Failed to export to {{format}}'
+        exportFailed: 'Failed to export to {{format}}',
+        invalidGpx: 'GPX file is invalid.',
+        gpxTooShort: 'GPX file must contain at least start and end points.',
+        gpxReadFailed: 'Could not import GPX file',
+        fitReadFailed: 'Could not import FIT file'
       }
     },
     bikes: {

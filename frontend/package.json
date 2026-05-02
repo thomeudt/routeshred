@@ -6,6 +6,7 @@
   "dependencies": {
     "@react-leaflet/core": "^2.1.0",
     "axios": "^1.6.1",
+    "fit-file-parser": "^2.3.3",
     "keycloak-js": "^24.0.5",
     "leaflet": "^1.9.4",
     "react": "^18.2.0",
