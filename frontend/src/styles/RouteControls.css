@@ -1031,6 +1031,54 @@
   cursor: not-allowed;
 }
 
+.group-rides-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.7fr);
+  gap: 6px;
+}
+
+.group-rides-filter-search,
+.group-rides-filter-select,
+.group-rides-past-toggle {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 8px;
+}
+
+.group-rides-filter-search input,
+.group-rides-filter-select select {
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 0;
+  outline: 0;
+  width: 100%;
+}
+
+.group-rides-past-toggle {
+  grid-column: 1 / -1;
+  grid-template-columns: auto auto 1fr;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.group-rides-past-toggle input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
 .group-rides-list {
   display: flex;
   flex-direction: column;

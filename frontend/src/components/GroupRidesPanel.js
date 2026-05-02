@@ -29,6 +29,11 @@ function formatRideDate(isoString) {
     + ' · ' + date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
 }
 
+function isPastRide(ride) {
+  const startAt = Date.parse(String(ride?.startAt || ''));
+  return Number.isFinite(startAt) && startAt < Date.now();
+}
+
 function toLocalInputValue(value) {
   if (!value) {
     return '';
@@ -97,6 +102,9 @@ function GroupRidesPanel() {
   };
   const [commentDrafts, setCommentDrafts] = useState({});
   const [shareFeedback, setShareFeedback] = useState('');
+  const [rideFilterQuery, setRideFilterQuery] = useState('');
+  const [rideChallengeFilter, setRideChallengeFilter] = useState('all');
+  const [showPastRides, setShowPastRides] = useState(false);
   const [draft, setDraft] = useState({
     title: '',
     description: '',
@@ -129,10 +137,34 @@ function GroupRidesPanel() {
     return ownRoutes.filter((r) => String(r.name || '').toLowerCase().includes(needle));
   }, [ownRoutes, editRoutePickerQuery]);
 
-  const sortedRides = useMemo(
-    () => [...rides].sort((a, b) => String(b.startAt || b.updatedAt || '').localeCompare(String(a.startAt || a.updatedAt || ''))),
-    [rides]
-  );
+  const filteredSortedRides = useMemo(() => {
+    const needle = rideFilterQuery.trim().toLowerCase();
+
+    return rides
+      .filter((ride) => {
+        if (!showPastRides && isPastRide(ride)) {
+          return false;
+        }
+
+        if (rideChallengeFilter !== 'all' && (ride.challenge || 'social') !== rideChallengeFilter) {
+          return false;
+        }
+
+        if (!needle) {
+          return true;
+        }
+
+        const haystack = [
+          ride.title,
+          ride.description,
+          ride.meetingPoint,
+          ride.routeName,
+          ride.ownerName
+        ].map((value) => String(value || '').toLowerCase()).join(' ');
+        return haystack.includes(needle);
+      })
+      .sort((a, b) => String(b.startAt || b.updatedAt || '').localeCompare(String(a.startAt || a.updatedAt || '')));
+  }, [rides, rideChallengeFilter, rideFilterQuery, showPastRides]);
 
   const loadRides = async () => {
     setLoading(true);
@@ -415,6 +447,39 @@ function GroupRidesPanel() {
         </div>
       </div>
 
+      <div className="group-rides-filters" aria-label={t('route.groupRides.filters.label')}>
+        <label className="group-rides-filter-search">
+          <FiSearch size={12} />
+          <input
+            type="search"
+            value={rideFilterQuery}
+            onChange={(event) => setRideFilterQuery(event.target.value)}
+            placeholder={t('route.groupRides.filters.search')}
+          />
+        </label>
+        <label className="group-rides-filter-select">
+          <FiFlag size={12} />
+          <select
+            value={rideChallengeFilter}
+            onChange={(event) => setRideChallengeFilter(event.target.value)}
+          >
+            <option value="all">{t('route.groupRides.filters.allChallenges')}</option>
+            {CHALLENGES.map((challenge) => (
+              <option key={challenge} value={challenge}>{t(`route.groupRides.challenges.${challenge}`)}</option>
+            ))}
+          </select>
+        </label>
+        <label className="group-rides-past-toggle">
+          <input
+            type="checkbox"
+            checked={showPastRides}
+            onChange={(event) => setShowPastRides(event.target.checked)}
+          />
+          <FiClock size={12} />
+          <span>{t('route.groupRides.filters.showPast')}</span>
+        </label>
+      </div>
+
       {createOpen && token && (
         <div className="group-rides-form">
           <input
@@ -550,8 +615,12 @@ function GroupRidesPanel() {
 
       <div className="group-rides-list">
         {loading && <div className="group-rides-empty">{t('route.groupRides.loading')}</div>}
-        {!loading && !sortedRides.length && <div className="group-rides-empty">{t('route.groupRides.empty')}</div>}
-        {!loading && sortedRides.map((ride) => {
+        {!loading && !filteredSortedRides.length && (
+          <div className="group-rides-empty">
+            {rides.length ? t('route.groupRides.filters.empty') : t('route.groupRides.empty')}
+          </div>
+        )}
+        {!loading && filteredSortedRides.map((ride) => {
           const rideDate = formatRideDate(ride.startAt);
           const comments = Array.isArray(ride.comments) ? ride.comments : [];
           const isCommentsOpen = commentsOpen.has(ride.id);

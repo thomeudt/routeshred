@@ -150,6 +150,13 @@ const translations = {
         commentAction: 'Senden',
         noDescription: 'Keine Beschreibung',
         instagramOpen: 'Auf Instagram öffnen',
+        filters: {
+          label: 'Group Rides filtern',
+          search: 'Group Rides suchen',
+          allChallenges: 'Alle Challenges',
+          showPast: 'Vergangene anzeigen',
+          empty: 'Keine passenden Group Rides'
+        },
         fields: {
           title: 'Titel',
           description: 'Beschreibung, Route-Idee, Pace, Hinweise',
@@ -512,6 +519,13 @@ const translations = {
         commentAction: 'Post',
         noDescription: 'No description',
         instagramOpen: 'Open on Instagram',
+        filters: {
+          label: 'Filter group rides',
+          search: 'Search group rides',
+          allChallenges: 'All challenges',
+          showPast: 'Show past',
+          empty: 'No matching group rides'
+        },
         fields: {
           title: 'Title',
           description: 'Description, route idea, pace, notes',
