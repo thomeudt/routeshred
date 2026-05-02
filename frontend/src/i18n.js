@@ -221,6 +221,7 @@ const translations = {
       importRouteFile: 'GPX/FIT importieren',
       exportTcx: 'TCX exportieren (Wahoo/Garmin)',
       exportGpx: 'GPX exportieren',
+      shareToWahoo: 'An Wahoo senden',
       gpxImport: {
         success: 'GPX importiert: Start, Ziel und {{count}} Wegpunkte übernommen.'
       },
@@ -591,6 +592,7 @@ const translations = {
       importRouteFile: 'Import GPX/FIT',
       exportTcx: 'Export TCX (Wahoo/Garmin)',
       exportGpx: 'Export GPX',
+      shareToWahoo: 'Send to Wahoo',
       gpxImport: {
         success: 'GPX imported: start, end and {{count}} waypoints applied.'
       },

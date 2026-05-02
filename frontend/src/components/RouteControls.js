@@ -12,6 +12,7 @@ import {
   FiFolder,
   FiRepeat,
   FiDownload,
+  FiShare2,
   FiMenu,
   FiNavigation,
   FiPlus,
@@ -381,6 +382,22 @@ function RouteControls({ socialSurfacesMoved = false }) {
   const handleCalculate = () => { if (startPoint && endPoint) calculateRoute(); };
   const handleExportTCX = () => { if (route) exportRoute('tcx'); };
   const handleExportGPX = () => { if (route) exportRoute('gpx'); };
+  const handleShareWahoo = async () => {
+    if (!route) return;
+    try {
+      const response = await fetch('/api/export/tcx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ route, name: `Route_${Date.now()}`, description: '' })
+      });
+      if (!response.ok) throw new Error('Export failed');
+      const blob = await response.blob();
+      const file = new File([blob], 'route.tcx', { type: 'application/xml' });
+      await navigator.share({ files: [file], title: 'RouteShred Route' });
+    } catch (err) {
+      if (err.name !== 'AbortError') console.error('Share failed', err);
+    }
+  };
   const handleResetRoute = () => { resetRoute(); };
   const handleOpenGpxPicker = () => {
     if (gpxInputRef.current) {
@@ -1143,6 +1160,11 @@ function RouteControls({ socialSurfacesMoved = false }) {
                 <button className="btn-secondary" onClick={handleExportGPX}>
                   <FiDownload /> {t('route.exportGpx')}
                 </button>
+                {typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [new File([], 'x.tcx')] }) && (
+                  <button className="btn-secondary btn-wahoo" onClick={handleShareWahoo}>
+                    <FiShare2 /> {t('route.shareToWahoo')}
+                  </button>
+                )}
               </div>
             </details>
           )}

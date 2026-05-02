@@ -2342,6 +2342,17 @@
   margin-top: 8px;
 }
 
+.btn-wahoo {
+  border-color: color-mix(in srgb, #e8440a 55%, transparent) !important;
+  color: #f97a55 !important;
+}
+
+.btn-wahoo:hover {
+  border-color: #e8440a !important;
+  color: #fff !important;
+  background: color-mix(in srgb, #e8440a 18%, var(--surface)) !important;
+}
+
 .weather-alerts {
   border: 0;
   padding: 12px;
