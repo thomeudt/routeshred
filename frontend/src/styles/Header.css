@@ -31,19 +31,8 @@
   gap: 1px;
 }
 
-.header-signet {
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid color-mix(in srgb, var(--accent) 46%, white);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 26%, white) 0%, color-mix(in srgb, #0b1d2f 88%, white) 100%);
-  color: #f9fcff;
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1;
+.brand-shred {
+  color: var(--accent);
 }
 
 .header-content h1 {
@@ -151,12 +140,6 @@
 
   .header-brand-copy {
     gap: 2px;
-  }
-
-  .header-signet {
-    width: 26px;
-    height: 26px;
-    font-size: 12px;
   }
 
   .header-content h1 {

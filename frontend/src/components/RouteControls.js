@@ -9,11 +9,13 @@ import {
   FiCheckCircle,
   FiCoffee,
   FiCompass,
+  FiFolder,
   FiRepeat,
   FiDownload,
   FiMenu,
   FiNavigation,
   FiPlus,
+  FiSave,
   FiUsers,
   FiTrash2,
   FiUpload,
@@ -259,6 +261,7 @@ function RouteControls() {
   const [profileSaveState, setProfileSaveState] = useState('idle');
   const [gpxImportError, setGpxImportError] = useState('');
   const [gpxImportSuccess, setGpxImportSuccess] = useState('');
+  const [routeName, setRouteName] = useState('');
   const [selectedPersonaId, setSelectedPersonaId] = useState('coffee');
   const [controlMode, setControlMode] = useState('persona');
   const gpxInputRef = useRef(null);
@@ -271,7 +274,7 @@ function RouteControls() {
     setStartPoint, setEndPoint, insertWaypoint, updateWaypoint, removeWaypoint, moveWaypoint,
     reverseRoute,
     calculateRoute, exportRoute, resetRoute,
-    loadSavedRoutes,
+    loadSavedRoutes, saveCurrentRoute, routeSaveState,
     loading, route, returnRoute
   } = useRouteStore();
 
@@ -790,7 +793,6 @@ function RouteControls() {
       {activeTab === 'plan' && (
         <>
           <div className="control-group">
-            <label>{t('route.locations.title')}</label>
             <div className="location-stack">
               <LocationInput
                 label={t('route.locations.start')}
@@ -911,35 +913,69 @@ function RouteControls() {
               accept=".gpx,.fit,application/gpx+xml,application/xml,text/xml"
               onChange={handleImportRouteFile}
             />
-            <button
-              className="btn-secondary"
-              onClick={handleOpenGpxPicker}
-              disabled={loading}
-              type="button"
-            >
-              <FiUpload /> {t('route.importRouteFile')}
-            </button>
-            <button
-              className="btn-primary"
-              onClick={handleCalculate}
-              disabled={!startPoint || !endPoint || loading}
-            >
-              <FiNavigation /> {t('route.calculate')}
-            </button>
-
-            {(startPoint || endPoint || route) && (
+            <div className="plan-primary-actions">
               <button
-                className="btn-secondary btn-danger"
-                onClick={handleResetRoute}
+                className="btn-secondary"
+                onClick={handleOpenGpxPicker}
                 disabled={loading}
+                type="button"
               >
-                <FiTrash2 /> {t('route.delete')}
+                <FiUpload /> {t('route.importRouteFile')}
               </button>
+              <button
+                className={`btn-primary${startPoint && endPoint && !route && !loading ? ' calculate-ready' : ''}`}
+                onClick={handleCalculate}
+                disabled={!startPoint || !endPoint || loading}
+              >
+                <FiNavigation /> {t('route.calculate')}
+              </button>
+              {(startPoint || endPoint || route) && (
+                <button
+                  className="btn-secondary btn-danger"
+                  onClick={handleResetRoute}
+                  disabled={loading}
+                >
+                  <FiTrash2 /> {t('route.delete')}
+                </button>
+              )}
+            </div>
+
+            {route && authEnabled && authenticated && (
+              <div className="saved-route-savebar">
+                <input
+                  type="text"
+                  value={routeName}
+                  onChange={(event) => setRouteName(event.target.value)}
+                  placeholder={t('route.saved.namePlaceholder')}
+                  maxLength="120"
+                />
+                <button
+                  className="btn-secondary"
+                  type="button"
+                  onClick={async () => {
+                    await saveCurrentRoute(token, routeName.trim());
+                    setRouteName('');
+                  }}
+                  disabled={routeSaveState === 'saving'}
+                >
+                  {routeSaveState === 'saving' ? <FiFolder /> : <FiSave />}
+                  {routeSaveState === 'saved' ? t('route.saved.saved') : t('route.saved.save')}
+                </button>
+              </div>
             )}
 
             {gpxImportSuccess && <small className="gpx-import-success">{gpxImportSuccess}</small>}
             {gpxImportError && <small className="gpx-import-error">{gpxImportError}</small>}
           </div>
+
+          {!route && !loading && (
+            <div className="route-plan-status">
+              <FiNavigation size={12} />
+              {startPoint && endPoint
+                ? t('route.hints.readyToCalculate')
+                : t('route.hints.setPoints')}
+            </div>
+          )}
 
           {route && (
             <div className={`route-hero${hasWeatherWarnings ? ' route-hero-warn' : ' route-hero-clear'}`}>

@@ -77,6 +77,10 @@ const translations = {
       end: 'Ziel',
       calculate: 'Route berechnen',
       delete: 'Route löschen',
+      hints: {
+        setPoints: 'Start und Ziel setzen um eine Route zu berechnen',
+        readyToCalculate: 'Route noch nicht berechnet'
+      },
       saved: {
         title: 'Gespeicherte Routen',
         select: 'Route laden',
@@ -132,9 +136,13 @@ const translations = {
         openNav: 'Group Rides',
         create: 'Group Ride erstellen',
         creating: 'Wird erstellt...',
+        edit: 'Bearbeiten',
+        editSave: 'Speichern',
+        editing: 'Wird gespeichert...',
+        editCancel: 'Abbrechen',
         loading: 'Group Rides werden geladen...',
         empty: 'Noch keine Group Rides',
-        delete: 'Group Ride löschen',
+        delete: 'Löschen',
         join: 'Beitreten',
         leave: 'Verlassen',
         participants: '{{count}} Teilnehmende',
@@ -145,8 +153,11 @@ const translations = {
           title: 'Titel',
           description: 'Beschreibung, Route-Idee, Pace, Hinweise',
           photoUrl: 'Foto-URL',
-          meetingPoint: 'Treffpunkt'
+          meetingPoint: 'Treffpunkt',
+          noLinkedRoute: 'Keine Route verknüpft',
+          linkedRoute: 'Route verknüpfen'
         },
+        loadRoute: 'Route laden',
         visibility: {
           public: 'Öffentlich',
           private: 'Privat'
@@ -168,6 +179,7 @@ const translations = {
           loadFailed: 'Group Rides konnten nicht geladen werden',
           createFailed: 'Group Ride konnte nicht erstellt werden',
           deleteFailed: 'Group Ride konnte nicht gelöscht werden',
+          updateFailed: 'Group Ride konnte nicht gespeichert werden',
           joinFailed: 'Group Ride Beitritt fehlgeschlagen',
           commentFailed: 'Kommentar konnte nicht gespeichert werden'
         }
@@ -426,6 +438,10 @@ const translations = {
       end: 'End',
       calculate: 'Calculate Route',
       delete: 'Delete Route',
+      hints: {
+        setPoints: 'Set start and end to calculate a route',
+        readyToCalculate: 'Route not yet calculated'
+      },
       saved: {
         title: 'Saved Routes',
         select: 'Load route',
@@ -481,9 +497,13 @@ const translations = {
         openNav: 'Group rides',
         create: 'Create group ride',
         creating: 'Creating...',
+        edit: 'Edit',
+        editSave: 'Save',
+        editing: 'Saving...',
+        editCancel: 'Cancel',
         loading: 'Loading group rides...',
         empty: 'No group rides yet',
-        delete: 'Delete group ride',
+        delete: 'Delete',
         join: 'Join',
         leave: 'Leave',
         participants: '{{count}} riders',
@@ -494,8 +514,11 @@ const translations = {
           title: 'Title',
           description: 'Description, route idea, pace, notes',
           photoUrl: 'Photo URL',
-          meetingPoint: 'Meeting point'
+          meetingPoint: 'Meeting point',
+          noLinkedRoute: 'No linked route',
+          linkedRoute: 'Link a route'
         },
+        loadRoute: 'Load route',
         visibility: {
           public: 'Public',
           private: 'Private'
@@ -517,6 +540,7 @@ const translations = {
           loadFailed: 'Could not load group rides',
           createFailed: 'Could not create group ride',
           deleteFailed: 'Could not delete group ride',
+          updateFailed: 'Could not save group ride',
           joinFailed: 'Could not update ride participation',
           commentFailed: 'Could not post comment'
         }

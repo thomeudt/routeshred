@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FiUsers } from 'react-icons/fi';
 import { t } from '../i18n';
 import '../styles/Header.css';
 
@@ -43,9 +42,8 @@ function Header({
       <div className="header-content">
         <div className="header-top">
           <div className="header-brand">
-            <span className="header-signet" aria-hidden="true">RS</span>
             <div className="header-brand-copy">
-              <h1>RouteShred</h1>
+              <h1><span>Route</span><span className="brand-shred">Shred</span></h1>
               <p>{t('app.tagline')}</p>
             </div>
           </div>
@@ -87,7 +85,6 @@ function Header({
                   className={isActive ? 'active' : ''}
                   onClick={() => onSelectTab(tab)}
                 >
-                  {tab === 'community' ? <FiUsers size={13} /> : null}
                   {t(`route.tabs.${tab}`)}
                 </button>
               );

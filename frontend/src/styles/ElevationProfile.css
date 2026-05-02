@@ -17,6 +17,23 @@
   display: none;
 }
 
+.elevation-shell summary::after {
+  content: '';
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--text-secondary);
+  border-bottom: 2px solid var(--text-secondary);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
+.elevation-shell[open] summary::after {
+  transform: rotate(45deg) translateY(-2px);
+}
+
 .elevation-shell summary span {
   color: var(--text-primary);
   font-size: 10px;

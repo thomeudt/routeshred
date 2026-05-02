@@ -77,16 +77,10 @@ function LocationInput({ label, value, point, onSelect, onClear }) {
     onClear();
   };
 
-  const hasPreviewPoint = Array.isArray(point)
-    && point.length >= 2
-    && Number.isFinite(Number(point[0]))
-    && Number.isFinite(Number(point[1]));
-
   return (
     <div className="location-input">
       <div className="location-input__label">
         <span>{label}</span>
-        {hasPreviewPoint && <small>{Number(point[0]).toFixed(4)}, {Number(point[1]).toFixed(4)}</small>}
       </div>
       <div className="location-input__field">
         <input

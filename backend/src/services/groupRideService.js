@@ -54,6 +54,9 @@ function sanitizePayload(payload = {}) {
     meetingPoint: String(payload.meetingPoint || '').trim().slice(0, 240),
     startAt,
     visibility: sanitizeVisibility(payload.visibility),
+    routeId: String(payload.routeId || '').trim().slice(0, 80),
+    routeOwnerSub: String(payload.routeOwnerSub || '').trim().slice(0, 120),
+    routeName: String(payload.routeName || '').trim().slice(0, 120),
     updatedAt: now
   };
 }
@@ -127,6 +130,9 @@ function summarize(ride) {
     participants: sanitizeParticipantList(ride.participants).slice(0, 12),
     comments: sanitizeComments(ride.comments).slice(-25),
     isJoined: Boolean(ride.isJoined),
+    routeId: ride.routeId || '',
+    routeOwnerSub: ride.routeOwnerSub || '',
+    routeName: ride.routeName || '',
     createdAt: ride.createdAt,
     updatedAt: ride.updatedAt
   };

@@ -537,7 +537,7 @@ function MapComponent({ isMapVisible = true }) {
 
       {showRoutesSurface && (
         <section className="community-surface">
-          <SavedRoutesPanel context="my" />
+          <SavedRoutesPanel context="mixed" />
         </section>
       )}
 

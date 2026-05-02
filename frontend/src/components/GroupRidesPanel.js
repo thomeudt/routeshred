@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { FiCamera, FiFlag, FiPlus, FiShare2, FiTrash2, FiUsers } from 'react-icons/fi';
+import { FiArrowRight, FiCamera, FiCheck, FiClock, FiEdit2, FiFlag, FiGlobe, FiMap, FiMapPin, FiMessageSquare, FiPlus, FiSearch, FiShare2, FiTrash2, FiUsers, FiX } from 'react-icons/fi';
 import { useAuth } from '../auth/AuthProvider';
 import { t } from '../i18n';
+import { useRouteStore } from '../store/routeStore';
 
 const rawApiUrl = (process.env.REACT_APP_API_URL || '').trim().replace(/\/$/, '');
 const API_BASE = rawApiUrl
@@ -18,6 +19,14 @@ function resolveApiMessage(error, fallback) {
     return t('auth.sessionExpired');
   }
   return error?.response?.data?.message || fallback;
+}
+
+function formatRideDate(isoString) {
+  if (!isoString) return null;
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })
+    + ' · ' + date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
 }
 
 function toLocalInputValue(value) {
@@ -36,6 +45,7 @@ function toLocalInputValue(value) {
 
 function GroupRidesPanel() {
   const { token } = useAuth();
+  const { savedRoutes, loadSavedRoute } = useRouteStore();
   const [groupRideTarget] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const rideId = String(params.get('groupRide') || '').trim();
@@ -50,6 +60,19 @@ function GroupRidesPanel() {
   const [error, setError] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [createState, setCreateState] = useState('idle');
+  const [editingRideId, setEditingRideId] = useState(null);
+  const [editDraft, setEditDraft] = useState({});
+  const [editState, setEditState] = useState('idle');
+  const [editRoutePickerQuery, setEditRoutePickerQuery] = useState('');
+  const [commentsOpen, setCommentsOpen] = useState(new Set());
+
+  const toggleComments = (rideId) => {
+    setCommentsOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(rideId)) next.delete(rideId); else next.add(rideId);
+      return next;
+    });
+  };
   const [commentDrafts, setCommentDrafts] = useState({});
   const [shareFeedback, setShareFeedback] = useState('');
   const [draft, setDraft] = useState({
@@ -59,8 +82,30 @@ function GroupRidesPanel() {
     photoUrl: '',
     meetingPoint: '',
     startAt: '',
-    visibility: 'public'
+    visibility: 'public',
+    routeId: '',
+    routeOwnerSub: '',
+    routeName: ''
   });
+
+  const [routePickerQuery, setRoutePickerQuery] = useState('');
+
+  const ownRoutes = useMemo(
+    () => savedRoutes.filter((r) => r.access === 'own'),
+    [savedRoutes]
+  );
+
+  const filteredPickerRoutes = useMemo(() => {
+    const needle = routePickerQuery.trim().toLowerCase();
+    if (!needle) return ownRoutes;
+    return ownRoutes.filter((r) => String(r.name || '').toLowerCase().includes(needle));
+  }, [ownRoutes, routePickerQuery]);
+
+  const filteredEditPickerRoutes = useMemo(() => {
+    const needle = editRoutePickerQuery.trim().toLowerCase();
+    if (!needle) return ownRoutes;
+    return ownRoutes.filter((r) => String(r.name || '').toLowerCase().includes(needle));
+  }, [ownRoutes, editRoutePickerQuery]);
 
   const sortedRides = useMemo(
     () => [...rides].sort((a, b) => String(b.startAt || b.updatedAt || '').localeCompare(String(a.startAt || a.updatedAt || ''))),
@@ -142,7 +187,10 @@ function GroupRidesPanel() {
         photoUrl: '',
         meetingPoint: '',
         startAt: '',
-        visibility: draft.visibility
+        visibility: draft.visibility,
+        routeId: '',
+        routeOwnerSub: '',
+        routeName: ''
       });
       setCreateState('saved');
       setTimeout(() => setCreateState('idle'), 900);
@@ -164,6 +212,52 @@ function GroupRidesPanel() {
       setRides((current) => current.filter((ride) => ride.id !== rideId));
     } catch (deleteError) {
       setError(resolveApiMessage(deleteError, t('route.groupRides.errors.deleteFailed')));
+    }
+  };
+
+  const startEdit = (ride) => {
+    setEditingRideId(ride.id);
+    setEditDraft({
+      title: ride.title || '',
+      description: ride.description || '',
+      challenge: ride.challenge || 'social',
+      photoUrl: ride.photoUrl || '',
+      meetingPoint: ride.meetingPoint || '',
+      startAt: toLocalInputValue(ride.startAt),
+      visibility: ride.visibility || 'public',
+      routeId: ride.routeId || '',
+      routeOwnerSub: ride.routeOwnerSub || '',
+      routeName: ride.routeName || ''
+    });
+    setEditRoutePickerQuery('');
+    setEditState('idle');
+  };
+
+  const cancelEdit = () => {
+    setEditingRideId(null);
+    setEditDraft({});
+    setEditRoutePickerQuery('');
+  };
+
+  const handleEdit = async (rideId) => {
+    if (!token || !editDraft.title?.trim()) {
+      return;
+    }
+
+    setEditState('saving');
+    try {
+      const payload = {
+        ...editDraft,
+        startAt: editDraft.startAt ? new Date(editDraft.startAt).toISOString() : ''
+      };
+      const response = await axios.patch(`${API_BASE}/group-rides/${rideId}`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      upsertRide(response.data?.ride);
+      cancelEdit();
+    } catch (editError) {
+      setEditState('error');
+      setError(resolveApiMessage(editError, t('route.groupRides.errors.updateFailed')));
     }
   };
 
@@ -338,26 +432,87 @@ function GroupRidesPanel() {
             </label>
           </div>
           <div className="group-rides-form-row">
-            <input
-              type="text"
-              placeholder={t('route.groupRides.fields.meetingPoint')}
-              value={draft.meetingPoint}
-              onChange={(event) => setDraft((current) => ({ ...current, meetingPoint: event.target.value }))}
-              maxLength={240}
-            />
-            <input
-              type="datetime-local"
-              value={draft.startAt}
-              onChange={(event) => setDraft((current) => ({ ...current, startAt: event.target.value }))}
-            />
-            <select
-              value={draft.visibility}
-              onChange={(event) => setDraft((current) => ({ ...current, visibility: event.target.value }))}
-            >
-              <option value="public">{t('route.groupRides.visibility.public')}</option>
-              <option value="private">{t('route.groupRides.visibility.private')}</option>
-            </select>
+            <label>
+              <FiMapPin size={12} />
+              <input
+                type="text"
+                placeholder={t('route.groupRides.fields.meetingPoint')}
+                value={draft.meetingPoint}
+                onChange={(event) => setDraft((current) => ({ ...current, meetingPoint: event.target.value }))}
+                maxLength={240}
+              />
+            </label>
+            <label>
+              <FiClock size={12} />
+              <input
+                type="datetime-local"
+                value={draft.startAt}
+                onChange={(event) => setDraft((current) => ({ ...current, startAt: event.target.value }))}
+              />
+            </label>
+            <label>
+              <FiGlobe size={12} />
+              <select
+                value={draft.visibility}
+                onChange={(event) => setDraft((current) => ({ ...current, visibility: event.target.value }))}
+              >
+                <option value="public">{t('route.groupRides.visibility.public')}</option>
+                <option value="private">{t('route.groupRides.visibility.private')}</option>
+              </select>
+            </label>
           </div>
+
+          {ownRoutes.length > 0 && (
+            <div className="group-rides-form-route-picker">
+              {draft.routeId ? (
+                <div className="ride-route-picker-selected">
+                  <FiMap size={11} />
+                  <span>{draft.routeName}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraft((current) => ({ ...current, routeId: '', routeOwnerSub: '', routeName: '' }));
+                      setRoutePickerQuery('');
+                    }}
+                    aria-label={t('route.groupRides.fields.noLinkedRoute')}
+                  >
+                    <FiX size={11} />
+                  </button>
+                </div>
+              ) : (
+                <div className="ride-route-picker-search">
+                  <FiSearch size={11} />
+                  <input
+                    type="search"
+                    value={routePickerQuery}
+                    onChange={(event) => setRoutePickerQuery(event.target.value)}
+                    placeholder={t('route.groupRides.fields.linkedRoute')}
+                  />
+                  {filteredPickerRoutes.length > 0 && (
+                    <div className="ride-route-picker-list">
+                      {filteredPickerRoutes.map((r) => (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => {
+                            setDraft((current) => ({
+                              ...current,
+                              routeId: r.id,
+                              routeOwnerSub: r.ownerSub || '',
+                              routeName: r.name || ''
+                            }));
+                            setRoutePickerQuery('');
+                          }}
+                        >
+                          {r.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <button
             type="button"
@@ -374,83 +529,252 @@ function GroupRidesPanel() {
       <div className="group-rides-list">
         {loading && <div className="group-rides-empty">{t('route.groupRides.loading')}</div>}
         {!loading && !sortedRides.length && <div className="group-rides-empty">{t('route.groupRides.empty')}</div>}
-        {!loading && sortedRides.map((ride) => (
-          <article key={ride.id} className="group-ride-card">
-            {ride.photoUrl ? (
-              <div className="group-ride-photo" style={{ backgroundImage: `url(${ride.photoUrl})` }} />
-            ) : (
-              <div className="group-ride-photo group-ride-photo-fallback" />
-            )}
-            <div className="group-ride-body">
-              <div className="group-ride-title-row">
-                <h4>{ride.title}</h4>
-                {ride.canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(ride.id)}
-                    aria-label={t('route.groupRides.delete')}
-                    title={t('route.groupRides.delete')}
-                  >
-                    <FiTrash2 size={14} />
-                  </button>
-                )}
+        {!loading && sortedRides.map((ride) => {
+          const rideDate = formatRideDate(ride.startAt);
+          const comments = Array.isArray(ride.comments) ? ride.comments : [];
+          const isCommentsOpen = commentsOpen.has(ride.id);
+          return (
+            <article key={ride.id} className="group-ride-card">
+              <div
+                className={`group-ride-cover${ride.photoUrl ? '' : ' group-ride-cover-fallback'} ride-challenge-${ride.challenge || 'social'}`}
+                style={ride.photoUrl ? { backgroundImage: `url(${ride.photoUrl})` } : undefined}
+              >
+                <span className="ride-challenge-badge">
+                  {t(`route.groupRides.challenges.${ride.challenge || 'social'}`)}
+                </span>
               </div>
-              <p>{ride.description || t('route.groupRides.noDescription')}</p>
-              <div className="group-ride-actions">
-                <button type="button" onClick={() => handleJoinToggle(ride)} disabled={!token}>
-                  {ride.isJoined ? t('route.groupRides.leave') : t('route.groupRides.join')}
-                </button>
-                <span>{t('route.groupRides.participants', { count: Number(ride.participantsCount || 0) })}</span>
-              </div>
-              <div className="group-ride-share-row">
-                <button type="button" onClick={() => handleShare(ride, 'instagram')}>
-                  <FiShare2 size={12} /> Instagram
-                </button>
-                <button type="button" onClick={() => handleShare(ride, 'whatsapp')}>WhatsApp</button>
-                <button type="button" onClick={() => handleShare(ride, 'telegram')}>Telegram</button>
-                <button type="button" onClick={() => handleShare(ride, 'copy')}>{t('route.groupRides.share.copy')}</button>
-              </div>
-              <div className="group-ride-meta">
-                <span>{t(`route.groupRides.challenges.${ride.challenge || 'social'}`)}</span>
-                {ride.startAt && <span>{new Date(ride.startAt).toLocaleString()}</span>}
-                {ride.meetingPoint && <span>{ride.meetingPoint}</span>}
-                <span>{ride.visibility === 'public' ? t('route.groupRides.visibility.public') : t('route.groupRides.visibility.private')}</span>
-              </div>
-              {!!ride.participants?.length && (
-                <div className="group-ride-participants">
-                  {ride.participants.slice(0, 6).map((entry) => (
-                    <span key={entry.sub}>{entry.name}</span>
-                  ))}
-                </div>
-              )}
-              <div className="group-ride-comments">
-                {(Array.isArray(ride.comments) ? ride.comments : []).slice(-4).map((comment) => (
-                  <div key={comment.id} className="group-ride-comment-item">
-                    <strong>{comment.authorName}</strong>
-                    <p>{comment.text}</p>
-                  </div>
-                ))}
-                <div className="group-ride-comment-form">
+
+              {editingRideId === ride.id ? (
+                <div className="group-ride-edit-form">
                   <input
                     type="text"
-                    value={commentDrafts[`${ride.ownerSub}:${ride.id}`] || ''}
-                    onChange={(event) => {
-                      const key = `${ride.ownerSub}:${ride.id}`;
-                      const value = event.target.value;
-                      setCommentDrafts((current) => ({ ...current, [key]: value }));
-                    }}
-                    placeholder={t('route.groupRides.commentPlaceholder')}
-                    maxLength={500}
-                    disabled={!token}
+                    value={editDraft.title}
+                    onChange={(e) => setEditDraft((d) => ({ ...d, title: e.target.value }))}
+                    placeholder={t('route.groupRides.fields.title')}
+                    maxLength={120}
+                    autoFocus
                   />
-                  <button type="button" onClick={() => handleAddComment(ride)} disabled={!token}>
-                    {t('route.groupRides.commentAction')}
-                  </button>
+                  <textarea
+                    value={editDraft.description}
+                    onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))}
+                    placeholder={t('route.groupRides.fields.description')}
+                    rows={3}
+                    maxLength={1200}
+                  />
+                  <div className="group-rides-form-row">
+                    <label>
+                      <FiFlag size={12} />
+                      <select
+                        value={editDraft.challenge}
+                        onChange={(e) => setEditDraft((d) => ({ ...d, challenge: e.target.value }))}
+                      >
+                        {CHALLENGES.map((c) => (
+                          <option key={c} value={c}>{t(`route.groupRides.challenges.${c}`)}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <FiCamera size={12} />
+                      <input
+                        type="url"
+                        value={editDraft.photoUrl}
+                        onChange={(e) => setEditDraft((d) => ({ ...d, photoUrl: e.target.value }))}
+                        placeholder={t('route.groupRides.fields.photoUrl')}
+                      />
+                    </label>
+                  </div>
+                  <div className="group-rides-form-row">
+                    <label>
+                      <FiMapPin size={12} />
+                      <input
+                        type="text"
+                        value={editDraft.meetingPoint}
+                        onChange={(e) => setEditDraft((d) => ({ ...d, meetingPoint: e.target.value }))}
+                        placeholder={t('route.groupRides.fields.meetingPoint')}
+                        maxLength={240}
+                      />
+                    </label>
+                    <label>
+                      <FiClock size={12} />
+                      <input
+                        type="datetime-local"
+                        value={editDraft.startAt}
+                        onChange={(e) => setEditDraft((d) => ({ ...d, startAt: e.target.value }))}
+                      />
+                    </label>
+                    <label>
+                      <FiGlobe size={12} />
+                      <select
+                        value={editDraft.visibility}
+                        onChange={(e) => setEditDraft((d) => ({ ...d, visibility: e.target.value }))}
+                      >
+                        <option value="public">{t('route.groupRides.visibility.public')}</option>
+                        <option value="private">{t('route.groupRides.visibility.private')}</option>
+                      </select>
+                    </label>
+                  </div>
+                  {ownRoutes.length > 0 && (
+                    <div className="group-rides-form-route-picker">
+                      {editDraft.routeId ? (
+                        <div className="ride-route-picker-selected">
+                          <FiMap size={11} />
+                          <span>{editDraft.routeName}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditDraft((d) => ({ ...d, routeId: '', routeOwnerSub: '', routeName: '' }));
+                              setEditRoutePickerQuery('');
+                            }}
+                          >
+                            <FiX size={11} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="ride-route-picker-search">
+                          <FiSearch size={11} />
+                          <input
+                            type="search"
+                            value={editRoutePickerQuery}
+                            onChange={(e) => setEditRoutePickerQuery(e.target.value)}
+                            placeholder={t('route.groupRides.fields.linkedRoute')}
+                          />
+                          {filteredEditPickerRoutes.length > 0 && (
+                            <div className="ride-route-picker-list">
+                              {filteredEditPickerRoutes.map((r) => (
+                                <button
+                                  key={r.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setEditDraft((d) => ({ ...d, routeId: r.id, routeOwnerSub: r.ownerSub || '', routeName: r.name || '' }));
+                                    setEditRoutePickerQuery('');
+                                  }}
+                                >
+                                  {r.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="group-ride-edit-actions">
+                    <button
+                      type="button"
+                      className="group-rides-create"
+                      onClick={() => handleEdit(ride.id)}
+                      disabled={!editDraft.title?.trim() || editState === 'saving'}
+                    >
+                      <FiCheck size={13} />
+                      {editState === 'saving' ? t('route.groupRides.editing') : t('route.groupRides.editSave')}
+                    </button>
+                    <button type="button" className="ride-edit-cancel" onClick={cancelEdit}>
+                      <FiX size={13} />
+                      {t('route.groupRides.editCancel')}
+                    </button>
+                  </div>
                 </div>
+              ) : (
+              <div className="group-ride-body">
+                <h4>{ride.title}</h4>
+
+                {(rideDate || ride.meetingPoint) && (
+                  <div className="group-ride-info">
+                    {rideDate && <span><FiClock size={10} />{rideDate}</span>}
+                    {ride.meetingPoint && <span><FiMapPin size={10} />{ride.meetingPoint}</span>}
+                  </div>
+                )}
+
+                {ride.routeId && (
+                  <button
+                    type="button"
+                    className="ride-route-strip"
+                    onClick={() => {
+                      loadSavedRoute(token, ride.routeId, ride.routeOwnerSub);
+                      window.dispatchEvent(new CustomEvent('routeshred:set-tab', { detail: { tab: 'plan' } }));
+                    }}
+                  >
+                    <FiMap size={12} />
+                    <span>{ride.routeName || t('route.groupRides.loadRoute')}</span>
+                    <FiArrowRight size={12} />
+                  </button>
+                )}
+
+                {ride.description && <p className="group-ride-desc">{ride.description}</p>}
+
+                <div className="group-ride-footer">
+                  <button
+                    type="button"
+                    className={`ride-join-btn${ride.isJoined ? ' is-joined' : ''}`}
+                    onClick={() => handleJoinToggle(ride)}
+                    disabled={!token}
+                  >
+                    {ride.isJoined ? t('route.groupRides.leave') : t('route.groupRides.join')}
+                  </button>
+                  <span className="ride-rider-count">
+                    <FiUsers size={11} />{Number(ride.participantsCount || 0)}
+                  </span>
+                  <div className="ride-share-actions">
+                    <button type="button" onClick={() => handleShare(ride, 'whatsapp')} title="WhatsApp">
+                      WA
+                    </button>
+                    <button type="button" onClick={() => handleShare(ride, 'copy')} title={t('route.groupRides.share.copy')}>
+                      <FiShare2 size={12} />
+                    </button>
+                  </div>
+                </div>
+
+                {comments.length > 0 && (
+                  <button type="button" className="ride-comments-toggle" onClick={() => toggleComments(ride.id)}>
+                    <FiMessageSquare size={11} />
+                    {comments.length} {comments.length === 1 ? 'Kommentar' : 'Kommentare'}
+                  </button>
+                )}
+
+                {isCommentsOpen && (
+                  <div className="group-ride-comments">
+                    {comments.slice(-4).map((comment) => (
+                      <div key={comment.id} className="group-ride-comment-item">
+                        <strong>{comment.authorName}</strong>
+                        <p>{comment.text}</p>
+                      </div>
+                    ))}
+                    <div className="group-ride-comment-form">
+                      <input
+                        type="text"
+                        value={commentDrafts[`${ride.ownerSub}:${ride.id}`] || ''}
+                        onChange={(event) => {
+                          const key = `${ride.ownerSub}:${ride.id}`;
+                          setCommentDrafts((current) => ({ ...current, [key]: event.target.value }));
+                        }}
+                        placeholder={t('route.groupRides.commentPlaceholder')}
+                        maxLength={500}
+                        disabled={!token}
+                      />
+                      <button type="button" onClick={() => handleAddComment(ride)} disabled={!token}>
+                        {t('route.groupRides.commentAction')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {ride.canEdit && (
+                  <div className="group-ride-owner-actions">
+                    <button type="button" className="ride-action-edit" onClick={() => startEdit(ride)}>
+                      <FiEdit2 size={12} />
+                      {t('route.groupRides.edit')}
+                    </button>
+                    <button type="button" className="ride-action-delete" onClick={() => handleDelete(ride.id)}>
+                      <FiTrash2 size={12} />
+                      {t('route.groupRides.delete')}
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
-          </article>
-        ))}
+              )}
+            </article>
+          );
+        })}
       </div>
 
       {shareFeedback && <small className="group-rides-share-feedback">{shareFeedback}</small>}

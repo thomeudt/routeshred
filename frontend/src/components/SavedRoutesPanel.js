@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
+  FiActivity,
   FiCheck,
+  FiClock,
   FiEdit2,
-  FiFolder,
   FiGlobe,
   FiLink,
   FiLock,
-  FiSave,
   FiSearch,
   FiShare2,
   FiTrash2,
@@ -47,7 +47,6 @@ function SavedRoutesPanel({ context = 'mixed' }) {
   const { token } = useAuth();
   const [query, setQuery] = useState('');
   const [accessFilter, setAccessFilter] = useState('all');
-  const [routeName, setRouteName] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
   const [sharingId, setSharingId] = useState(null);
@@ -58,14 +57,11 @@ function SavedRoutesPanel({ context = 'mixed' }) {
   const [sharedUserLabels, setSharedUserLabels] = useState({});
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const {
-    route,
     savedRoutes,
     savedRoutesLoading,
     savedRoutesError,
     activeSavedRouteId,
     activeSavedRouteOwner,
-    routeSaveState,
-    saveCurrentRoute,
     loadSavedRoute,
     deleteSavedRoute,
     renameSavedRoute,
@@ -80,15 +76,11 @@ function SavedRoutesPanel({ context = 'mixed' }) {
       : ['all', 'own', 'shared', 'public'];
 
   useEffect(() => {
-    if (effectiveContext === 'my') {
-      setAccessFilter('own');
-      return;
-    }
     if (effectiveContext === 'public') {
       setAccessFilter('public');
       return;
     }
-    setAccessFilter('all');
+    setAccessFilter('own');
   }, [effectiveContext]);
 
   const filteredRoutes = useMemo(() => {
@@ -283,11 +275,6 @@ function SavedRoutesPanel({ context = 'mixed' }) {
     });
   };
 
-  const handleSave = async () => {
-    await saveCurrentRoute(token, routeName.trim());
-    setRouteName('');
-  };
-
   return (
     <div className="control-group saved-routes-panel">
       <div className="saved-routes-heading">
@@ -310,24 +297,6 @@ function SavedRoutesPanel({ context = 'mixed' }) {
         ))}
       </div>
 
-      <div className="saved-route-savebar">
-        <input
-          type="text"
-          value={routeName}
-          onChange={(event) => setRouteName(event.target.value)}
-          placeholder={t('route.saved.namePlaceholder')}
-          maxLength="120"
-        />
-        <button
-          className="btn-secondary"
-          type="button"
-          onClick={handleSave}
-          disabled={!route || routeSaveState === 'saving'}
-        >
-          {routeSaveState === 'saving' ? <FiFolder /> : <FiSave />}
-          {routeSaveState === 'saved' ? t('route.saved.saved') : t('route.saved.save')}
-        </button>
-      </div>
 
       <div className="saved-route-search">
         <FiSearch />
@@ -385,13 +354,14 @@ function SavedRoutesPanel({ context = 'mixed' }) {
                     window.dispatchEvent(new CustomEvent('routeshred:set-tab', { detail: { tab: 'plan' } }));
                   }}
                 >
-                  <span>{savedRoute.name}</span>
-                  <small>
-                    {formatDistance(savedRoute.distance)} · {formatDuration(savedRoute.duration)} · {t(`route.saved.access.${savedRoute.access || 'own'}`)}
-                  </small>
-                  {savedRoute.access !== 'own' && (
-                    <small className="saved-route-source">{getRouteSourceLabel(savedRoute)}</small>
-                  )}
+                  <span className="saved-route-name">{savedRoute.name}</span>
+                  <span className="saved-route-stats">
+                    <span><FiActivity size={9} />{formatDistance(savedRoute.distance)}</span>
+                    <span><FiClock size={9} />{formatDuration(savedRoute.duration)}</span>
+                    {savedRoute.access !== 'own' && (
+                      <span className="saved-route-access-badge">{getRouteSourceLabel(savedRoute)}</span>
+                    )}
+                  </span>
                 </button>
               )}
               <div className="saved-route-tools">
@@ -422,16 +392,16 @@ function SavedRoutesPanel({ context = 'mixed' }) {
                         >
                           {savedRoute.visibility === 'public' ? <FiGlobe /> : <FiLock />}
                         </button>
-                        {savedRoute.visibility === 'public' && (
-                          <button
-                            type="button"
-                            onClick={() => copyPublicShareLink(savedRoute)}
-                            aria-label={t('route.saved.copyLink')}
-                            title={copiedLinkId === key ? t('route.saved.copyLinkCopied') : t('route.saved.copyLink')}
-                          >
-                            {copiedLinkId === key ? <FiCheck /> : <FiLink />}
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className={savedRoute.visibility !== 'public' ? 'tool-hidden' : ''}
+                          onClick={() => copyPublicShareLink(savedRoute)}
+                          aria-label={t('route.saved.copyLink')}
+                          title={copiedLinkId === key ? t('route.saved.copyLinkCopied') : t('route.saved.copyLink')}
+                          tabIndex={savedRoute.visibility !== 'public' ? -1 : undefined}
+                        >
+                          {copiedLinkId === key ? <FiCheck /> : <FiLink />}
+                        </button>
                         <button type="button" onClick={() => startSharing(savedRoute)} aria-label={t('route.saved.share')}>
                           <FiShare2 />
                         </button>
@@ -465,13 +435,16 @@ function SavedRoutesPanel({ context = 'mixed' }) {
                       })}
                     </div>
                   )}
-                  <input
-                    type="text"
-                    value={shareQuery}
-                    onChange={(event) => setShareQuery(event.target.value)}
-                    placeholder={t('route.saved.sharePlaceholder')}
-                    autoFocus
-                  />
+                  <div className="saved-route-search">
+                    <FiSearch />
+                    <input
+                      type="text"
+                      value={shareQuery}
+                      onChange={(event) => setShareQuery(event.target.value)}
+                      placeholder={t('route.saved.sharePlaceholder')}
+                      autoFocus
+                    />
+                  </div>
                   {Boolean(userSuggestions.length || userSearchLoading) && (
                     <div className="saved-route-user-suggestions">
                       {userSearchLoading && <div>{t('route.saved.searchingUsers')}</div>}
