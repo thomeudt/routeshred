@@ -1,88 +1,166 @@
 .header {
-  background: var(--surface);
+  background: linear-gradient(135deg, #0f2235 0%, #17344f 58%, #1c405f 100%);
   color: var(--text-primary);
-  padding: 18px 24px;
-  border-bottom: 1px solid var(--border);
+  padding: 14px 20px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 36%, #10263a);
 }
 
 .header-content {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.header-top {
+  width: 100%;
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 14px;
 }
 
 .header-brand {
   display: flex;
-  align-items: baseline;
-  gap: 20px;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.header-signet {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--accent) 46%, white);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 26%, white) 0%, color-mix(in srgb, #0b1d2f 88%, white) 100%);
+  color: #f9fcff;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
 }
 
 .header-content h1 {
-  font-size: 24px;
+  font-family: var(--font-display);
+  font-size: 34px;
   margin: 0;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  color: #f6fbff;
 }
 
 .header-content p {
-  color: var(--text-secondary);
+  margin: 0;
+  color: color-mix(in srgb, white 82%, var(--accent) 18%);
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .header-auth {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .user-pill {
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, white 25%, transparent);
+  background: color-mix(in srgb, #0b1d2f 65%, transparent);
   padding: 6px 10px;
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: #e8f2fc;
 }
 
 .header-btn {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-primary);
-  padding: 7px 10px;
-  font-size: 11px;
+  border: 1px solid color-mix(in srgb, white 35%, transparent);
+  background: color-mix(in srgb, #0b1d2f 72%, transparent);
+  color: #f3f8ff;
+  padding: 6px 9px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   cursor: pointer;
 }
 
+.header-tabs {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
+  gap: 6px;
+}
+
+.header-tabs button {
+  border: 1px solid color-mix(in srgb, white 30%, transparent);
+  background: color-mix(in srgb, #0b1d2f 72%, transparent);
+  color: #eaf2fb;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  min-height: 30px;
+  padding: 5px 8px;
+  text-transform: uppercase;
+}
+
+.header-tabs button.active {
+  border-color: color-mix(in srgb, var(--accent) 46%, white);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 20%, #0b1d2f), color-mix(in srgb, #0b1d2f 65%, black));
+  color: #ffffff;
+}
+
 .header-btn:hover {
   border-color: var(--accent);
+  color: #ffffff;
+  background: color-mix(in srgb, var(--accent) 16%, #0b1d2f);
 }
 
 @media (max-width: 768px) {
   .header {
-    padding: 12px 14px;
+    padding: 12px 12px 9px;
   }
 
   .header-content {
+    gap: 9px;
+  }
+
+  .header-top {
     align-items: flex-start;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
 
   .header-brand {
-    flex-direction: column;
-    gap: 4px;
+    gap: 10px;
+  }
+
+  .header-brand-copy {
+    gap: 2px;
+  }
+
+  .header-signet {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
   }
 
   .header-content h1 {
-    font-size: 20px;
+    font-size: 28px;
   }
 
   .header-content p {
@@ -93,7 +171,12 @@
   .header-auth {
     width: 100%;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
+  }
+
+  .header-tabs {
+    width: 100%;
+    grid-template-columns: 1fr 1fr;
   }
 
   .user-pill {
@@ -111,7 +194,7 @@
   }
 
   .header-btn {
-    min-height: 40px;
-    padding: 8px 12px;
+    min-height: 36px;
+    padding: 7px 10px;
   }
 }

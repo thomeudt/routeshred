@@ -1,0 +1,22 @@
+{
+  "title": "Ride",
+  "description": "Schnell",
+  "challenge": "tempo",
+  "photoUrl": "",
+  "meetingPoint": "bei mir",
+  "startAt": "2026-05-02T17:02:00.000Z",
+  "visibility": "public",
+  "updatedAt": "2026-05-02T17:07:07.258Z",
+  "id": "531fd00f-674b-45e3-abbd-76b268a152c0",
+  "ownerSub": "8f3468b3-44ac-4d2f-a0d5-0d018b52bf3d",
+  "ownerName": "Thorsten Meudt",
+  "participants": [
+    {
+      "sub": "8f3468b3-44ac-4d2f-a0d5-0d018b52bf3d",
+      "name": "Thorsten Meudt",
+      "joinedAt": "2026-05-02T17:03:25.256Z"
+    }
+  ],
+  "comments": [],
+  "createdAt": "2026-05-02T17:03:18.485Z"
+}

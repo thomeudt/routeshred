@@ -13,6 +13,7 @@ const KEYCLOAK_CONFIG = {
 
 let keycloakClient = null;
 let keycloakInitPromise = null;
+let reauthInProgress = false;
 
 function getKeycloakClient() {
   if (!KEYCLOAK_ENABLED) {
@@ -77,6 +78,14 @@ export function AuthProvider({ children }) {
             setAuthenticated(false);
             setToken(null);
             setUser(null);
+            if (!reauthInProgress) {
+              reauthInProgress = true;
+              try {
+                await client.login({ redirectUri: window.location.href });
+              } catch (_) {
+                reauthInProgress = false;
+              }
+            }
           }
         };
       } catch (_) {
@@ -142,6 +151,43 @@ export function AuthProvider({ children }) {
       axios.interceptors.request.eject(interceptorId);
     };
   }, [authenticated]);
+
+  useEffect(() => {
+    if (!KEYCLOAK_ENABLED) {
+      return undefined;
+    }
+
+    const interceptorId = axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const status = Number(error?.response?.status || 0);
+        const message = String(error?.response?.data?.message || '').toLowerCase();
+        const isAuthError = status === 401
+          && (message.includes('invalid or expired access token') || message.includes('bearer token required'));
+
+        if (isAuthError && !reauthInProgress) {
+          const client = getKeycloakClient();
+          if (client) {
+            reauthInProgress = true;
+            setAuthenticated(false);
+            setToken(null);
+            setUser(null);
+            try {
+              await client.login({ redirectUri: window.location.href });
+            } catch (_) {
+              reauthInProgress = false;
+            }
+          }
+        }
+
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axios.interceptors.response.eject(interceptorId);
+    };
+  }, []);
 
   const value = useMemo(() => ({
     enabled: KEYCLOAK_ENABLED,

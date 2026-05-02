@@ -4,30 +4,6 @@
   height: 100vh;
 }
 
-header {
-  background: var(--surface);
-  color: var(--text-primary);
-  padding: 18px 24px;
-  border-bottom: 1px solid var(--border);
-}
-
-header h1 {
-  font-size: 24px;
-  margin: 0;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-header p {
-  margin: 5px 0 0 0;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
 main {
   flex: 1;
   overflow: hidden;
@@ -39,21 +15,23 @@ main {
   place-items: center;
   padding: 24px;
   background:
-    radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 35%),
+    radial-gradient(circle at 16% 12%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 36%),
+    radial-gradient(circle at 82% 10%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 33%),
     var(--bg-light);
 }
 
 .login-card {
   width: min(520px, 100%);
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 95%, white), color-mix(in srgb, var(--surface-subtle) 92%, white));
   padding: 28px;
 }
 
 .login-card h2 {
   margin: 0 0 10px;
-  font-size: 22px;
-  letter-spacing: 0.03em;
+  font-family: var(--font-display);
+  font-size: 30px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -64,9 +42,9 @@ main {
 }
 
 .login-btn {
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #111;
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, var(--primary));
+  background: linear-gradient(135deg, var(--accent) 0%, #ff875d 100%);
+  color: #101722;
   padding: 10px 14px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -79,10 +57,6 @@ main {
 }
 
 @media (max-width: 768px) {
-  header {
-    padding: 12px 14px;
-  }
-
   .login-screen {
     padding: 14px;
   }

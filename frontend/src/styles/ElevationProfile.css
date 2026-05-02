@@ -1,10 +1,49 @@
+.elevation-shell {
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.elevation-shell summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+}
+
+.elevation-shell summary::-webkit-details-marker {
+  display: none;
+}
+
+.elevation-shell summary span {
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.elevation-shell summary small {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.elevation-shell[open] summary {
+  border-bottom: 1px solid var(--border);
+}
+
 .elevation-profile {
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--surface) 90%, white) 0%,
     color-mix(in srgb, var(--surface-subtle) 85%, white) 100%
   );
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 0;
   padding: 12px;
 }
@@ -198,5 +237,15 @@
 
   .elevation-codes {
     grid-template-columns: 1fr;
+  }
+
+  .elevation-shell summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .elevation-shell summary small {
+    white-space: normal;
   }
 }

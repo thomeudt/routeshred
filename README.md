@@ -230,6 +230,14 @@ REACT_APP_KEYCLOAK_CLIENT_ID=routeshred-frontend
 The header now shows login/logout and a profile save action. Saved profile data
 includes rider FTP/weight, selected bike profile and ride type.
 
+The Keycloak login page uses the custom theme in
+`docs/keycloak/themes/routeshred/login/` to match the RouteShred UI style.
+If you change theme files, restart Keycloak to apply updates:
+
+```bash
+docker compose restart keycloak
+```
+
 ## Proxmox One-Stack Deployment
 
 If you want a single deployment (frontend + backend + BRouter + Keycloak + reverse proxy),
@@ -311,6 +319,25 @@ docker compose -f docker-compose.proxmox.yml down
 - `POST /api/export/tcx` - Export as TCX file
 - `POST /api/export/gpx` - Export as GPX file
 
+### Saved Routes
+- `GET /api/routes` - List visible saved routes (auth)
+- `GET /api/routes/:id?owner=<sub>` - Load a saved route (auth)
+- `POST /api/routes` - Save a new route (auth)
+- `PUT /api/routes/:id` - Update an existing route (auth)
+- `PATCH /api/routes/:id` - Rename or update sharing (auth)
+- `DELETE /api/routes/:id` - Delete a saved route (auth)
+- `GET /api/routes/public/:owner/:id` - Load a public route (optional auth)
+
+### Group Rides
+- `GET /api/group-rides` - List visible group rides (auth)
+- `POST /api/group-rides` - Create a group ride (auth)
+- `PATCH /api/group-rides/:id` - Update own group ride (auth)
+- `DELETE /api/group-rides/:id` - Delete own group ride (auth)
+- `POST /api/group-rides/:id/join` - Join a group ride (auth)
+- `POST /api/group-rides/:id/leave` - Leave a group ride (auth)
+- `POST /api/group-rides/:id/comments` - Add a comment to a group ride (auth)
+- `GET /api/group-rides/public/:owner/:id` - Load a public group ride (optional auth)
+
 ## 🏗️ Project Structure
 
 ```
@@ -385,16 +412,29 @@ For issues, questions, or suggestions:
 
 ## 🗺️ Roadmap
 
-- [ ] Route history and saved routes
-- [ ] User accounts and cloud sync
-- [ ] Community route sharing platform
+### Done
+
+- [x] Route history and saved routes (save/load/rename/delete)
+- [x] User accounts via Keycloak (profile persistence and ownership)
+- [x] Nearby POI and address search (Nominatim + Overpass, category shortcuts)
+- [x] Weather-aware route signals (wind, rain, heat, UV, sidewind alerts)
+- [x] GPX import and FIT import
+- [x] Route sharing basics (public/private + user-based sharing)
+
+### In Progress
+
+- [ ] Community route sharing platform (discoverability, feed, public-route UX, comments)
 - [ ] Real-time traffic integration
+- [ ] Advanced filters (route constraints and presets)
+- [ ] Social features phase 2: public route browse/explore view
+- [ ] Social features phase 2b: group rides organizer (descriptions, challenges, photos)
+
+### Next
+
+- [x] Social features phase 1: shareable public links + deep-link route loading
+- [ ] Social features phase 3: external platform sync (e.g. Strava)
 - [ ] Offline map support
 - [ ] Mobile app (React Native)
-- [ ] Advanced filters (avoid hills, gravel only, etc.)
-- [ ] Weather integration
-- [ ] Nearby POI (cafe, repair shops)
-- [ ] Social features (Strava integration)
 
 ---
 

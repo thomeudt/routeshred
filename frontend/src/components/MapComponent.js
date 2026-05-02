@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet';
+import { FiGlobe, FiUsers } from 'react-icons/fi';
 import L from 'leaflet';
 import { useRouteStore } from '../store/routeStore';
 import { t } from '../i18n';
 import RouteControls from './RouteControls';
 import ElevationProfile from './ElevationProfile';
+import SavedRoutesPanel from './SavedRoutesPanel';
+import GroupRidesPanel from './GroupRidesPanel';
 import '../styles/Map.css';
 
 const TILE_URL = process.env.REACT_APP_TILE_URL
@@ -65,6 +68,8 @@ function MapComponent({ isMapVisible = true }) {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [gpsTracking, setGpsTracking] = useState(false);
   const [gpsError, setGpsError] = useState('');
+  const [activeTab, setActiveTab] = useState('plan');
+  const [socialView, setSocialView] = useState('rides');
   const mapRef = useRef();
   const fittedRouteKeyRef = useRef(null);
   const snapFeedbackTimeoutRef = useRef(null);
@@ -72,11 +77,15 @@ function MapComponent({ isMapVisible = true }) {
   const suppressNextMapClickRef = useRef(false);
   const gpsWatchIdRef = useRef(null);
   const gpsHasCenteredRef = useRef(false);
-  const routePositions = route && route.geometry
-    ? route.geometry.coordinates.map(coord => [coord[1], coord[0]])
+  const routePositions = route && route.geometry && Array.isArray(route.geometry.coordinates)
+    ? route.geometry.coordinates
+      .filter((coord) => Array.isArray(coord) && coord.length >= 2 && Number.isFinite(Number(coord[0])) && Number.isFinite(Number(coord[1])))
+      .map((coord) => [Number(coord[1]), Number(coord[0])])
     : null;
-  const returnRoutePositions = returnRoute && returnRoute.geometry
-    ? returnRoute.geometry.coordinates.map(coord => [coord[1], coord[0]])
+  const returnRoutePositions = returnRoute && returnRoute.geometry && Array.isArray(returnRoute.geometry.coordinates)
+    ? returnRoute.geometry.coordinates
+      .filter((coord) => Array.isArray(coord) && coord.length >= 2 && Number.isFinite(Number(coord[0])) && Number.isFinite(Number(coord[1])))
+      .map((coord) => [Number(coord[1]), Number(coord[0])])
     : null;
   const waypointAnchors = useMemo(
     () => getWaypointAnchorsOnRoute(waypoints, routePositions),
@@ -265,6 +274,39 @@ function MapComponent({ isMapVisible = true }) {
   };
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hasGroupRideLink = Boolean(String(params.get('groupRide') || '').trim() && String(params.get('owner') || '').trim());
+    const hasSharedRouteLink = Boolean(String(params.get('sharedRoute') || '').trim() && String(params.get('owner') || '').trim());
+
+    if (hasGroupRideLink) {
+      setActiveTab('community');
+      setSocialView('rides');
+      return;
+    }
+
+    if (hasSharedRouteLink) {
+      setActiveTab('routes');
+      setSocialView('routes');
+    }
+  }, []);
+
+  useEffect(() => {
+    const onTabChanged = (event) => {
+      const tab = String(event?.detail?.tab || '').trim() || 'plan';
+      setActiveTab(tab);
+      if (tab === 'community') {
+        setSocialView('rides');
+      }
+      if (tab === 'routes') {
+        setSocialView('routes');
+      }
+    };
+
+    window.addEventListener('routeshred:tab-changed', onTabChanged);
+    return () => window.removeEventListener('routeshred:tab-changed', onTabChanged);
+  }, []);
+
+  useEffect(() => {
     if (!isMapVisible) {
       stopGpsTracking();
       setGpsError('');
@@ -315,9 +357,11 @@ function MapComponent({ isMapVisible = true }) {
     }, 650);
   };
 
+  const showSocialSurface = isMapVisible && (activeTab === 'community' || activeTab === 'routes');
+
   return (
-    <div className={`map-container${isMapVisible ? '' : ' map-hidden'}`}>
-      {isMapVisible && (
+    <div className={`map-container${isMapVisible ? '' : ' map-hidden'}${showSocialSurface ? ' social-mode' : ''}`}>
+      {isMapVisible && !showSocialSurface && (
         <div className="map-wrapper">
         <MapContainer
           center={mapCenter}
@@ -353,7 +397,7 @@ function MapComponent({ isMapVisible = true }) {
                 }
               }}
             >
-              <Popup>{t('map.startPopup')}: {startPoint[0].toFixed(4)}, {startPoint[1].toFixed(4)}</Popup>
+              <Popup>{t('map.startPopup')}</Popup>
             </Marker>
           )}
 
@@ -372,7 +416,7 @@ function MapComponent({ isMapVisible = true }) {
                 }
               }}
             >
-              <Popup>{t('map.endPopup')}: {endPoint[0].toFixed(4)}, {endPoint[1].toFixed(4)}</Popup>
+              <Popup>{t('map.endPopup')}</Popup>
             </Marker>
           )}
 
@@ -391,15 +435,13 @@ function MapComponent({ isMapVisible = true }) {
                 }
               }}
             >
-              <Popup>{t('route.locations.waypoint')} {index + 1}: {waypoint.point[0].toFixed(4)}, {waypoint.point[1].toFixed(4)}</Popup>
+              <Popup>{t('route.locations.waypoint')} {index + 1}</Popup>
             </Marker>
           ))}
 
           {currentLocation && (
             <Marker position={currentLocation} icon={currentLocationIcon}>
-              <Popup>
-                {t('map.currentLocationPopup')}: {currentLocation[0].toFixed(5)}, {currentLocation[1].toFixed(5)}
-              </Popup>
+              <Popup>{t('map.currentLocationPopup')}</Popup>
             </Marker>
           )}
 
@@ -498,9 +540,40 @@ function MapComponent({ isMapVisible = true }) {
       </div>
       )}
 
+      {showSocialSurface && (
+        <section className="community-surface" aria-label={t('map.socialHub.title')}>
+          <div className="community-surface-nav">
+            <button
+              type="button"
+              className={`community-nav-tile${socialView === 'rides' ? ' active' : ''}`}
+              onClick={() => setSocialView('rides')}
+            >
+              <FiUsers size={18} />
+              <strong>{t('route.groupRides.title')}</strong>
+              <span>{t('map.socialHub.groupRidesHint')}</span>
+            </button>
+            <button
+              type="button"
+              className={`community-nav-tile${socialView === 'routes' ? ' active' : ''}`}
+              onClick={() => setSocialView('routes')}
+            >
+              <FiGlobe size={18} />
+              <strong>{t('map.socialHub.publicRoutesTitle')}</strong>
+              <span>{t('map.socialHub.publicRoutesHint')}</span>
+            </button>
+          </div>
+
+          <div className="community-surface-panel">
+            {socialView === 'rides'
+              ? <GroupRidesPanel />
+              : <SavedRoutesPanel context={activeTab === 'routes' ? 'my' : 'public'} />}
+          </div>
+        </section>
+      )}
+
       <div className="controls-panel">
         <RouteControls />
-        {route && <ElevationProfile route={route} />}
+        {route && activeTab !== 'routes' && activeTab !== 'community' && <ElevationProfile route={route} />}
       </div>
 
       {loading && <div className="loading">{t('route.calculating')}</div>}

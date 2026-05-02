@@ -7,6 +7,67 @@ const API_BASE = rawApiUrl
   ? (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`)
   : '/api';
 
+function normalizePoint(point) {
+  if (Array.isArray(point) && point.length >= 2) {
+    const lat = Number(point[0]);
+    const lng = Number(point[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return [lat, lng];
+    }
+    return null;
+  }
+
+  if (point && typeof point === 'object') {
+    const lat = Number(point.lat ?? point.latitude);
+    const lng = Number(point.lng ?? point.lon ?? point.longitude);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return [lat, lng];
+    }
+  }
+
+  return null;
+}
+
+function normalizeWaypoints(waypoints = []) {
+  if (!Array.isArray(waypoints)) {
+    return [];
+  }
+
+  return waypoints.map((entry, index) => {
+    if (Array.isArray(entry)) {
+      return {
+        id: `${Date.now()}-${index}`,
+        point: normalizePoint(entry),
+        label: ''
+      };
+    }
+
+    if (entry && typeof entry === 'object') {
+      const point = normalizePoint(entry.point ?? entry.coordinates ?? entry.coordinate ?? entry);
+      return {
+        id: String(entry.id || `${Date.now()}-${index}`),
+        point,
+        label: String(entry.label || '')
+      };
+    }
+
+    return {
+      id: `${Date.now()}-${index}`,
+      point: null,
+      label: ''
+    };
+  });
+}
+
+function resolveApiMessage(error, fallback) {
+  const status = Number(error?.response?.status || 0);
+  const message = String(error?.response?.data?.message || '').toLowerCase();
+  if (status === 401 && (message.includes('invalid or expired access token') || message.includes('bearer token required'))) {
+    return t('auth.sessionExpired');
+  }
+  return error?.response?.data?.message || fallback;
+}
+
 export const useRouteStore = create((set, get) => ({
   // State
   route: null,
@@ -256,7 +317,7 @@ export const useRouteStore = create((set, get) => ({
     } catch (error) {
       set({
         savedRoutesLoading: false,
-        savedRoutesError: error.response?.data?.message || t('route.saved.errors.loadFailed')
+        savedRoutesError: resolveApiMessage(error, t('route.saved.errors.loadFailed'))
       });
     }
   },
@@ -315,7 +376,7 @@ export const useRouteStore = create((set, get) => ({
     } catch (error) {
       set({
         routeSaveState: 'error',
-        savedRoutesError: error.response?.data?.message || t('route.saved.errors.saveFailed')
+        savedRoutesError: resolveApiMessage(error, t('route.saved.errors.saveFailed'))
       });
     }
   },
@@ -339,11 +400,11 @@ export const useRouteStore = create((set, get) => ({
       set({
         activeSavedRouteId: savedRoute.id,
         activeSavedRouteOwner: savedRoute.ownerSub || ownerSub || null,
-        startPoint: savedRoute.startPoint,
+        startPoint: normalizePoint(savedRoute.startPoint),
         startLabel: savedRoute.startLabel || '',
-        endPoint: savedRoute.endPoint,
+        endPoint: normalizePoint(savedRoute.endPoint),
         endLabel: savedRoute.endLabel || '',
-        waypoints: Array.isArray(savedRoute.waypoints) ? savedRoute.waypoints : [],
+        waypoints: normalizeWaypoints(savedRoute.waypoints),
         bikeType: savedRoute.bikeType,
         preference: savedRoute.preference,
         rideType: savedRoute.rideType,
@@ -357,7 +418,48 @@ export const useRouteStore = create((set, get) => ({
     } catch (error) {
       set({
         savedRoutesLoading: false,
-        savedRoutesError: error.response?.data?.message || t('route.saved.errors.loadFailed')
+        savedRoutesError: resolveApiMessage(error, t('route.saved.errors.loadFailed'))
+      });
+    }
+  },
+
+  loadPublicRoute: async (routeId, ownerSub) => {
+    if (!routeId || !ownerSub) {
+      return;
+    }
+
+    set({ savedRoutesLoading: true, savedRoutesError: null });
+    try {
+      const response = await axios.get(
+        `${API_BASE}/routes/public/${encodeURIComponent(ownerSub)}/${encodeURIComponent(routeId)}`
+      );
+      const savedRoute = response.data?.route;
+      if (!savedRoute) {
+        throw new Error(t('route.saved.errors.loadFailed'));
+      }
+
+      set({
+        activeSavedRouteId: savedRoute.id,
+        activeSavedRouteOwner: savedRoute.ownerSub || ownerSub || null,
+        startPoint: normalizePoint(savedRoute.startPoint),
+        startLabel: savedRoute.startLabel || '',
+        endPoint: normalizePoint(savedRoute.endPoint),
+        endLabel: savedRoute.endLabel || '',
+        waypoints: normalizeWaypoints(savedRoute.waypoints),
+        bikeType: savedRoute.bikeType,
+        preference: savedRoute.preference,
+        rideType: savedRoute.rideType,
+        riderProfile: savedRoute.riderProfile || get().riderProfile,
+        includeReturnTrip: Boolean(savedRoute.includeReturnTrip),
+        route: savedRoute.route || null,
+        returnRoute: savedRoute.returnRoute || null,
+        savedRoutesLoading: false,
+        error: null
+      });
+    } catch (error) {
+      set({
+        savedRoutesLoading: false,
+        savedRoutesError: resolveApiMessage(error, t('route.saved.errors.loadFailed'))
       });
     }
   },
@@ -384,7 +486,7 @@ export const useRouteStore = create((set, get) => ({
           : state.activeSavedRouteOwner
       }));
     } catch (error) {
-      set({ savedRoutesError: error.response?.data?.message || t('route.saved.errors.deleteFailed') });
+      set({ savedRoutesError: resolveApiMessage(error, t('route.saved.errors.deleteFailed')) });
     }
   },
 
@@ -414,7 +516,7 @@ export const useRouteStore = create((set, get) => ({
         ))
       }));
     } catch (error) {
-      set({ savedRoutesError: error.response?.data?.message || t('route.saved.errors.renameFailed') });
+      set({ savedRoutesError: resolveApiMessage(error, t('route.saved.errors.renameFailed')) });
     }
   },
 
@@ -444,7 +546,7 @@ export const useRouteStore = create((set, get) => ({
         ))
       }));
     } catch (error) {
-      set({ savedRoutesError: error.response?.data?.message || t('route.saved.errors.shareFailed') });
+      set({ savedRoutesError: resolveApiMessage(error, t('route.saved.errors.shareFailed')) });
     }
   },
 

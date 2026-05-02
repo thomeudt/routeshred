@@ -5,6 +5,7 @@ import {
   FiEdit2,
   FiFolder,
   FiGlobe,
+  FiLink,
   FiLock,
   FiSave,
   FiSearch,
@@ -42,15 +43,17 @@ function getRouteSourceLabel(savedRoute) {
     : t('route.saved.sharedBy', { owner });
 }
 
-function SavedRoutesPanel() {
+function SavedRoutesPanel({ context = 'mixed' }) {
   const { token } = useAuth();
   const [query, setQuery] = useState('');
+  const [accessFilter, setAccessFilter] = useState('all');
   const [routeName, setRouteName] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
   const [sharingId, setSharingId] = useState(null);
   const [shareQuery, setShareQuery] = useState('');
   const [shareDraftIds, setShareDraftIds] = useState([]);
+  const [copiedLinkId, setCopiedLinkId] = useState(null);
   const [userSuggestions, setUserSuggestions] = useState([]);
   const [sharedUserLabels, setSharedUserLabels] = useState({});
   const [userSearchLoading, setUserSearchLoading] = useState(false);
@@ -69,13 +72,28 @@ function SavedRoutesPanel() {
     updateSavedRouteSharing
   } = useRouteStore();
 
+  const effectiveContext = ['my', 'public', 'mixed'].includes(context) ? context : 'mixed';
+  const availableFilters = effectiveContext === 'my'
+    ? ['own', 'shared']
+    : effectiveContext === 'public'
+      ? ['public']
+      : ['all', 'own', 'shared', 'public'];
+
+  useEffect(() => {
+    if (effectiveContext === 'my') {
+      setAccessFilter('own');
+      return;
+    }
+    if (effectiveContext === 'public') {
+      setAccessFilter('public');
+      return;
+    }
+    setAccessFilter('all');
+  }, [effectiveContext]);
+
   const filteredRoutes = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) {
-      return savedRoutes;
-    }
-
-    return savedRoutes.filter((savedRoute) => [
+    const byText = !needle ? savedRoutes : savedRoutes.filter((savedRoute) => [
       savedRoute.name,
       savedRoute.startLabel,
       savedRoute.endLabel,
@@ -84,9 +102,75 @@ function SavedRoutesPanel() {
       savedRoute.ownerName,
       savedRoute.access
     ].some((value) => String(value || '').toLowerCase().includes(needle)));
-  }, [query, savedRoutes]);
+
+    if (accessFilter === 'all') {
+      return byText;
+    }
+
+    return byText.filter((savedRoute) => {
+      if (accessFilter === 'own') return savedRoute.access === 'own';
+      if (accessFilter === 'shared') return savedRoute.access === 'shared';
+      if (accessFilter === 'public') return savedRoute.visibility === 'public' || savedRoute.access === 'public';
+      return true;
+    });
+  }, [query, savedRoutes, accessFilter]);
+
+  const publicCount = useMemo(
+    () => savedRoutes.filter((savedRoute) => savedRoute.visibility === 'public' || savedRoute.access === 'public').length,
+    [savedRoutes]
+  );
+
+  const sharedCount = useMemo(
+    () => savedRoutes.filter((savedRoute) => savedRoute.access === 'shared').length,
+    [savedRoutes]
+  );
 
   const routeKey = (savedRoute) => `${savedRoute.ownerSub || ''}:${savedRoute.id}`;
+
+  const buildPublicShareLink = (savedRoute) => {
+    const owner = String(savedRoute.ownerSub || '').trim();
+    const routeId = String(savedRoute.id || '').trim();
+    if (!owner || !routeId) {
+      return '';
+    }
+
+    const params = new URLSearchParams({ sharedRoute: routeId, owner });
+    return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+  };
+
+  const copyPublicShareLink = async (savedRoute) => {
+    if (savedRoute.visibility !== 'public') {
+      return;
+    }
+
+    const link = buildPublicShareLink(savedRoute);
+    if (!link) {
+      return;
+    }
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(link);
+      } else {
+        const helper = document.createElement('textarea');
+        helper.value = link;
+        helper.setAttribute('readonly', 'readonly');
+        helper.style.position = 'absolute';
+        helper.style.left = '-9999px';
+        document.body.appendChild(helper);
+        helper.select();
+        document.execCommand('copy');
+        document.body.removeChild(helper);
+      }
+      const key = routeKey(savedRoute);
+      setCopiedLinkId(key);
+      setTimeout(() => {
+        setCopiedLinkId((current) => (current === key ? null : current));
+      }, 1400);
+    } catch (_) {
+      // Ignore clipboard errors silently.
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -217,8 +301,44 @@ function SavedRoutesPanel() {
   return (
     <div className="control-group saved-routes-panel">
       <div className="saved-routes-heading">
-        <label>{t('route.saved.title')}</label>
+        <label>
+          <span className="saved-routes-signet" aria-hidden="true">RS</span>
+          {t('route.saved.title')}
+        </label>
         <span>{savedRoutes.length}</span>
+      </div>
+
+      <div className="saved-social-bar">
+        <small>{t('route.saved.socialHint', { publicCount, sharedCount })}</small>
+        {Boolean(publicCount) && (
+          <button
+            type="button"
+            className="saved-social-copy"
+            onClick={() => {
+              const firstPublic = savedRoutes.find((savedRoute) => savedRoute.visibility === 'public' || savedRoute.access === 'public');
+              if (firstPublic) {
+                copyPublicShareLink(firstPublic);
+              }
+            }}
+          >
+            <FiLink /> {t('route.saved.copyFirstPublic')}
+          </button>
+        )}
+      </div>
+
+      <div className="saved-route-filters" role="tablist" aria-label={t('route.saved.filterLabel')}>
+        {availableFilters.map((filter) => (
+          <button
+            key={filter}
+            type="button"
+            role="tab"
+            aria-selected={accessFilter === filter}
+            className={accessFilter === filter ? 'active' : ''}
+            onClick={() => setAccessFilter(filter)}
+          >
+            {t(`route.saved.filters.${filter}`)}
+          </button>
+        ))}
       </div>
 
       <div className="saved-route-savebar">
@@ -330,6 +450,16 @@ function SavedRoutesPanel() {
                         >
                           {savedRoute.visibility === 'public' ? <FiGlobe /> : <FiLock />}
                         </button>
+                        {savedRoute.visibility === 'public' && (
+                          <button
+                            type="button"
+                            onClick={() => copyPublicShareLink(savedRoute)}
+                            aria-label={t('route.saved.copyLink')}
+                            title={copiedLinkId === key ? t('route.saved.copyLinkCopied') : t('route.saved.copyLink')}
+                          >
+                            {copiedLinkId === key ? <FiCheck /> : <FiLink />}
+                          </button>
+                        )}
                         <button type="button" onClick={() => startSharing(savedRoute)} aria-label={t('route.saved.share')}>
                           <FiShare2 />
                         </button>

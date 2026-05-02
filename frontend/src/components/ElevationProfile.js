@@ -72,8 +72,10 @@ function ElevationProfile({ route }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (route && route.geometry) {
+    if (route && route.geometry && Array.isArray(route.geometry.coordinates) && route.geometry.coordinates.length > 1) {
       fetchElevationData();
+    } else {
+      setElevationData([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route]);
@@ -81,10 +83,22 @@ function ElevationProfile({ route }) {
   const fetchElevationData = async () => {
     setLoading(true);
     try {
+      if (!route || !route.geometry || !Array.isArray(route.geometry.coordinates)) {
+        setElevationData([]);
+        return;
+      }
+
       const coordinates = downsampleCoordinates(
-        route.geometry.coordinates.map(coord => [coord[1], coord[0]]),
+        route.geometry.coordinates
+          .filter((coord) => Array.isArray(coord) && coord.length >= 2 && Number.isFinite(Number(coord[0])) && Number.isFinite(Number(coord[1])))
+          .map((coord) => [Number(coord[1]), Number(coord[0])]),
         MAX_ELEVATION_POINTS
       );
+
+      if (coordinates.length < 2) {
+        setElevationData([]);
+        return;
+      }
 
       const response = await fetch(`${API_BASE}/elevation/profile`, {
         method: 'POST',
@@ -148,86 +162,95 @@ function ElevationProfile({ route }) {
   const lineGradientStops = buildLineGradientStops(elevationData);
 
   return (
-    <div className="elevation-profile">
-      <div className="elevation-profile__header">
-        <div className="elevation-profile__title">
-          <h3>{t('elevation.title')}</h3>
-          <span>{t('elevation.units')}</span>
+    <details className="elevation-shell">
+      <summary>
+        <span>{t('elevation.title')}</span>
+        <small>
+          {totalAscent} m | {maxGradient.toFixed(1)}% | C{climbCode.level} T{toughnessCode.level} G{gradientCode.level}
+        </small>
+      </summary>
+      <div className="elevation-profile">
+        <div className="elevation-profile__header">
+          <div className="elevation-profile__title">
+            <h3>{t('elevation.title')}</h3>
+            <span>{t('elevation.units')}</span>
+          </div>
+          <div className="elevation-profile__meta">
+            <span>min {minElevation} m</span>
+            <span>max {maxElevation} m</span>
+            <span>{String.fromCharCode(916)} {elevationRange} m</span>
+          </div>
         </div>
-        <div className="elevation-profile__meta">
-          <span>min {minElevation} m</span>
-          <span>max {maxElevation} m</span>
-          <span>{String.fromCharCode(916)} {elevationRange} m</span>
+
+        <div className="elevation-codes">
+          <div className={`elevation-code code-level-${climbCode.level}`}>
+            <small>{t('elevation.climbCode')}</small>
+            <strong>C{climbCode.level}</strong>
+            <span>{totalAscent} m | {Math.round(climbPer10Km)} m/10km</span>
+          </div>
+          <div className={`elevation-code code-level-${toughnessCode.level}`}>
+            <small>{t('elevation.toughnessCode')}</small>
+            <strong>T{toughnessCode.level}</strong>
+            <span>{Math.round(toughnessScore)} pts</span>
+          </div>
+          <div className={`elevation-code code-level-${gradientCode.level}`}>
+            <small>{t('elevation.gradientCode')}</small>
+            <strong>G{gradientCode.level}</strong>
+            <span>{maxGradient.toFixed(1)}% max</span>
+          </div>
         </div>
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={elevationData} margin={{ top: 10, right: 24, bottom: 16, left: 6 }}>
+            <defs>
+              <linearGradient id={lineGradientId} x1="0" y1="0" x2="1" y2="0">
+                {lineGradientStops.map((stop) => (
+                  <stop
+                    key={`${stop.offset}-${stop.color}`}
+                    offset={stop.offset}
+                    stopColor={stop.color}
+                    stopOpacity={1}
+                  />
+                ))}
+              </linearGradient>
+              <linearGradient id="elevationGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="8%" stopColor={chartColor} stopOpacity={0.5} />
+                <stop offset="90%" stopColor={chartColor} stopOpacity={0.06} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="rgba(148, 163, 184, 0.32)" />
+            <XAxis
+              dataKey="distance"
+              tickFormatter={(value) => `${value < 10 ? value.toFixed(1) : Math.round(value)} km`}
+              tickMargin={8}
+              height={30}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }}
+            />
+            <YAxis
+              tickFormatter={(value) => `${Math.round(value)} m`}
+              tickMargin={8}
+              width={62}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }}
+            />
+            <Tooltip
+              content={<ElevationTooltip />}
+              cursor={{ stroke: chartColor, strokeOpacity: 0.4, strokeWidth: 1 }}
+            />
+            <Area
+              type="monotone"
+              dataKey="elevation"
+              stroke={`url(#${lineGradientId})`}
+              strokeWidth={2}
+              fill="url(#elevationGradient)"
+              isAnimationActive={false}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
-      <div className="elevation-codes">
-        <div className={`elevation-code code-level-${climbCode.level}`}>
-          <small>{t('elevation.climbCode')}</small>
-          <strong>C{climbCode.level}</strong>
-          <span>{totalAscent} m | {Math.round(climbPer10Km)} m/10km</span>
-        </div>
-        <div className={`elevation-code code-level-${toughnessCode.level}`}>
-          <small>{t('elevation.toughnessCode')}</small>
-          <strong>T{toughnessCode.level}</strong>
-          <span>{Math.round(toughnessScore)} pts</span>
-        </div>
-        <div className={`elevation-code code-level-${gradientCode.level}`}>
-          <small>{t('elevation.gradientCode')}</small>
-          <strong>G{gradientCode.level}</strong>
-          <span>{maxGradient.toFixed(1)}% max</span>
-        </div>
-      </div>
-      <ResponsiveContainer width="100%" height={220}>
-        <AreaChart data={elevationData} margin={{ top: 10, right: 24, bottom: 16, left: 6 }}>
-          <defs>
-            <linearGradient id={lineGradientId} x1="0" y1="0" x2="1" y2="0">
-              {lineGradientStops.map((stop) => (
-                <stop
-                  key={`${stop.offset}-${stop.color}`}
-                  offset={stop.offset}
-                  stopColor={stop.color}
-                  stopOpacity={1}
-                />
-              ))}
-            </linearGradient>
-            <linearGradient id="elevationGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="8%" stopColor={chartColor} stopOpacity={0.5} />
-              <stop offset="90%" stopColor={chartColor} stopOpacity={0.06} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="rgba(148, 163, 184, 0.32)" />
-          <XAxis
-            dataKey="distance"
-            tickFormatter={(value) => `${value < 10 ? value.toFixed(1) : Math.round(value)} km`}
-            tickMargin={8}
-            height={30}
-            axisLine={false}
-            tickLine={false}
-            tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }}
-          />
-          <YAxis
-            tickFormatter={(value) => `${Math.round(value)} m`}
-            tickMargin={8}
-            width={62}
-            axisLine={false}
-            tickLine={false}
-            tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }}
-          />
-          <Tooltip
-            content={<ElevationTooltip />}
-            cursor={{ stroke: chartColor, strokeOpacity: 0.4, strokeWidth: 1 }}
-          />
-          <Area
-            type="monotone"
-            dataKey="elevation"
-            stroke={`url(#${lineGradientId})`}
-            strokeWidth={2}
-            fill="url(#elevationGradient)"
-            isAnimationActive={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
+    </details>
   );
 }
 

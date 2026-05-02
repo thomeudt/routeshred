@@ -2,15 +2,19 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useRouteStore } from '../store/routeStore';
 import { t } from '../i18n';
 import {
+  FiActivity,
   FiAlertTriangle,
   FiArrowDown,
   FiArrowUp,
   FiCheckCircle,
+  FiCoffee,
+  FiCompass,
   FiRepeat,
   FiDownload,
   FiMenu,
   FiNavigation,
   FiPlus,
+  FiUsers,
   FiTrash2,
   FiUpload,
   FiZap,
@@ -18,7 +22,6 @@ import {
 } from 'react-icons/fi';
 import LocationInput from './LocationInput';
 import RouteTypeStats from './RouteTypeStats';
-import SavedRoutesPanel from './SavedRoutesPanel';
 import { useAuth } from '../auth/AuthProvider';
 import '../styles/RouteControls.css';
 
@@ -29,7 +32,28 @@ const RIDE_TYPES = [
   { id: 'threshold' },
 ];
 
-const PANEL_TABS = ['plan', 'library', 'setup'];
+const PANEL_TABS = ['plan', 'routes', 'community', 'setup'];
+
+const RIDE_PERSONAS = [
+  { id: 'coffee', rideType: 'z2', preference: 'scenic' },
+  { id: 'bunch', rideType: 'tt', preference: 'fastest' },
+  { id: 'endurance', rideType: 'sst', preference: 'scenic' },
+  { id: 'gravel', rideType: 'z2', preference: 'offroad' }
+];
+
+const PERSONA_ICONS = {
+  coffee: FiCoffee,
+  bunch: FiUsers,
+  endurance: FiActivity,
+  gravel: FiCompass
+};
+
+const RIDE_TYPE_ICONS = {
+  z2: FiNavigation,
+  sst: FiActivity,
+  tt: FiZap,
+  threshold: FiAlertTriangle
+};
 
 function formatSignedDuration(seconds = 0) {
   const totalSeconds = Math.round(Number(seconds || 0));
@@ -216,7 +240,7 @@ function sampleGpxWaypoints(coordinates, maxWaypoints = 6) {
 }
 
 function RouteControls() {
-  const { enabled: authEnabled, authenticated, token } = useAuth();
+  const { enabled: authEnabled, authenticated, token, user } = useAuth();
   const [engine, setEngine] = useState('unknown');
   const [activeTab, setActiveTab] = useState('plan');
   const [dragWaypointId, setDragWaypointId] = useState(null);
@@ -232,8 +256,11 @@ function RouteControls() {
   const [profileEditContent, setProfileEditContent] = useState('');
   const [profileEditState, setProfileEditState] = useState('idle');
   const [profileEditError, setProfileEditError] = useState('');
+  const [profileSaveState, setProfileSaveState] = useState('idle');
   const [gpxImportError, setGpxImportError] = useState('');
   const [gpxImportSuccess, setGpxImportSuccess] = useState('');
+  const [selectedPersonaId, setSelectedPersonaId] = useState('coffee');
+  const [controlMode, setControlMode] = useState('persona');
   const gpxInputRef = useRef(null);
   const {
     startPoint, endPoint,
@@ -283,10 +310,64 @@ function RouteControls() {
   }, [authEnabled, authenticated, token, loadSavedRoutes]);
 
   useEffect(() => {
-    if (activeTab === 'library' && (!authEnabled || !authenticated)) {
+    if ((activeTab === 'routes' || activeTab === 'community') && (!authEnabled || !authenticated)) {
       setActiveTab('plan');
     }
   }, [activeTab, authEnabled, authenticated]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const groupRide = String(params.get('groupRide') || '').trim();
+    if (groupRide && authEnabled && authenticated) {
+      setActiveTab('community');
+    }
+  }, [authEnabled, authenticated]);
+
+  useEffect(() => {
+    const openGroupRides = () => {
+      if (!authEnabled || !authenticated) {
+        return;
+      }
+
+      setActiveTab('community');
+      window.setTimeout(() => {
+        const el = document.querySelector('.group-rides-panel');
+        if (el && typeof el.scrollIntoView === 'function') {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 40);
+    };
+
+    window.addEventListener('routeshred:open-group-rides', openGroupRides);
+    return () => window.removeEventListener('routeshred:open-group-rides', openGroupRides);
+  }, [authEnabled, authenticated]);
+
+  useEffect(() => {
+    const onSetTab = (event) => {
+      const requested = String(event?.detail?.tab || '').trim();
+      if (!requested) {
+        return;
+      }
+
+      const allowed = PANEL_TABS.filter((tab) => {
+        if (tab === 'routes' || tab === 'community') {
+          return authEnabled && authenticated;
+        }
+        return true;
+      });
+
+      if (allowed.includes(requested)) {
+        setActiveTab(requested);
+      }
+    };
+
+    window.addEventListener('routeshred:set-tab', onSetTab);
+    return () => window.removeEventListener('routeshred:set-tab', onSetTab);
+  }, [authEnabled, authenticated]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('routeshred:tab-changed', { detail: { tab: activeTab } }));
+  }, [activeTab]);
 
   const handleCalculate = () => { if (startPoint && endPoint) calculateRoute(); };
   const handleExportTCX = () => { if (route) exportRoute('tcx'); };
@@ -350,13 +431,40 @@ function RouteControls() {
     setRiderProfile({ [field]: numericValue });
   };
 
+  const handleSaveProfile = async () => {
+    if (!authEnabled || !authenticated || !token) {
+      return;
+    }
+
+    setProfileSaveState('saving');
+    try {
+      await fetch('/api/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          riderProfile,
+          bikeType,
+          rideType,
+          displayName: user?.name || user?.preferred_username || 'Rider'
+        })
+      });
+      setProfileSaveState('saved');
+      window.setTimeout(() => setProfileSaveState('idle'), 1200);
+    } catch (_) {
+      setProfileSaveState('error');
+      window.setTimeout(() => setProfileSaveState('idle'), 1800);
+    }
+  };
+
   const profileOptions = bikeProfiles.length
     ? bikeProfiles
     : [{ id: bikeType || 'road', label: t('common.loading'), source: 'fallback' }];
   const selectedProfile = profileOptions.find((profile) => profile.id === bikeType) || profileOptions[0];
   const pz = route && route.powerZone;
   const isDraggingWaypoint = Boolean(dragWaypointId);
-  const visibleTabs = PANEL_TABS.filter((tab) => tab !== 'library' || (authEnabled && authenticated));
   const tempoFactors = route && route.tempoFactors ? route.tempoFactors : null;
   const tempoAdjustmentSeconds = tempoFactors
     ? Number(tempoFactors.adjustedDuration || 0) - Number(tempoFactors.baseDuration || 0)
@@ -380,6 +488,27 @@ function RouteControls() {
   const selectedProfileLabel = selectedProfile ? selectedProfile.label : '';
   const selectedProfileOwned = Boolean(selectedProfile && selectedProfile.owned);
   const isOwnedSelectedProfile = Boolean(canManageProfiles && selectedProfile && selectedProfile.owned);
+  const activePersonaId = selectedPersonaId;
+  const activePersona = RIDE_PERSONAS.find((persona) => persona.id === selectedPersonaId) || null;
+  const activePersonaLabel = activePersona ? t(`route.personas.${activePersona.id}.label`) : '';
+
+  useEffect(() => {
+    if (controlMode !== 'persona') {
+      return;
+    }
+
+    const selectedPersona = RIDE_PERSONAS.find((persona) => persona.id === selectedPersonaId);
+    if (!selectedPersona) {
+      return;
+    }
+
+    if (selectedPersona.rideType !== rideType) {
+      setRideType(selectedPersona.rideType);
+    }
+    if (selectedPersona.preference !== preference) {
+      setPreference(selectedPersona.preference);
+    }
+  }, [controlMode, selectedPersonaId, rideType, preference, setRideType, setPreference]);
 
   useEffect(() => {
     if (!newProfileBaseId && selectedProfileId) {
@@ -646,31 +775,17 @@ function RouteControls() {
   return (
     <div className="route-controls">
       <div className="route-controls-header">
-        <h2>{t('route.planner')}</h2>
-        <span className="engine-badge">{t('route.engine')}: {engine}</span>
+        <div className="planner-heading">
+          <h2>{t('route.planner')}</h2>
+        </div>
       </div>
 
-      <div
-        className="route-panel-tabs"
-        role="tablist"
-        aria-label={t('route.tabs.label')}
-        style={{ '--tab-count': visibleTabs.length }}
-      >
-        {visibleTabs.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab}
-            className={activeTab === tab ? 'active' : ''}
-            onClick={() => setActiveTab(tab)}
-          >
-            {t(`route.tabs.${tab}`)}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === 'library' && authEnabled && authenticated && <SavedRoutesPanel />}
+      {(activeTab === 'routes' || activeTab === 'community') && authEnabled && authenticated && (
+        <div className="panel-moved-note">
+          <strong>{t(`route.tabs.${activeTab}`)}</strong>
+          <span>{t('route.socialSurfaceHint')}</span>
+        </div>
+      )}
 
       {activeTab === 'plan' && (
         <>
@@ -827,129 +942,177 @@ function RouteControls() {
           </div>
 
           {route && (
-            <div className="route-stats">
-              <h3>{t('route.stats')}</h3>
-              <div className="stat-item">
-                <span>{t('route.distance')}</span>
-                <strong>{(route.distance / 1000).toFixed(1)} km</strong>
-              </div>
-              <div className="stat-item">
-                <span>{t('route.duration')}</span>
-                <strong>{Math.round(route.duration / 60)} min</strong>
-              </div>
-              <div className="stat-item">
-                <span>{t('route.avgSpeed')}</span>
-                <strong>{((route.distance / route.duration) * 3.6).toFixed(1)} km/h</strong>
-              </div>
-              {route.ascent > 0 && (
-                <div className="stat-item">
-                  <span>{t('route.elevation')}</span>
-                  <strong>{route.ascent} m</strong>
+            <div className={`route-hero${hasWeatherWarnings ? ' route-hero-warn' : ' route-hero-clear'}`}>
+              <div className="route-hero-main">
+                <div className="route-hero-chip">
+                  <FiNavigation size={14} />
+                  <strong>{(route.distance / 1000).toFixed(1)} km</strong>
                 </div>
-              )}
-              {tempoFactors && (
-                <>
-                  <div className="stat-item">
-                    <span>{t('route.tempo.adjusted')}</span>
-                    <strong>{formatSignedDuration(tempoAdjustmentSeconds)}</strong>
+                <div className="route-hero-chip">
+                  <FiActivity size={14} />
+                  <strong>{Math.round(route.duration / 60)} min</strong>
+                </div>
+                <div className="route-hero-chip">
+                  <FiZap size={14} />
+                  <strong>{((route.distance / route.duration) * 3.6).toFixed(1)} km/h</strong>
+                </div>
+                {route.ascent > 0 && (
+                  <div className="route-hero-chip">
+                    <FiArrowUp size={14} />
+                    <strong>{route.ascent} m</strong>
                   </div>
+                )}
+              </div>
+              <div className="route-hero-tags">
+                {activePersonaLabel && <span>{activePersonaLabel}</span>}
+                <span>{t(`rideTypes.${rideType}.label`)}</span>
+                <span>{t(`preferences.${preference}`)}</span>
+                <span>{route.engineUsed || engine}</span>
+              </div>
+            </div>
+          )}
+
+          {route && (
+            <details className="panel-collapsible route-stats-collapsible">
+              <summary>
+                <span>{t('route.stats')}</span>
+                <small>{(route.distance / 1000).toFixed(1)} km • {Math.round(route.duration / 60)} min</small>
+              </summary>
+              <div className="route-stats">
+                <div className="stat-item">
+                  <span>{t('route.distance')}</span>
+                  <strong>{(route.distance / 1000).toFixed(1)} km</strong>
+                </div>
+                <div className="stat-item">
+                  <span>{t('route.duration')}</span>
+                  <strong>{Math.round(route.duration / 60)} min</strong>
+                </div>
+                <div className="stat-item">
+                  <span>{t('route.avgSpeed')}</span>
+                  <strong>{((route.distance / route.duration) * 3.6).toFixed(1)} km/h</strong>
+                </div>
+                {route.ascent > 0 && (
                   <div className="stat-item">
-                    <span>{t('route.tempo.friction')}</span>
-                    <strong>{formatSignedDuration(frictionDelaySeconds)}</strong>
+                    <span>{t('route.elevation')}</span>
+                    <strong>{route.ascent} m</strong>
                   </div>
-                  {tempoFactors.wind && (
+                )}
+                {tempoFactors && (
+                  <>
                     <div className="stat-item">
-                      <span>{t('route.tempo.wind')}</span>
-                      <strong title={windSummary}>{formatSignedDuration(windEffectSeconds)} | {windSummary}</strong>
+                      <span>{t('route.tempo.adjusted')}</span>
+                      <strong>{formatSignedDuration(tempoAdjustmentSeconds)}</strong>
                     </div>
-                  )}
-                </>
-              )}
-              <div className="stat-item">
-                <span>{t('route.engine')}</span>
-                <strong>{route.engineUsed || engine}</strong>
-              </div>
-              {route.fallbackUsed && (
+                    <div className="stat-item">
+                      <span>{t('route.tempo.friction')}</span>
+                      <strong>{formatSignedDuration(frictionDelaySeconds)}</strong>
+                    </div>
+                    {tempoFactors.wind && (
+                      <div className="stat-item">
+                        <span>{t('route.tempo.wind')}</span>
+                        <strong title={windSummary}>{formatSignedDuration(windEffectSeconds)} | {windSummary}</strong>
+                      </div>
+                    )}
+                  </>
+                )}
                 <div className="stat-item">
-                  <span>{t('route.fallback')}</span>
-                  <strong>{route.fallbackFrom} → {route.engineUsed}</strong>
+                  <span>{t('route.engine')}</span>
+                  <strong>{route.engineUsed || engine}</strong>
                 </div>
-              )}
-              {returnRoute && (
-                <>
-                  <div className="stat-item stat-item-return">
-                    <span>{t('route.controls.returnDistance')}</span>
-                    <strong>{(returnRoute.distance / 1000).toFixed(1)} km</strong>
+                {route.fallbackUsed && (
+                  <div className="stat-item">
+                    <span>{t('route.fallback')}</span>
+                    <strong>{route.fallbackFrom} → {route.engineUsed}</strong>
                   </div>
-                  <div className="stat-item stat-item-return">
-                    <span>{t('route.controls.returnDuration')}</span>
-                    <strong>{Math.round(returnRoute.duration / 60)} min</strong>
-                  </div>
-                  <div className="stat-item stat-item-return">
-                    <span>{t('route.controls.outAndBack')}</span>
-                    <strong>{((route.distance + returnRoute.distance) / 1000).toFixed(1)} km</strong>
-                  </div>
-                </>
-              )}
+                )}
+                {returnRoute && (
+                  <>
+                    <div className="stat-item stat-item-return">
+                      <span>{t('route.controls.returnDistance')}</span>
+                      <strong>{(returnRoute.distance / 1000).toFixed(1)} km</strong>
+                    </div>
+                    <div className="stat-item stat-item-return">
+                      <span>{t('route.controls.returnDuration')}</span>
+                      <strong>{Math.round(returnRoute.duration / 60)} min</strong>
+                    </div>
+                    <div className="stat-item stat-item-return">
+                      <span>{t('route.controls.outAndBack')}</span>
+                      <strong>{((route.distance + returnRoute.distance) / 1000).toFixed(1)} km</strong>
+                    </div>
+                  </>
+                )}
 
-              {pz && (
-                <div className="power-zone-card" style={{ '--pz-color': pz.color }}>
-                  <div className="pz-header">
-                    <span className="pz-label">{pz.label}</span>
-                  </div>
-                  <div className="pz-watts">
-                    <span className="pz-range">{pz.minWatts}–{pz.maxWatts} W</span>
-                    <span className="pz-target">{pz.targetWatts} W {t('power.target')}</span>
-                  </div>
-                  <div className="pz-load">
-                    <div className="pz-load-item">
-                      <span>{pz.estimatedKj} kJ</span>
-                      <small>{t('power.energy')}</small>
+                {pz && (
+                  <div className="power-zone-card" style={{ '--pz-color': pz.color }}>
+                    <div className="pz-header">
+                      <span className="pz-label">{pz.label}</span>
                     </div>
-                    <div className="pz-load-divider" />
-                    <div className="pz-load-item">
-                      <span>{pz.estimatedTss}</span>
-                      <small>TSS</small>
+                    <div className="pz-watts">
+                      <span className="pz-range">{pz.minWatts}–{pz.maxWatts} W</span>
+                      <span className="pz-target">{pz.targetWatts} W {t('power.target')}</span>
+                    </div>
+                    <div className="pz-load">
+                      <div className="pz-load-item">
+                        <span>{pz.estimatedKj} kJ</span>
+                        <small>{t('power.energy')}</small>
+                      </div>
+                      <div className="pz-load-divider" />
+                      <div className="pz-load-item">
+                        <span>{pz.estimatedTss}</span>
+                        <small>TSS</small>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-              <RouteTypeStats routeStats={route.routeStats} />
-            </div>
+                )}
+                <RouteTypeStats routeStats={route.routeStats} />
+              </div>
+            </details>
           )}
 
           {route && (
-            <div className={`weather-alerts${hasWeatherWarnings ? ' has-warnings' : ' is-all-clear'}`}>
-              <h3>
-                {hasWeatherWarnings ? <FiAlertTriangle /> : <FiCheckCircle />}
+            <details className="panel-collapsible weather-collapsible">
+              <summary>
                 <span>{t('route.weatherAlerts.title')}</span>
-              </h3>
-              {weatherAgeLabel && <p className="weather-alerts-meta">{weatherAgeLabel}</p>}
-              {hasWeatherWarnings ? (
-                <ul>
-                  {weatherAlertItems.map((alert) => (
-                    <li key={alert.id} className={`severity-${alert.severity || 'moderate'}`}>
-                      {alert.text}
-                    </li>
-                  ))}
-                </ul>
-              ) : weatherAlerts ? (
-                <p className="weather-alerts-perfect">{t('route.weatherAlerts.allClear')}</p>
-              ) : (
-                <p className="weather-alerts-missing">{t('route.weatherAlerts.unavailable')}</p>
-              )}
-            </div>
+                <small>{hasWeatherWarnings ? `${weatherAlertItems.length}` : '0'}</small>
+              </summary>
+              <div className={`weather-alerts${hasWeatherWarnings ? ' has-warnings' : ' is-all-clear'}`}>
+                <h3>
+                  {hasWeatherWarnings ? <FiAlertTriangle /> : <FiCheckCircle />}
+                  <span>{t('route.weatherAlerts.title')}</span>
+                </h3>
+                {weatherAgeLabel && <p className="weather-alerts-meta">{weatherAgeLabel}</p>}
+                {hasWeatherWarnings ? (
+                  <ul>
+                    {weatherAlertItems.map((alert) => (
+                      <li key={alert.id} className={`severity-${alert.severity || 'moderate'}`}>
+                        {alert.text}
+                      </li>
+                    ))}
+                  </ul>
+                ) : weatherAlerts ? (
+                  <p className="weather-alerts-perfect">{t('route.weatherAlerts.allClear')}</p>
+                ) : (
+                  <p className="weather-alerts-missing">{t('route.weatherAlerts.unavailable')}</p>
+                )}
+              </div>
+            </details>
           )}
 
           {route && (
-            <div className="export-buttons">
-              <button className="btn-secondary" onClick={handleExportTCX}>
-                <FiDownload /> {t('route.exportTcx')}
-              </button>
-              <button className="btn-secondary" onClick={handleExportGPX}>
-                <FiDownload /> {t('route.exportGpx')}
-              </button>
-            </div>
+            <details className="panel-collapsible export-collapsible">
+              <summary>
+                <span>{t('route.exportGpx')}</span>
+                <small>TCX / GPX</small>
+              </summary>
+              <div className="export-buttons">
+                <button className="btn-secondary" onClick={handleExportTCX}>
+                  <FiDownload /> {t('route.exportTcx')}
+                </button>
+                <button className="btn-secondary" onClick={handleExportGPX}>
+                  <FiDownload /> {t('route.exportGpx')}
+                </button>
+              </div>
+            </details>
           )}
         </>
       )}
@@ -958,7 +1121,6 @@ function RouteControls() {
         <>
           <section className="setup-section">
             <h3 className="setup-section-title">{t('route.setupSections.bike')}</h3>
-            <p className="setup-section-subtitle">{t('route.setupSections.bikeHint')}</p>
 
             <div className="control-group">
               <label>{t('route.bike')}</label>
@@ -980,6 +1142,7 @@ function RouteControls() {
                   ? t('route.brouterProfile')
                   : t('route.routingProfile')}
               </div>
+              <small className="setup-system-meta">{t('route.engine')}: {engine}</small>
             </div>
 
             <details className="profile-tools">
@@ -987,7 +1150,6 @@ function RouteControls() {
               <div className="profile-tools-body">
                 <div className="control-group profile-flow-card profile-creator">
                   <label>{t('route.profileCreator.stepCreate')}</label>
-                  <small className="profile-creator-hint">{t('route.profileCreator.stepCreateHint')}</small>
                   {!canManageProfiles ? (
                     <small className="profile-creator-hint">{t('route.profileCreator.authRequired')}</small>
                   ) : (
@@ -1000,7 +1162,6 @@ function RouteControls() {
                         maxLength={64}
                       />
                       <label className="profile-sub-label">{t('route.profileCreator.baseProfileLabel')}</label>
-                      <small className="profile-creator-hint">{t('route.profileCreator.baseProfileHint')}</small>
                       <div className="bike-profile-select">
                         <select
                           value={newProfileBaseId || (selectedProfile && selectedProfile.id) || ''}
@@ -1035,7 +1196,6 @@ function RouteControls() {
 
                 <div className="control-group profile-flow-card profile-manager">
                   <label>{t('route.profileCreator.stepManage')}</label>
-                  <small className="profile-creator-hint">{t('route.profileCreator.stepManageHint')}</small>
 
                   {!isOwnedSelectedProfile ? (
                     <small className="profile-creator-hint">{t('route.profileCreator.selectOwnFirst')}</small>
@@ -1112,7 +1272,6 @@ function RouteControls() {
 
           <section className="setup-section">
             <h3 className="setup-section-title">{t('route.setupSections.user')}</h3>
-            <p className="setup-section-subtitle">{t('route.setupSections.userHint')}</p>
 
             <div className="control-group">
               <label>{t('route.riderProfile.title')}</label>
@@ -1146,26 +1305,94 @@ function RouteControls() {
                   </div>
                 </label>
               </div>
+
+              <button
+                className="btn-secondary"
+                type="button"
+                onClick={handleSaveProfile}
+                disabled={!canManageProfiles || profileSaveState === 'saving'}
+              >
+                {profileSaveState === 'saving'
+                  ? t('auth.saveProfileSaving')
+                  : profileSaveState === 'saved'
+                    ? t('auth.saveProfileSaved')
+                    : profileSaveState === 'error'
+                      ? t('auth.saveProfileError')
+                      : t('auth.saveProfile')}
+              </button>
             </div>
           </section>
 
           <section className="setup-section">
             <h3 className="setup-section-title">{t('route.setupSections.training')}</h3>
-            <p className="setup-section-subtitle">{t('route.setupSections.trainingHint')}</p>
+
+            <div className="control-group">
+              <label>{t('route.trainingControl.title')}</label>
+              <div className="training-control-toggle">
+                <button
+                  type="button"
+                  className={controlMode === 'persona' ? 'active' : ''}
+                  onClick={() => setControlMode('persona')}
+                >
+                  <FiCompass size={12} />
+                  {t('route.trainingControl.persona')}
+                </button>
+                <button
+                  type="button"
+                  className={controlMode === 'training' ? 'active' : ''}
+                  onClick={() => setControlMode('training')}
+                >
+                  <FiZap size={12} />
+                  {t('route.trainingControl.trainingType')}
+                </button>
+              </div>
+            </div>
+
+            <div className="control-group">
+              <label>{t('route.personas.title')}</label>
+              <div className="persona-buttons">
+                {RIDE_PERSONAS.map((persona) => {
+                  const PersonaIcon = PERSONA_ICONS[persona.id] || FiCompass;
+                  return (
+                  <button
+                    key={persona.id}
+                    type="button"
+                    className={`persona-btn persona-${persona.id}${activePersonaId === persona.id ? ' active' : ''}`}
+                    onClick={() => setSelectedPersonaId(persona.id)}
+                    disabled={controlMode !== 'persona'}
+                    title={t(`route.personas.${persona.id}.label`)}
+                  >
+                    <PersonaIcon className="persona-icon" size={16} />
+                    <span className="persona-label">{t(`route.personas.${persona.id}.label`)}</span>
+                    <span className="persona-visual" aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                  </button>
+                  );
+                })}
+              </div>
+            </div>
 
             <div className="control-group">
               <label>{t('route.rideType')}</label>
               <div className="ride-type-buttons">
-                {RIDE_TYPES.map(({ id }) => (
+                {RIDE_TYPES.map(({ id }) => {
+                  const RideTypeIcon = RIDE_TYPE_ICONS[id] || FiZap;
+                  return (
                   <button
                     key={id}
                     className={`ride-type-btn${rideType === id ? ' active' : ''}`}
                     onClick={() => setRideType(id)}
+                    disabled={controlMode !== 'training'}
+                    title={t(`rideTypes.${id}.subtitle`)}
                   >
+                    <RideTypeIcon className="rt-icon" size={14} />
                     <span className="rt-label">{t(`rideTypes.${id}.label`)}</span>
-                    <span className="rt-sub">{t(`rideTypes.${id}.subtitle`)}</span>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

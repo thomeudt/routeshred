@@ -11,6 +11,7 @@ const authRouter = require('./routes/auth');
 const profileRouter = require('./routes/profile');
 const savedRoutesRouter = require('./routes/savedRoutes');
 const usersRouter = require('./routes/users');
+const groupRidesRouter = require('./routes/groupRides');
 const { getRoutingEngineInfo } = require('./services/routingService');
 const { getKeycloakConfig } = require('./services/keycloakService');
 
@@ -32,6 +33,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/profile', profileRouter);
 app.use('/api/routes', savedRoutesRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/group-rides', groupRidesRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

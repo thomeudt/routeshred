@@ -13,12 +13,6 @@ function LocationInput({ label, value, point, onSelect, onClear }) {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const skipSearchRef = useRef(false);
-  const quickFilters = [
-    { id: 'hotel', token: 'hotel' },
-    { id: 'shop', token: 'shop' },
-    { id: 'cafe', token: 'cafe restaurant' },
-    { id: 'bike', token: 'bike shop' }
-  ];
 
   useEffect(() => {
     setQuery(value || '');
@@ -83,18 +77,16 @@ function LocationInput({ label, value, point, onSelect, onClear }) {
     onClear();
   };
 
-  const handleQuickFilter = (token) => {
-    const normalized = String(query || '').trim();
-    const nextQuery = normalized ? `${normalized} ${token}` : token;
-    setQuery(nextQuery.trim());
-    setOpen(false);
-  };
+  const hasPreviewPoint = Array.isArray(point)
+    && point.length >= 2
+    && Number.isFinite(Number(point[0]))
+    && Number.isFinite(Number(point[1]));
 
   return (
     <div className="location-input">
       <div className="location-input__label">
         <span>{label}</span>
-        {point && <small>{point[0].toFixed(4)}, {point[1].toFixed(4)}</small>}
+        {hasPreviewPoint && <small>{Number(point[0]).toFixed(4)}, {Number(point[1]).toFixed(4)}</small>}
       </div>
       <div className="location-input__field">
         <input
@@ -109,20 +101,6 @@ function LocationInput({ label, value, point, onSelect, onClear }) {
             <FiX />
           </button>
         )}
-      </div>
-      <div className="location-quick-filters">
-        <span>{t('route.locations.quickFiltersTitle')}</span>
-        <div className="location-quick-filter-row">
-          {quickFilters.map((filter) => (
-            <button
-              key={filter.id}
-              type="button"
-              onClick={() => handleQuickFilter(filter.token)}
-            >
-              {t(`route.locations.quickFilters.${filter.id}`)}
-            </button>
-          ))}
-        </div>
       </div>
       {open && (
         <div className="location-results">

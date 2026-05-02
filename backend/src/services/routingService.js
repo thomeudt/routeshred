@@ -19,6 +19,7 @@ const PREFERENCE_PROFILES = {
 // OSRM Demo Server (for development - replace with self-hosted for production)
 const OSRM_API = process.env.OSRM_API || 'http://router.project-osrm.org';
 const OVERPASS_API = process.env.OVERPASS_API || 'https://overpass-api.de/api/interpreter';
+const OVERPASS_API_LIST = buildOverpassApiList();
 const ROUTING_ENGINE = (process.env.ROUTING_ENGINE || 'osrm').toLowerCase();
 const BROUTER_API = process.env.BROUTER_API || 'http://localhost:17777/brouter';
 const BROUTER_CUSTOM_PROFILES_DIR = process.env.BROUTER_CUSTOM_PROFILES_DIR
@@ -34,6 +35,25 @@ const WIND_SPEED_ENABLED = String(process.env.WIND_SPEED_ENABLED || 'true') !== 
 const WIND_API = process.env.WIND_API || 'https://api.open-meteo.com/v1/forecast';
 
 const downloadedSegmentTiles = new Set();
+
+function buildOverpassApiList() {
+  const fallbackApis = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://lz4.overpass-api.de/api/interpreter'
+  ];
+
+  const envApis = String(process.env.OVERPASS_API_LIST || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  return [...new Set([
+    OVERPASS_API,
+    ...envApis,
+    ...fallbackApis
+  ])];
+}
 
 /**
  * Get optimal route using OSRM
@@ -1769,7 +1789,7 @@ async function selectByCyclewayAffinity(baseCandidates, guidedRoute, start, end,
 
 async function fetchOverpassElements(cacheNamespace, query, timeout) {
   const cacheKey = {
-    api: OVERPASS_API,
+    apiList: OVERPASS_API_LIST,
     query
   };
   const cached = await getCachedJson(`overpass-${cacheNamespace}`, cacheKey, OVERPASS_CACHE_TTL_MS);
@@ -1777,21 +1797,58 @@ async function fetchOverpassElements(cacheNamespace, query, timeout) {
     return cached.elements;
   }
 
-  const response = await axios.get(OVERPASS_API, {
-    params: { data: query },
-    headers: {
-      Accept: 'application/json',
-      'User-Agent': 'RouteShred/0.1 (+local-dev)'
-    },
-    timeout
-  });
+  let lastError = null;
+  for (let index = 0; index < OVERPASS_API_LIST.length; index += 1) {
+    const overpassApi = OVERPASS_API_LIST[index];
+    try {
+      const response = await axios.get(overpassApi, {
+        params: { data: query },
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'RouteShred/0.1 (+local-dev)'
+        },
+        timeout
+      });
 
-  const elements = Array.isArray(response.data && response.data.elements)
-    ? response.data.elements
-    : [];
+      const elements = Array.isArray(response.data && response.data.elements)
+        ? response.data.elements
+        : [];
 
-  await setCachedJson(`overpass-${cacheNamespace}`, cacheKey, { elements });
-  return elements;
+      await setCachedJson(`overpass-${cacheNamespace}`, cacheKey, { elements, overpassApi });
+      return elements;
+    } catch (error) {
+      lastError = error;
+      const canTryNext = shouldTryNextOverpassEndpoint(error);
+      const hasAlternative = index < OVERPASS_API_LIST.length - 1;
+      if (!canTryNext || !hasAlternative) {
+        break;
+      }
+      if (DEBUG_OPTIONAL_LOOKUPS) {
+        console.warn(`Overpass endpoint failed (${overpassApi}), trying next endpoint...`);
+      }
+    }
+  }
+
+  if (lastError) {
+    lastError.message = `${lastError.message || 'Overpass request failed'} (endpoints: ${OVERPASS_API_LIST.join(', ')})`;
+    throw lastError;
+  }
+
+  throw new Error(`Overpass request failed (endpoints: ${OVERPASS_API_LIST.join(', ')})`);
+}
+
+function shouldTryNextOverpassEndpoint(error) {
+  if (!error) {
+    return false;
+  }
+
+  const code = String(error.code || '').toUpperCase();
+  if (['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ECONNABORTED', 'ENOTFOUND', 'EAI_AGAIN'].includes(code)) {
+    return true;
+  }
+
+  const status = Number(error.response && error.response.status);
+  return [408, 425, 429, 500, 502, 503, 504].includes(status);
 }
 
 async function loadMajorRoadNetwork(start, end) {
@@ -1921,11 +1978,60 @@ async function loadCyclewayNetwork(start, end, bikeType, preference) {
 }
 
 function logOptionalLookupFailure(label, error) {
-  const message = error.message || 'unknown error';
-  const isTimeout = error.code === 'ECONNABORTED' || /timeout/i.test(message);
+  const message = formatOptionalLookupError(error);
+  const isTimeout = isOptionalLookupTimeout(error, message);
 
   if (!isTimeout || DEBUG_OPTIONAL_LOOKUPS) {
     console.warn(`${label} lookup failed:`, message);
+  }
+}
+
+function isOptionalLookupTimeout(error, message = '') {
+  const code = String(error && error.code ? error.code : '').toUpperCase();
+  const status = Number(error && error.response && error.response.status);
+  return code === 'ECONNABORTED'
+    || code === 'ETIMEDOUT'
+    || status === 504
+    || /timeout/i.test(String(message || ''));
+}
+
+function formatOptionalLookupError(error) {
+  if (!error) {
+    return 'unknown error';
+  }
+
+  if (error.response) {
+    const status = error.response.status;
+    const bodyRaw = typeof error.response.data === 'string'
+      ? error.response.data
+      : JSON.stringify(error.response.data || {});
+    const body = String(bodyRaw || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 180);
+    const code = String(error.code || '').trim();
+    return `HTTP ${status}${code ? ` ${code}` : ''}${body ? ` ${body}` : ''}`;
+  }
+
+  if (error.request && (error.code || error.message)) {
+    const code = String(error.code || '').trim();
+    const msg = String(error.message || '').trim();
+    return `${code || 'REQUEST_ERROR'}${msg ? ` ${msg}` : ''}`;
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  if (error.message) {
+    return String(error.message);
+  }
+
+  try {
+    const serialized = JSON.stringify(error);
+    return serialized && serialized !== '{}' ? serialized : 'unknown error';
+  } catch (_) {
+    return 'unknown error';
   }
 }
 

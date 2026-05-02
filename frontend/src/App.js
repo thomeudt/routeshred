@@ -4,20 +4,37 @@ import MapComponent from './components/MapComponent';
 import Header from './components/Header';
 import { useRouteStore } from './store/routeStore';
 import { useAuth } from './auth/AuthProvider';
+import { t } from './i18n';
 import './App.css';
 
 function App() {
   const { enabled, initialized, authenticated, token, user, login, logout } = useAuth();
   const {
-    riderProfile,
-    bikeType,
-    rideType,
     setRiderProfile,
     setBikeType,
-    setRideType
+    setRideType,
+    loadSavedRoute,
+    loadPublicRoute
   } = useRouteStore();
-  const [profileSaveState, setProfileSaveState] = useState('idle');
   const [isMapVisible, setIsMapVisible] = useState(true);
+  const [sharedRouteTarget] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const routeId = String(params.get('sharedRoute') || '').trim();
+    const owner = String(params.get('owner') || '').trim();
+    if (!routeId || !owner) {
+      return null;
+    }
+    return { routeId, owner };
+  });
+  const [groupRideTarget] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const rideId = String(params.get('groupRide') || '').trim();
+    const owner = String(params.get('owner') || '').trim();
+    if (!rideId || !owner) {
+      return null;
+    }
+    return { rideId, owner };
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -58,34 +75,35 @@ function App() {
     };
   }, [enabled, authenticated, token, setRiderProfile, setBikeType, setRideType]);
 
-  const handleSaveProfile = async () => {
-    if (!enabled || !authenticated || !token) {
+  useEffect(() => {
+    if (!sharedRouteTarget) {
       return;
     }
 
-    setProfileSaveState('saving');
-    try {
-      await axios.put('/api/profile', {
-        riderProfile,
-        bikeType,
-        rideType,
-        displayName: user?.name || user?.preferred_username || 'Rider'
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      setProfileSaveState('saved');
-      setTimeout(() => setProfileSaveState('idle'), 1200);
-    } catch (_) {
-      setProfileSaveState('error');
-      setTimeout(() => setProfileSaveState('idle'), 1800);
+    if (enabled && initialized && authenticated && token) {
+      loadSavedRoute(token, sharedRouteTarget.routeId, sharedRouteTarget.owner);
+      return;
     }
-  };
 
-  const showLoginScreen = enabled && initialized && !authenticated;
+    loadPublicRoute(sharedRouteTarget.routeId, sharedRouteTarget.owner);
+  }, [enabled, initialized, authenticated, token, sharedRouteTarget, loadSavedRoute, loadPublicRoute]);
+
+  useEffect(() => {
+    if (!groupRideTarget) {
+      return;
+    }
+
+    window.dispatchEvent(new CustomEvent('routeshred:set-tab', { detail: { tab: 'community' } }));
+  }, [groupRideTarget]);
+
+  const hasPublicDeepLink = Boolean(sharedRouteTarget || groupRideTarget);
+  const showLoginScreen = enabled && initialized && !authenticated && !hasPublicDeepLink;
   const handleToggleMapVisibility = () => {
     setIsMapVisible((visible) => !visible);
+  };
+
+  const handleSelectTab = (tab) => {
+    window.dispatchEvent(new CustomEvent('routeshred:set-tab', { detail: { tab } }));
   };
 
   return (
@@ -97,8 +115,7 @@ function App() {
         userName={user?.name || user?.preferred_username || 'Rider'}
         onLogin={login}
         onLogout={logout}
-        onSaveProfile={handleSaveProfile}
-        profileSaveState={profileSaveState}
+        onSelectTab={handleSelectTab}
         showMapToggle={!showLoginScreen}
         isMapVisible={isMapVisible}
         onToggleMapVisibility={handleToggleMapVisibility}
@@ -106,12 +123,12 @@ function App() {
       {showLoginScreen ? (
         <main className="login-screen">
           <div className="login-card">
-            <h2>Anmeldung erforderlich</h2>
+            <h2>{t('auth.loginRequiredTitle')}</h2>
             <p>
-              Melde dich mit deinem RouteShred-Konto an, um Profile zu laden und zu speichern.
+              {t('auth.loginRequiredBody')}
             </p>
             <button type="button" className="login-btn" onClick={login}>
-              Mit Keycloak anmelden
+              {t('auth.loginButton')}
             </button>
           </div>
         </main>

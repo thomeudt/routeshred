@@ -1,19 +1,33 @@
 const translations = {
   de: {
     app: {
-      tagline: 'Road- and Gravel-Route Studio'
+      tagline: 'Fast roads, group rides, coffee stops'
+    },
+    auth: {
+      loginRequiredTitle: 'Anmeldung erforderlich',
+      loginRequiredBody: 'Melde dich mit deinem RouteShred-Konto an, um Profile zu laden und zu speichern.',
+      loginButton: 'Jetzt anmelden',
+      loginButtonShort: 'Login',
+      logoutButton: 'Logout',
+      saveProfile: 'Profil speichern',
+      saveProfileSaving: 'Wird gespeichert...',
+      saveProfileSaved: 'Gespeichert',
+      saveProfileError: 'Speichern fehlgeschlagen',
+      sessionExpired: 'Session abgelaufen. Bitte erneut anmelden.'
     },
     common: {
       unknown: 'Unbekannt',
       loading: 'Laden...'
     },
     route: {
-      planner: 'Routenplaner',
+      planner: 'Ride Studio',
+      plannerTagline: 'Build the next fast group loop',
       engine: 'Engine',
       tabs: {
         label: 'Routenpanel',
         plan: 'Planen',
-        library: 'Bibliothek',
+        routes: 'Meine Routen',
+        community: 'Community',
         setup: 'Setup'
       },
       bike: 'Rad',
@@ -31,16 +45,34 @@ const translations = {
         addWaypoint: 'Wegpunkt hinzufügen',
         searchPlaceholder: 'Adresse oder POI suchen',
         searching: 'Suche...',
-        noResults: 'Keine Treffer',
-        quickFiltersTitle: 'Schnellfilter',
-        quickFilters: {
-          hotel: 'Hotel',
-          shop: 'Shop',
-          cafe: 'Cafe/Restaurant',
-          bike: 'Bike Shop'
-        }
+        noResults: 'Keine Treffer'
       },
       style: 'Routenstil',
+      personas: {
+        title: 'Ride Persona',
+        hint: 'Wenn Persona aktiv ist, setzt sie Trainingszone und Routenstil automatisch.',
+        coffee: {
+          label: 'Coffee Spin',
+          sub: 'locker, smooth, social'
+        },
+        bunch: {
+          label: 'Group Smash',
+          sub: 'schnell, direkt, race vibe'
+        },
+        endurance: {
+          label: 'Endurance Loop',
+          sub: 'steady pace, long flow'
+        },
+        gravel: {
+          label: 'Allroad Adventure',
+          sub: 'mix surfaces, weniger Verkehr'
+        }
+      },
+      trainingControl: {
+        title: 'Steuerungsmodus',
+        persona: 'Persona',
+        trainingType: 'Trainingstyp'
+      },
       start: 'Start',
       end: 'Ziel',
       calculate: 'Route berechnen',
@@ -65,6 +97,17 @@ const translations = {
         searchingUsers: 'User werden gesucht...',
         makePublic: 'Öffentlich machen',
         makePrivate: 'Privat machen',
+        copyLink: 'Öffentlichen Link kopieren',
+        copyLinkCopied: 'Link kopiert',
+        copyFirstPublic: 'Public Link kopieren',
+        socialHint: '{{publicCount}} public · {{sharedCount}} geteilt',
+        filterLabel: 'Routenfilter',
+        filters: {
+          all: 'Alle',
+          own: 'Eigene',
+          shared: 'Geteilt',
+          public: 'Öffentlich'
+        },
         own: 'Eigene',
         sharedBy: 'Geteilt von {{owner}}',
         publicBy: 'Öffentlich von {{owner}}',
@@ -82,6 +125,51 @@ const translations = {
           renameFailed: 'Route konnte nicht umbenannt werden',
           shareFailed: 'Freigabe konnte nicht gespeichert werden',
           noRoute: 'Keine berechnete Route zum Speichern'
+        }
+      },
+      groupRides: {
+        title: 'Group Rides',
+        openNav: 'Group Rides',
+        create: 'Group Ride erstellen',
+        creating: 'Wird erstellt...',
+        loading: 'Group Rides werden geladen...',
+        empty: 'Noch keine Group Rides',
+        delete: 'Group Ride löschen',
+        join: 'Beitreten',
+        leave: 'Verlassen',
+        participants: '{{count}} Teilnehmende',
+        commentPlaceholder: 'Kommentar schreiben...',
+        commentAction: 'Senden',
+        noDescription: 'Keine Beschreibung',
+        fields: {
+          title: 'Titel',
+          description: 'Beschreibung, Route-Idee, Pace, Hinweise',
+          photoUrl: 'Foto-URL',
+          meetingPoint: 'Treffpunkt'
+        },
+        visibility: {
+          public: 'Öffentlich',
+          private: 'Privat'
+        },
+        challenges: {
+          social: 'Social',
+          tempo: 'Tempo',
+          climbing: 'Climbing',
+          sprint: 'Sprint',
+          endurance: 'Endurance'
+        },
+        share: {
+          copy: 'Link kopieren',
+          copied: 'Link kopiert',
+          copyFailed: 'Link konnte nicht kopiert werden',
+          instagramCopied: 'Text für Instagram kopiert'
+        },
+        errors: {
+          loadFailed: 'Group Rides konnten nicht geladen werden',
+          createFailed: 'Group Ride konnte nicht erstellt werden',
+          deleteFailed: 'Group Ride konnte nicht gelöscht werden',
+          joinFailed: 'Group Ride Beitritt fehlgeschlagen',
+          commentFailed: 'Kommentar konnte nicht gespeichert werden'
         }
       },
       stats: 'Routendaten',
@@ -104,7 +192,7 @@ const translations = {
         rainWarning: 'Regen auf der Strecke möglich ({{precipitation}} mm/h).',
         stormWarning: 'Stürmischer Wind erwartet ({{wind}} km/h, öen bis {{gust}} km/h).',
         heatWarning: 'Hitze-Belastung hoch ({{temperature}} C).',
-        uvWarning: 'UV-Wert erhoeht (Index {{uv}}).',
+        uvWarning: 'UV-Wert erhöht (Index {{uv}}).',
         sidewindWarning: 'Starker Seitenwind wahrscheinlich ({{crosswind}} km/h, Wind aus {{direction}}).'
       },
       fallback: 'Fallback',
@@ -113,10 +201,10 @@ const translations = {
       exportTcx: 'TCX exportieren (Wahoo/Garmin)',
       exportGpx: 'GPX exportieren',
       gpxImport: {
-        success: 'GPX importiert: Start, Ziel und {{count}} Wegpunkte uebernommen.'
+        success: 'GPX importiert: Start, Ziel und {{count}} Wegpunkte übernommen.'
       },
       fitImport: {
-        success: 'FIT importiert: Start, Ziel und {{count}} Wegpunkte uebernommen.'
+        success: 'FIT importiert: Start, Ziel und {{count}} Wegpunkte übernommen.'
       },
       brouterProfile: 'Bike Profil',
       routingProfile: 'Routing-Profil',
@@ -125,9 +213,9 @@ const translations = {
         toolsTitle: 'Eigene Bike-Profile verwalten',
         stepCreate: '1. Neues Profil anlegen',
         stepCreateHint: 'Auf Basis eines vorhandenen Profils ein neues eigenes Profil erzeugen.',
-        stepManage: '2. Ausgewaehltes eigenes Profil verwalten',
-        stepManageHint: 'Name aendern, loeschen oder optional den BRF-Inhalt bearbeiten.',
-        selectOwnFirst: 'Waehle oben ein eigenes Profil (markiert mit "mein Profil"), um es zu verwalten.',
+        stepManage: '2. Ausgewähltes eigenes Profil verwalten',
+        stepManageHint: 'Name ändern, löschen oder optional den BRF-Inhalt bearbeiten.',
+        selectOwnFirst: 'Wähle oben ein eigenes Profil (markiert mit "mein Profil"), um es zu verwalten.',
         editorTitle: '3. BRF-Editor (optional)',
         authRequired: 'Zum Anlegen eigener Profile bitte einloggen.',
         namePlaceholder: 'Name für neues Profil',
@@ -190,7 +278,8 @@ const translations = {
         gpxTooShort: 'GPX-Datei braucht mindestens Start und Ziel.',
         gpxReadFailed: 'GPX-Datei konnte nicht importiert werden',
         fitReadFailed: 'FIT-Datei konnte nicht importiert werden'
-      }
+      },
+      socialSurfaceHint: 'In der grossen Hauptflaeche: kachelige Navigation fuer Group Rides und oeffentliche Routen.'
     },
     bikes: {
       road: 'Road',
@@ -249,25 +338,45 @@ const translations = {
       gpsPermissionDenied: 'GPS-Zugriff wurde blockiert.',
       gpsPositionUnavailable: 'Aktuelle Position konnte nicht bestimmt werden.',
       gpsTimeout: 'GPS-Antwort dauert zu lange. Bitte erneut versuchen.',
+      socialHub: {
+        title: 'Community Hub',
+        groupRidesHint: 'Treffpunkte, Kommentare und Teilnahme auf einen Blick.',
+        publicRoutesTitle: 'Oeffentliche Routen',
+        publicRoutesHint: 'Geteilte und oeffentliche Routen grossflaechig verwalten.'
+      },
       hideMap: 'Karte ausblenden',
       showMap: 'Karte einblenden'
     }
   },
   en: {
     app: {
-      tagline: 'Road and gravel route studio'
+      tagline: 'Fast roads, group rides, coffee stops'
+    },
+    auth: {
+      loginRequiredTitle: 'Login required',
+      loginRequiredBody: 'Sign in with your RouteShred account to load and save your profiles.',
+      loginButton: 'Sign in',
+      loginButtonShort: 'Login',
+      logoutButton: 'Logout',
+      saveProfile: 'Save profile',
+      saveProfileSaving: 'Saving...',
+      saveProfileSaved: 'Saved',
+      saveProfileError: 'Save failed',
+      sessionExpired: 'Session expired. Please sign in again.'
     },
     common: {
       unknown: 'Unknown',
       loading: 'Loading...'
     },
     route: {
-      planner: 'Route Planner',
+      planner: 'Ride Studio',
+      plannerTagline: 'Build the next fast group loop',
       engine: 'Engine',
       tabs: {
         label: 'Route panel',
         plan: 'Plan',
-        library: 'Library',
+        routes: 'My routes',
+        community: 'Community',
         setup: 'Setup'
       },
       bike: 'Bike',
@@ -285,16 +394,34 @@ const translations = {
         addWaypoint: 'Add waypoint',
         searchPlaceholder: 'Search address or POI',
         searching: 'Searching...',
-        noResults: 'No results',
-        quickFiltersTitle: 'Quick filters',
-        quickFilters: {
-          hotel: 'Hotel',
-          shop: 'Shop',
-          cafe: 'Cafe/Restaurant',
-          bike: 'Bike shop'
-        }
+        noResults: 'No results'
       },
       style: 'Route Style',
+      personas: {
+        title: 'Ride persona',
+        hint: 'When persona mode is active, it automatically sets training zone and route style.',
+        coffee: {
+          label: 'Coffee Spin',
+          sub: 'easy, smooth, social'
+        },
+        bunch: {
+          label: 'Group Smash',
+          sub: 'fast, direct, race vibe'
+        },
+        endurance: {
+          label: 'Endurance Loop',
+          sub: 'steady pace, long flow'
+        },
+        gravel: {
+          label: 'Allroad Adventure',
+          sub: 'mixed surface, less traffic'
+        }
+      },
+      trainingControl: {
+        title: 'Control mode',
+        persona: 'Persona',
+        trainingType: 'Training type'
+      },
       start: 'Start',
       end: 'End',
       calculate: 'Calculate Route',
@@ -319,6 +446,17 @@ const translations = {
         searchingUsers: 'Searching users...',
         makePublic: 'Make public',
         makePrivate: 'Make private',
+        copyLink: 'Copy public link',
+        copyLinkCopied: 'Link copied',
+        copyFirstPublic: 'Copy public link',
+        socialHint: '{{publicCount}} public · {{sharedCount}} shared',
+        filterLabel: 'Route filter',
+        filters: {
+          all: 'All',
+          own: 'Own',
+          shared: 'Shared',
+          public: 'Public'
+        },
         own: 'Own',
         sharedBy: 'Shared by {{owner}}',
         publicBy: 'Public by {{owner}}',
@@ -336,6 +474,51 @@ const translations = {
           renameFailed: 'Could not rename route',
           shareFailed: 'Could not save sharing settings',
           noRoute: 'No calculated route to save'
+        }
+      },
+      groupRides: {
+        title: 'Group Rides',
+        openNav: 'Group rides',
+        create: 'Create group ride',
+        creating: 'Creating...',
+        loading: 'Loading group rides...',
+        empty: 'No group rides yet',
+        delete: 'Delete group ride',
+        join: 'Join',
+        leave: 'Leave',
+        participants: '{{count}} riders',
+        commentPlaceholder: 'Add a comment...',
+        commentAction: 'Post',
+        noDescription: 'No description',
+        fields: {
+          title: 'Title',
+          description: 'Description, route idea, pace, notes',
+          photoUrl: 'Photo URL',
+          meetingPoint: 'Meeting point'
+        },
+        visibility: {
+          public: 'Public',
+          private: 'Private'
+        },
+        challenges: {
+          social: 'Social',
+          tempo: 'Tempo',
+          climbing: 'Climbing',
+          sprint: 'Sprint',
+          endurance: 'Endurance'
+        },
+        share: {
+          copy: 'Copy link',
+          copied: 'Link copied',
+          copyFailed: 'Could not copy link',
+          instagramCopied: 'Copied text for Instagram'
+        },
+        errors: {
+          loadFailed: 'Could not load group rides',
+          createFailed: 'Could not create group ride',
+          deleteFailed: 'Could not delete group ride',
+          joinFailed: 'Could not update ride participation',
+          commentFailed: 'Could not post comment'
         }
       },
       stats: 'Route Statistics',
@@ -444,7 +627,8 @@ const translations = {
         gpxTooShort: 'GPX file must contain at least start and end points.',
         gpxReadFailed: 'Could not import GPX file',
         fitReadFailed: 'Could not import FIT file'
-      }
+      },
+      socialSurfaceHint: 'Use the large main area with tile navigation for group rides and public routes.'
     },
     bikes: {
       road: 'Road',
@@ -503,6 +687,12 @@ const translations = {
       gpsPermissionDenied: 'GPS access was denied.',
       gpsPositionUnavailable: 'Current position is unavailable.',
       gpsTimeout: 'GPS lookup timed out. Please try again.',
+      socialHub: {
+        title: 'Community hub',
+        groupRidesHint: 'Meetups, comments, and participation in one place.',
+        publicRoutesTitle: 'Public routes',
+        publicRoutesHint: 'Manage shared and public routes in a large surface.'
+      },
       hideMap: 'Hide map',
       showMap: 'Show map'
     }

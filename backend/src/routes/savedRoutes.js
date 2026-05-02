@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
 const {
   listSavedRoutes,
   readVisibleSavedRoute,
@@ -28,6 +28,20 @@ router.get('/', requireAuth, async (req, res) => {
     return res.json({ routes: await listSavedRoutes(sub, user) });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to load saved routes', message: error.message });
+  }
+});
+
+router.get('/public/:owner/:id', optionalAuth, async (req, res) => {
+  try {
+    const user = req.auth && req.auth.user ? req.auth.user : {};
+    const route = await readVisibleSavedRoute(user.sub || '', req.params.owner, req.params.id, user);
+    if (!route || route.access === 'private') {
+      return res.status(404).json({ error: 'Not found', message: 'Public route not found' });
+    }
+
+    return res.json({ route });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to load public route', message: error.message });
   }
 });
 

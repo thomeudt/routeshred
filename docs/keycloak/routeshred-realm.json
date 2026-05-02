@@ -2,6 +2,7 @@
   "realm": "routeshred",
   "enabled": true,
   "displayName": "RouteShred",
+  "loginTheme": "routeshred",
   "registrationAllowed": true,
   "resetPasswordAllowed": true,
   "rememberMe": true,
