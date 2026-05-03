@@ -18,6 +18,7 @@ const tilesRouter = require('./routes/tiles');
 const docsRouter = require('./routes/docs');
 const { getRoutingEngineInfo } = require('./services/routingService');
 const { getKeycloakConfig } = require('./services/keycloakService');
+const { getPlannerStatus } = require('./services/openaiRoutePlannerService');
 
 const app = express();
 const PORT = process.env.PORT || 5050;
@@ -103,7 +104,8 @@ app.get('/api/health', (req, res) => {
       enabled: getKeycloakConfig().enabled,
       realm: getKeycloakConfig().realm,
       clientId: getKeycloakConfig().clientId
-    }
+    },
+    aiRoundtrip: getPlannerStatus()
   });
 });
 

@@ -10,6 +10,7 @@ const {
   getBikeProfileContent,
   updateBikeProfileContent
 } = require('../services/routingService');
+const { planRoundtrip } = require('../services/openaiRoutePlannerService');
 const { requireAuth } = require('../middleware/auth');
 
 /**
@@ -112,6 +113,25 @@ router.post('/route', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Routing error:', error);
     res.status(500).json({ error: 'Failed to calculate route', message: error.message });
+  }
+});
+
+/**
+ * POST /api/routing/roundtrip
+ * Use OpenAI to suggest roundtrip candidates, then calculate the selected loop with BRouter.
+ * Body: { start: [lat, lon], target: string, timeBudgetMinutes: number, bikeType, persona, riderProfile }
+ */
+router.post('/roundtrip', requireAuth, async (req, res) => {
+  try {
+    const result = await planRoundtrip(req.body || {});
+    return res.json(result);
+  } catch (error) {
+    console.error('AI roundtrip error:', error);
+    return res.status(error.status || 500).json({
+      error: 'Failed to plan AI roundtrip',
+      message: error.message,
+      candidates: error.candidates || undefined
+    });
   }
 });
 

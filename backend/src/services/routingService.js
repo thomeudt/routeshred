@@ -72,7 +72,8 @@ async function getRoute(start, end, options = {}) {
     preference = 'scenic',
     rideType = 'z2',
     waypoints = [],
-    riderProfile = {}
+    riderProfile = {},
+    fast = false
   } = options;
   const ftp = Number(riderProfile.ftp) > 0 ? Number(riderProfile.ftp) : 250;
   const profile = PROFILES[bikeType] || 'cycling';
@@ -82,6 +83,35 @@ async function getRoute(start, end, options = {}) {
   const routeContext = { requestedPoints: routePoints };
 
   try {
+    if (fast) {
+      const fastRouteResponse = await requestRoute(profile, routePoints, {
+        alternatives: false,
+        continue_straight: false,
+        bikeType,
+        preference,
+        riderProfile,
+        routeContext,
+        skipShapeFilter: true
+      });
+      const route = fastRouteResponse.routes && fastRouteResponse.routes[0];
+      if (!route) {
+        throw new Error('No route found');
+      }
+
+      return buildRouteResponse(route, {
+        start,
+        end,
+        waypoints,
+        bikeType,
+        preference,
+        rideType,
+        ftp,
+        strategy: 'fast-loop',
+        railwaySafetyData: { available: false },
+        baseRailPartition: { safeRoutes: [] }
+      });
+    }
+
     const baseRouteResponse = await requestRoute(profile, routePoints, {
       // BRouter alternatives can include visually odd loop-heavy detours.
       // Keep OSRM alternatives, and for BRouter enable alternatives when vias exist
@@ -214,40 +244,55 @@ async function getRoute(start, end, options = {}) {
 
     const route = await applyTempoAdjustments(selected.route);
 
-    return {
-      geometry: route.geometry,
-      distance: route.distance, // meters
-      duration: route.duration, // seconds
-      ascent: route.ascent || 0,   // meters total elevation gain
-      descent: route.descent || 0,
-      legs: route.legs,
-      routeStats: route.routeStats || null,
-      startPoint: start,
-      endPoint: end,
-      waypoints: normalizeWaypoints(waypoints),
+    return buildRouteResponse(route, {
+      start,
+      end,
+      waypoints,
       bikeType,
       preference,
       rideType,
+      ftp,
       strategy: selected.strategy,
-      engineUsed: String(route._engine || ROUTING_ENGINE).toUpperCase(),
-      fallbackUsed: Boolean(route._fallbackFrom),
-      fallbackFrom: route._fallbackFrom ? String(route._fallbackFrom).toUpperCase() : null,
-      fallbackReason: route._fallbackReason || null,
-      shapeWarning: route._shapeWarning || null,
-      tempoFactors: route.tempoFactors || null,
-      weatherAlerts: route.weatherAlerts || null,
-      railwaySafety: {
-        available: Boolean(railwaySafetyData && railwaySafetyData.available),
-        unsafeCrossings: Number(route && route._unsafeRailCrossings) || 0,
-        strictSafeRouteAvailable: Boolean(baseRailPartition.safeRoutes.length)
-      },
-      powerZone: computePowerZone(rideType, ftp, route.duration),
-      timestamp: new Date().toISOString()
-    };
+      railwaySafetyData,
+      baseRailPartition
+    });
   } catch (error) {
     console.error(`${ROUTING_ENGINE.toUpperCase()} routing error:`, error.message);
     throw new Error(`Routing failed: ${error.message}`);
   }
+}
+
+function buildRouteResponse(route, context = {}) {
+  return {
+    geometry: route.geometry,
+    distance: route.distance,
+    duration: route.duration,
+    ascent: route.ascent || 0,
+    descent: route.descent || 0,
+    legs: route.legs,
+    routeStats: route.routeStats || null,
+    startPoint: context.start,
+    endPoint: context.end,
+    waypoints: normalizeWaypoints(context.waypoints),
+    bikeType: context.bikeType,
+    preference: context.preference,
+    rideType: context.rideType,
+    strategy: context.strategy,
+    engineUsed: String(route._engine || ROUTING_ENGINE).toUpperCase(),
+    fallbackUsed: Boolean(route._fallbackFrom),
+    fallbackFrom: route._fallbackFrom ? String(route._fallbackFrom).toUpperCase() : null,
+    fallbackReason: route._fallbackReason || null,
+    shapeWarning: route._shapeWarning || null,
+    tempoFactors: route.tempoFactors || null,
+    weatherAlerts: route.weatherAlerts || null,
+    railwaySafety: {
+      available: Boolean(context.railwaySafetyData && context.railwaySafetyData.available),
+      unsafeCrossings: Number(route && route._unsafeRailCrossings) || 0,
+      strictSafeRouteAvailable: Boolean(context.baseRailPartition && context.baseRailPartition.safeRoutes && context.baseRailPartition.safeRoutes.length)
+    },
+    powerZone: computePowerZone(context.rideType, context.ftp, route.duration),
+    timestamp: new Date().toISOString()
+  };
 }
 
 async function getBikeProfiles(actor = {}) {
@@ -1076,7 +1121,9 @@ async function requestRouteBrouter(points, options = {}) {
     || ((Number(a && a._maxOutAndBackKm) || 0) - (Number(b && b._maxOutAndBackKm) || 0))
     || (a.distance - b.distance)
   ));
-  const cleanRoutes = sortedRoutes.filter((route) => {
+  const cleanRoutes = options.skipShapeFilter
+    ? sortedRoutes
+    : sortedRoutes.filter((route) => {
     if (!isRouteShapeAcceptable(route, options.preference, hasIntermediateVias)) {
       return false;
     }

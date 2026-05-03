@@ -89,6 +89,11 @@ export const useRouteStore = create((set, get) => ({
   activeSavedRouteId: null,
   activeSavedRouteOwner: null,
   routeSaveState: 'idle',
+  aiRoundtripLoading: false,
+  aiRoundtripPhase: '',
+  aiRoundtripError: null,
+  aiRoundtripCandidates: [],
+  aiRoundtripSelected: null,
   loading: false,
   error: null,
 
@@ -295,6 +300,98 @@ export const useRouteStore = create((set, get) => ({
       set({
         error: error.response?.data?.message || t('route.errors.calculateFailed'),
         loading: false
+      });
+    }
+  },
+
+  planAiRoundtrip: async ({ target, timeBudgetMinutes, persona }) => {
+    const {
+      startPoint,
+      startLabel,
+      bikeType,
+      preference,
+      rideType,
+      riderProfile
+    } = get();
+
+    if (!startPoint) {
+      set({ aiRoundtripError: t('route.aiRoundtrip.errors.missingStart') });
+      return;
+    }
+
+    const cleanTarget = String(target || '').trim();
+    if (cleanTarget.length < 3) {
+      set({ aiRoundtripError: t('route.aiRoundtrip.errors.missingTarget') });
+      return;
+    }
+
+    set({
+      aiRoundtripLoading: true,
+      aiRoundtripPhase: 'geocoding',
+      aiRoundtripError: null,
+      aiRoundtripCandidates: [],
+      aiRoundtripSelected: null,
+      loading: true,
+      error: null
+    });
+
+    let phaseTimer = null;
+    let routingTimer = null;
+
+    try {
+      phaseTimer = window.setTimeout(() => {
+        set({ aiRoundtripPhase: 'openai' });
+      }, 900);
+      routingTimer = window.setTimeout(() => {
+        set({ aiRoundtripPhase: 'routing' });
+      }, 9000);
+
+      const response = await axios.post(`${API_BASE}/routing/roundtrip`, {
+        start: startPoint,
+        target: cleanTarget,
+        timeBudgetMinutes,
+        bikeType: bikeType || 'road',
+        persona,
+        preference,
+        rideType,
+        riderProfile
+      });
+      window.clearTimeout(phaseTimer);
+      window.clearTimeout(routingTimer);
+
+      const selected = response.data?.selectedPlan || null;
+      const selectedWaypoints = normalizeWaypoints(selected?.waypoints || []);
+      const nextEndLabel = startLabel ? `${startLabel} Loop` : 'Loop finish';
+      const fallbackReason = String(response.data?.fallbackReason || '').trim();
+
+      set({
+        route: response.data?.route || null,
+        returnRoute: null,
+        endPoint: startPoint,
+        endLabel: nextEndLabel,
+        waypoints: selectedWaypoints,
+        includeReturnTrip: false,
+        activeSavedRouteId: null,
+        activeSavedRouteOwner: null,
+        aiRoundtripCandidates: Array.isArray(response.data?.candidates) ? response.data.candidates : [],
+        aiRoundtripSelected: selected,
+        aiRoundtripLoading: false,
+        aiRoundtripPhase: '',
+        aiRoundtripError: response.data?.fallback
+          ? t('route.aiRoundtrip.fallbackNotice', { reason: fallbackReason })
+          : null,
+        loading: false
+      });
+    } catch (error) {
+      if (phaseTimer) window.clearTimeout(phaseTimer);
+      if (routingTimer) window.clearTimeout(routingTimer);
+      set({ aiRoundtripPhase: '' });
+      set({
+        aiRoundtripLoading: false,
+        aiRoundtripError: resolveApiMessage(error, t('route.aiRoundtrip.errors.failed')),
+        aiRoundtripCandidates: Array.isArray(error?.response?.data?.candidates) ? error.response.data.candidates : [],
+        loading: false,
+        error: resolveApiMessage(error, t('route.aiRoundtrip.errors.failed'))
       });
     }
   },

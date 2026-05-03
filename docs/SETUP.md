@@ -33,6 +33,11 @@ ROUTESHRED_CACHE_DIR=./data/cache
 # Auto-download BRouter segment tiles as needed
 BROUTER_AUTO_FETCH_SEGMENTS=true
 BROUTER_SEGMENTS_DIR=../brouter-data/segments4
+
+# Optional AI Roundtrip planner
+AI_ROUNDTRIP_ENABLED=false
+OPENAI_MODEL=gpt-5-nano
+# OPENAI_API_KEY=sk-...
 ```
 
 **Frontend** (`frontend/.env`):

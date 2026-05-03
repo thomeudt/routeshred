@@ -160,6 +160,15 @@ Back up `./data/routes` and the Keycloak DB volume to preserve user data.
 | `ELEVATION_CACHE_TTL_MS` | `2592000000` (30 days) | Elevation cache TTL |
 | `OVERPASS_CACHE_TTL_MS` | `604800000` (7 days) | Overpass cache TTL |
 | `ELEVATION_PROVIDER_ORDER` | `open-meteo,open-elevation` | Elevation API priority |
+| `AI_ROUNDTRIP_ENABLED` | `false` | Enables OpenAI-assisted roundtrip planning |
+| `OPENAI_API_KEY` | — | Server-side OpenAI API key; never exposed to frontend |
+| `OPENAI_MODEL` | `gpt-5-nano` | Model used for compact structured loop ideas |
+| `OPENAI_API_URL` | `https://api.openai.com/v1/responses` | Responses API endpoint or compatible proxy |
+| `AI_ROUNDTRIP_TIMEOUT_MS` | `20000` | Timeout for OpenAI planning |
+| `AI_ROUNDTRIP_CANDIDATES` | `1` | AI loop ideas requested |
+| `AI_ROUNDTRIP_ROUTE_CANDIDATES` | `1` | Ideas actually calculated by the routing engine |
+| `AI_ROUNDTRIP_MAX_TIME_FACTOR` | `1.18` | Allowed duration overshoot before trying a smaller loop |
+| `AI_ROUNDTRIP_ALLOW_FALLBACK` | `true` | Calculate a deterministic fallback loop if OpenAI is too slow |
 
 ### Frontend
 

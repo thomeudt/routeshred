@@ -5,19 +5,20 @@
 1. [Überblick](#1-überblick)
 2. [Die Oberfläche auf einen Blick](#2-die-oberfläche-auf-einen-blick)
 3. [Erste Route planen](#3-erste-route-planen)
-4. [Ride Personas & Routenparameter](#4-ride-personas--routenparameter)
-5. [Wegpunkte hinzufügen](#5-wegpunkte-hinzufügen)
-6. [GPX / FIT importieren](#6-gpx--fit-importieren)
-7. [Höhenprofil & Analyse](#7-höhenprofil--analyse)
-8. [Wetterwarnungen](#8-wetterwarnungen)
-9. [Export & Übertragung auf das Gerät](#9-export--übertragung-auf-das-gerät)
-10. [Routen speichern & verwalten](#10-routen-speichern--verwalten)
-11. [Routen teilen](#11-routen-teilen)
-12. [Gruppenfahrten](#12-gruppenfahrten)
-13. [Profil einrichten](#13-profil-einrichten)
-14. [Anmeldung & Konto](#14-anmeldung--konto)
-15. [Tipps & Tricks](#15-tipps--tricks)
-16. [Fehlerbehebung](#16-fehlerbehebung)
+4. [AI Roundtrip planen](#4-ai-roundtrip-planen)
+5. [Ride Personas & Routenparameter](#5-ride-personas--routenparameter)
+6. [Wegpunkte hinzufügen](#6-wegpunkte-hinzufügen)
+7. [GPX / FIT importieren](#7-gpx--fit-importieren)
+8. [Höhenprofil & Analyse](#8-höhenprofil--analyse)
+9. [Wetterwarnungen](#9-wetterwarnungen)
+10. [Export & Übertragung auf das Gerät](#10-export--übertragung-auf-das-gerät)
+11. [Routen speichern & verwalten](#11-routen-speichern--verwalten)
+12. [Routen teilen](#12-routen-teilen)
+13. [Gruppenfahrten](#13-gruppenfahrten)
+14. [Profil einrichten](#14-profil-einrichten)
+15. [Anmeldung & Konto](#15-anmeldung--konto)
+16. [Tipps & Tricks](#16-tipps--tricks)
+17. [Fehlerbehebung](#17-fehlerbehebung)
 
 ---
 
@@ -33,6 +34,7 @@ RouteShred ist ein selbst gehosteter Fahrradroutenplaner für Rennrad- und Grave
 - Route direkt an die Wahoo Companion App senden (mobil)
 
 **Was ein Konto zusätzlich ermöglicht:**
+- AI Roundtrips aus Zielgebiet, Zeitbudget, Bike-Profil und Persona planen
 - Routen dauerhaft speichern
 - Gespeicherte Routen laden und teilen
 - Gruppenfahrten erstellen, beitreten und kommentieren
@@ -105,7 +107,29 @@ Aktiviere **Rückroute einbeziehen**, um automatisch die Rückfahrt auf demselbe
 
 ---
 
-## 4. Ride Personas & Routenparameter
+## 4. AI Roundtrip planen
+
+> AI Roundtrip erfordert ein Konto und muss serverseitig mit `AI_ROUNDTRIP_ENABLED=true` und `OPENAI_API_KEY` aktiviert sein.
+
+Der **AI Roundtrip** im Plan-Tab erstellt eine kompakte Loop-Idee anhand von:
+
+- **Startpunkt** — muss zuerst gesetzt sein
+- **Zielgebiet** — z. B. „Schönbuch“, „Café“, „Aussichtspunkt“. Das Zielgebiet dient als Orientierung für die Loop, nicht zwingend als erster Wegpunkt.
+- **Zeitbudget** — Minuten, die ungefähr verfügbar sind
+- **Bike-Profil** — aktuelles Routingprofil aus dem Setup
+- **Ride Persona** — Coffee, Bunch, Endurance oder Gravel
+
+OpenAI erzeugt dabei nur strukturierte Loop-Ideen. Die echte Strecke wird anschließend von der Routing-Engine berechnet. Wenn die AI-Planung zu langsam ist, verwendet RouteShred automatisch eine robuste Standard-Loop, damit der Vorgang nicht komplett abbricht.
+
+Die berechnete Route wird wie eine normale Route auf der Karte geladen und kann danach bearbeitet, exportiert oder gespeichert werden.
+
+### Zeitbudget-Tuning
+
+AI-Zielpunkte liegen nur grob im Raum. Die echte Straßenroute kann dadurch länger werden als geplant. RouteShred versucht deshalb automatisch kompaktere Loops, wenn die berechnete Dauer zu stark über dem Zeitbudget liegt. Die Toleranz wird serverseitig über `AI_ROUNDTRIP_MAX_TIME_FACTOR` gesteuert (Standard: `1.18`). Das Zielgebiet wird dabei als räumlicher Anker genutzt; die tatsächlich gesetzten Wegpunkte liegen meist darum herum.
+
+---
+
+## 5. Ride Personas & Routenparameter
 
 ![Ride Personas](./screenshots/03-personas.png)
 
@@ -146,7 +170,7 @@ Unterhalb der Persona-Auswahl wird der Ziel-Wattbereich für die aktuelle Zone a
 
 ---
 
-## 5. Wegpunkte hinzufügen
+## 6. Wegpunkte hinzufügen
 
 Füge Zwischenstopps hinzu, um die Routenführung zu steuern.
 
@@ -162,7 +186,7 @@ Füge Zwischenstopps hinzu, um die Routenführung zu steuern.
 
 ---
 
-## 6. GPX / FIT importieren
+## 7. GPX / FIT importieren
 
 Du kannst eine bestehende Route aus Komoot, Strava, Garmin Connect oder einer anderen App importieren.
 
@@ -179,7 +203,7 @@ Du kannst eine bestehende Route aus Komoot, Strava, Garmin Connect oder einer an
 
 ---
 
-## 7. Höhenprofil & Analyse
+## 8. Höhenprofil & Analyse
 
 ![Höhenprofil](./screenshots/05-elevation-profile.png)
 
@@ -211,7 +235,7 @@ Unterhalb des Höhenprofils zeigt die **Geländeanalyse** die Oberflächenvertei
 
 ---
 
-## 8. Wetterwarnungen
+## 9. Wetterwarnungen
 
 RouteShred prüft beim Berechnen die Open-Meteo-Wettervorhersage entlang der Route und zeigt Warnungen, wenn relevante Bedingungen vorhergesagt werden:
 
@@ -229,7 +253,7 @@ Warnungen erscheinen direkt unter der Persona-Auswahl. Klicke auf eine Warnung, 
 
 ---
 
-## 9. Export & Übertragung auf das Gerät
+## 10. Export & Übertragung auf das Gerät
 
 ![Export-Bereich](./screenshots/06-export.png)
 
@@ -266,7 +290,7 @@ Der schnellste Weg auf mobilen Geräten:
 
 ---
 
-## 10. Routen speichern & verwalten
+## 11. Routen speichern & verwalten
 
 ![Meine Routen](./screenshots/08-saved-routes.png)
 
@@ -298,7 +322,7 @@ Im Tab **Meine Routen** siehst du alle deine gespeicherten Routen sowie Routen, 
 
 ---
 
-## 11. Routen teilen
+## 12. Routen teilen
 
 ### Öffentlicher Link
 
@@ -317,7 +341,7 @@ Die Route bleibt unter deiner Kontrolle. Der Empfänger kann sie ansehen und lad
 
 ---
 
-## 12. Gruppenfahrten
+## 13. Gruppenfahrten
 
 ![Community und Gruppenfahrten](./screenshots/09-community.png)
 
@@ -351,7 +375,7 @@ Nur der Ersteller kann eine Gruppenfahrt bearbeiten oder löschen. Klicke auf da
 
 ---
 
-## 13. Profil einrichten
+## 14. Profil einrichten
 
 ![Setup und Profil](./screenshots/07-setup.png)
 
@@ -384,7 +408,7 @@ Klicke **Profil speichern**. Die Werte werden sofort für die Leistungszonenvors
 
 ---
 
-## 14. Anmeldung & Konto
+## 15. Anmeldung & Konto
 
 RouteShred verwendet Keycloak für die Authentifizierung. Klicke auf **Anmelden** oben rechts.
 
@@ -411,7 +435,7 @@ Du kannst RouteShred vollständig ohne Konto verwenden: Routenplanung, Analyse, 
 
 ---
 
-## 15. Tipps & Tricks
+## 16. Tipps & Tricks
 
 **Schneller Start per Karten-Klick:**
 Klicke direkt auf die Karte, ohne Adressen einzutippen. Der erste Klick setzt den Start, der zweite das Ziel.
@@ -433,7 +457,7 @@ Der Zustand der Planung (Start, Ziel, Wegpunkte) bleibt im Browser-Tab erhalten,
 
 ---
 
-## 16. Fehlerbehebung
+## 17. Fehlerbehebung
 
 ![Hilfe-Seite](./screenshots/10-help-page.png)
 

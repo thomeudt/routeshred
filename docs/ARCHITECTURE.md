@@ -23,6 +23,8 @@
 │:17777 │  │(remote) │ │Meteo /  │  │ + PostgreSQL 16             │
 │       │  │         │ │Open-Ele │  │ (optional, auth)            │
 └──────┘  └─────────┘ └─────────┘  └────────────────────────────┘
+   │
+   └── OpenAI Responses API (optional AI Roundtrip planning)
 ```
 
 In production (Proxmox stack) Caddy sits in front and routes `/`, `/api/*`, and `/auth*` to the respective containers.
@@ -118,6 +120,20 @@ Four personas act as quick-select presets. Selecting one sets `rideType` and `pr
 5. Runs terrain analysis via Overpass (surface types, major roads, cycleways).
 6. Fetches wind/weather from Open-Meteo forecast API and produces `weatherAlerts`.
 7. Returns enriched route object with `geometry`, `distance`, `duration`, `weatherAlerts`, terrain stats.
+
+For AI Roundtrip requests, `routingService.getRoute(..., { fast: true })` uses a shorter path: one direct routing request, no alternative search, no optional Overpass enrichments, and no weather/tempo adjustment. This keeps generated loops responsive while still returning a normal route object.
+
+### AI Roundtrip Service (`openaiRoutePlannerService.js`)
+
+The optional AI planner is exposed via `POST /api/routing/roundtrip` and requires normal API auth. It works in two stages:
+
+1. Resolve the requested target area with `geocodingService`.
+2. Ask OpenAI for compact structured loop ideas using the Responses API and a JSON schema.
+3. Convert relative waypoint bearings into real waypoint coordinates around the target area. The target place itself is an anchor, not an automatic first via point.
+4. Calculate the actual loop with the routing engine using the fast route path.
+5. If the result exceeds the time budget by more than `AI_ROUNDTRIP_MAX_TIME_FACTOR`, retry with smaller loop radii.
+
+OpenAI never returns final route geometry. It only proposes constrained loop candidates; the routing engine remains authoritative. If OpenAI times out and `AI_ROUNDTRIP_ALLOW_FALLBACK=true`, the service creates a deterministic fallback loop and still attempts route calculation.
 
 ### Elevation Service (`elevationService.js`)
 
@@ -234,5 +250,6 @@ Auth is entirely optional. Without `KEYCLOAK_ENABLED=true` the app runs in anony
 | Nominatim | Address search | None (rate limit: 1 req/s) |
 | Overpass | POI + terrain data | None |
 | Thunderforest | Map tiles (proxied via `/api/tiles`, key stays server-side) | `THUNDERFOREST_API_KEY` |
+| OpenAI Responses API | Optional AI Roundtrip candidate planning | `OPENAI_API_KEY` |
 | BRouter | Routing | None (self-hosted) |
 | OSRM | Routing fallback | None |

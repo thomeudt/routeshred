@@ -85,6 +85,27 @@ const translations = {
         setPoints: 'Start und Ziel setzen um eine Route zu berechnen',
         readyToCalculate: 'Route noch nicht berechnet'
       },
+      aiRoundtrip: {
+        title: 'AI Roundtrip',
+        hint: 'Plant aus Zielgebiet, Zeitbudget, Bike-Profil und Persona eine Loop-Idee. Die Route wird danach geprüft und berechnet.',
+        target: 'Zielgebiet',
+        targetPlaceholder: 'z.B. Schönbuch, Café, Aussichtspunkt',
+        timeBudget: 'Zeit in Minuten',
+        persona: 'Persona',
+        action: 'Roundtrip vorschlagen',
+        planning: 'Plant Roundtrip...',
+        fallbackNotice: 'AI-Planung war zu langsam. Es wurde eine robuste Standard-Loop berechnet.',
+        phases: {
+          geocoding: 'Zielgebiet wird gesucht...',
+          openai: 'OpenAI entwirft Loop-Kandidaten...',
+          routing: 'Loop wird berechnet...'
+        },
+        errors: {
+          missingStart: 'Setze zuerst einen Startpunkt.',
+          missingTarget: 'Gib ein Zielgebiet ein.',
+          failed: 'AI Roundtrip konnte nicht geplant werden'
+        }
+      },
       saved: {
         title: 'Gespeicherte Routen',
         select: 'Route laden',
@@ -459,6 +480,27 @@ const translations = {
       hints: {
         setPoints: 'Set start and end to calculate a route',
         readyToCalculate: 'Route not yet calculated'
+      },
+      aiRoundtrip: {
+        title: 'AI Roundtrip',
+        hint: 'Plans a loop idea from target area, time budget, bike profile, and persona. The route is then checked and calculated.',
+        target: 'Target area',
+        targetPlaceholder: 'e.g. forest, cafe, viewpoint',
+        timeBudget: 'Time in minutes',
+        persona: 'Persona',
+        action: 'Suggest roundtrip',
+        planning: 'Planning roundtrip...',
+        fallbackNotice: 'AI planning was too slow. A robust fallback loop was calculated.',
+        phases: {
+          geocoding: 'Resolving target area...',
+          openai: 'OpenAI is drafting loop candidates...',
+          routing: 'Calculating loop...'
+        },
+        errors: {
+          missingStart: 'Set a start point first.',
+          missingTarget: 'Enter a target area.',
+          failed: 'Could not plan AI roundtrip'
+        }
       },
       saved: {
         title: 'Saved Routes',

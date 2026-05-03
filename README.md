@@ -77,6 +77,11 @@ BROUTER_API=http://localhost:17777/brouter
 OSRM_API=http://router.project-osrm.org
 ROUTESHRED_ROUTES_DIR=./data/routes
 ROUTESHRED_CACHE_DIR=./data/cache
+
+# Optional AI Roundtrip planner
+AI_ROUNDTRIP_ENABLED=false
+OPENAI_MODEL=gpt-5-nano
+# OPENAI_API_KEY=sk-...
 ```
 
 Frontend (`frontend/.env`):
@@ -227,6 +232,7 @@ A full end-user guide covering route planning, personas, export, Wahoo transfer,
 
 ### Routing
 - `POST /api/routing/route` — calculate route
+- `POST /api/routing/roundtrip` — authenticated OpenAI-assisted roundtrip planning
 - `POST /api/routing/analyze` — terrain analysis
 
 ### Auth & Profile

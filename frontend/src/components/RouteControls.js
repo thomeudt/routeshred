@@ -265,6 +265,9 @@ function RouteControls({ socialSurfacesMoved = false }) {
   const [gpxImportError, setGpxImportError] = useState('');
   const [gpxImportSuccess, setGpxImportSuccess] = useState('');
   const [routeName, setRouteName] = useState('');
+  const [roundtripTarget, setRoundtripTarget] = useState('');
+  const [roundtripTime, setRoundtripTime] = useState(120);
+  const [roundtripPersona, setRoundtripPersona] = useState('endurance');
   const gpxInputRef = useRef(null);
   const {
     startPoint, endPoint,
@@ -274,8 +277,9 @@ function RouteControls({ socialSurfacesMoved = false }) {
     includeReturnTrip, setIncludeReturnTrip,
     setStartPoint, setEndPoint, insertWaypoint, updateWaypoint, removeWaypoint, moveWaypoint,
     reverseRoute,
-    calculateRoute, exportRoute, resetRoute,
+    calculateRoute, exportRoute, resetRoute, planAiRoundtrip,
     loadSavedRoutes, saveCurrentRoute, routeSaveState,
+    aiRoundtripLoading, aiRoundtripPhase, aiRoundtripError, aiRoundtripCandidates, aiRoundtripSelected,
     loading, route, returnRoute
   } = useRouteStore();
 
@@ -380,6 +384,16 @@ function RouteControls({ socialSurfacesMoved = false }) {
   }, [activeTab]);
 
   const handleCalculate = () => { if (startPoint && endPoint) calculateRoute(); };
+  const handlePlanRoundtrip = () => {
+    planAiRoundtrip({
+      target: roundtripTarget,
+      timeBudgetMinutes: roundtripTime,
+      persona: roundtripPersona
+    });
+  };
+  const aiRoundtripStatus = aiRoundtripPhase
+    ? t(`route.aiRoundtrip.phases.${aiRoundtripPhase}`)
+    : t('route.aiRoundtrip.planning');
   const handleExportTCX = () => { if (route) exportRoute('tcx'); };
   const handleExportGPX = () => { if (route) exportRoute('gpx'); };
   const handleShareWahoo = async () => {
@@ -919,6 +933,84 @@ function RouteControls({ socialSurfacesMoved = false }) {
           </div>
 
           <div className="plan-action-bar">
+            <div className="ai-roundtrip-panel">
+              <div className="ai-roundtrip-heading">
+                <div>
+                  <strong>{t('route.aiRoundtrip.title')}</strong>
+                  <span>{t('route.aiRoundtrip.hint')}</span>
+                </div>
+                <FiCompass />
+              </div>
+              <div className="ai-roundtrip-fields">
+                <label>
+                  <span>{t('route.aiRoundtrip.target')}</span>
+                  <input
+                    type="text"
+                    value={roundtripTarget}
+                    onChange={(event) => setRoundtripTarget(event.target.value)}
+                    placeholder={t('route.aiRoundtrip.targetPlaceholder')}
+                    maxLength="160"
+                  />
+                </label>
+                <label>
+                  <span>{t('route.aiRoundtrip.timeBudget')}</span>
+                  <input
+                    type="number"
+                    min="30"
+                    max="600"
+                    step="15"
+                    value={roundtripTime}
+                    onChange={(event) => setRoundtripTime(Number(event.target.value) || 120)}
+                  />
+                </label>
+                <label>
+                  <span>{t('route.aiRoundtrip.persona')}</span>
+                  <select
+                    value={roundtripPersona}
+                    onChange={(event) => setRoundtripPersona(event.target.value)}
+                  >
+                    {RIDE_PERSONAS.map((persona) => (
+                      <option key={persona.id} value={persona.id}>
+                        {t(`route.personas.${persona.id}.label`)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <button
+                className="btn-secondary ai-roundtrip-action"
+                type="button"
+                onClick={handlePlanRoundtrip}
+                disabled={!startPoint || !roundtripTarget.trim() || loading || aiRoundtripLoading}
+              >
+                <FiZap />
+                {aiRoundtripLoading ? t('route.aiRoundtrip.planning') : t('route.aiRoundtrip.action')}
+              </button>
+              {aiRoundtripLoading && (
+                <div className="ai-roundtrip-progress">
+                  <span className="ai-roundtrip-spinner" />
+                  <span>{aiRoundtripStatus}</span>
+                </div>
+              )}
+              {aiRoundtripSelected && (
+                <div className="ai-roundtrip-result">
+                  <strong>{aiRoundtripSelected.title}</strong>
+                  <span>{aiRoundtripSelected.description}</span>
+                </div>
+              )}
+              {aiRoundtripCandidates.length > 1 && (
+                <div className="ai-roundtrip-candidates">
+                  {aiRoundtripCandidates.slice(0, 3).map((candidate) => (
+                    <span key={candidate.id || candidate.title}>
+                      {candidate.title}
+                      {candidate.distance ? ` · ${Math.round(candidate.distance / 1000)} km` : ''}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {aiRoundtripError && <small className="ai-roundtrip-error">{aiRoundtripError}</small>}
+            </div>
+
             <input
               ref={gpxInputRef}
               className="gpx-file-input"
