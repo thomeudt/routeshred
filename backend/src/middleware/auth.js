@@ -62,8 +62,17 @@ async function optionalAuth(req, _res, next) {
   return next();
 }
 
+async function requireAuthIfEnabled(req, res, next) {
+  const cfg = getKeycloakConfig();
+  if (!cfg.enabled) {
+    return next();
+  }
+  return requireAuth(req, res, next);
+}
+
 module.exports = {
   requireAuth,
+  requireAuthIfEnabled,
   optionalAuth,
   parseBearerToken
 };

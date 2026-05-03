@@ -10,6 +10,10 @@ jest.mock('../../middleware/auth', () => ({
     req.auth = { user: { sub: 'test-user', email: 'test@example.com' } };
     next();
   },
+  requireAuthIfEnabled: (req, _res, next) => {
+    req.auth = { user: { sub: 'test-user', email: 'test@example.com' } };
+    next();
+  },
   optionalAuth: (_req, _res, next) => next(),
 }));
 
@@ -225,6 +229,41 @@ describe('POST /roundtrip', () => {
 });
 
 // ─── auth middleware (real implementation via requireActual) ──────────────────
+
+describe('requireAuthIfEnabled — real behaviour', () => {
+  it('passes through when KEYCLOAK_ENABLED is false', async () => {
+    process.env.KEYCLOAK_ENABLED = 'false';
+    const { requireAuthIfEnabled } = jest.requireActual('../../middleware/auth');
+    const app2 = express();
+    app2.use(express.json());
+    app2.get('/open', requireAuthIfEnabled, (_req, res) => res.json({ ok: true }));
+
+    const res = await request(app2).get('/open');
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+
+    delete process.env.KEYCLOAK_ENABLED;
+  });
+
+  it('returns 401 when KEYCLOAK_ENABLED is true and no token provided', async () => {
+    process.env.KEYCLOAK_ENABLED = 'true';
+    process.env.KEYCLOAK_URL = 'http://localhost:8080';
+    process.env.KEYCLOAK_REALM = 'routeshred';
+    process.env.KEYCLOAK_CLIENT_ID = 'routeshred-frontend';
+    const { requireAuthIfEnabled } = jest.requireActual('../../middleware/auth');
+    const app3 = express();
+    app3.use(express.json());
+    app3.get('/open', requireAuthIfEnabled, (_req, res) => res.json({ ok: true }));
+
+    const res = await request(app3).get('/open');
+    expect(res.status).toBe(401);
+
+    delete process.env.KEYCLOAK_ENABLED;
+    delete process.env.KEYCLOAK_URL;
+    delete process.env.KEYCLOAK_REALM;
+    delete process.env.KEYCLOAK_CLIENT_ID;
+  });
+});
 
 describe('requireAuth — real behaviour', () => {
   // jest.requireActual bypasses the top-level jest.mock so we get the real module.

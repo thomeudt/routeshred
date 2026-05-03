@@ -11,7 +11,7 @@ const {
   updateBikeProfileContent
 } = require('../services/routingService');
 const { planRoundtrip } = require('../services/openaiRoutePlannerService');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireAuthIfEnabled } = require('../middleware/auth');
 
 /**
  * GET /api/routing/profiles
@@ -93,7 +93,7 @@ router.post('/profiles', requireAuth, async (req, res) => {
  * Find optimal bike route between two points
  * Body: { start: [lat, lon], end: [lat, lon], waypoints: [[lat, lon], ...], bikeType: '<brouter-profile-id>', preference: 'fastest' | 'scenic' | 'offroad' }
  */
-router.post('/route', requireAuth, async (req, res) => {
+router.post('/route', requireAuthIfEnabled, async (req, res) => {
   try {
     const {
       start, end,
@@ -139,7 +139,7 @@ router.post('/roundtrip', requireAuth, async (req, res) => {
  * POST /api/routing/analyze
  * Analyze route for terrain, elevation, surface type
  */
-router.post('/analyze', requireAuth, async (req, res) => {
+router.post('/analyze', requireAuthIfEnabled, async (req, res) => {
   try {
     const { coordinates } = req.body;
 
