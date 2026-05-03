@@ -23,6 +23,7 @@
     "start": "npm start --workspace=backend",
     "test": "npm test --workspace=frontend && npm test --workspace=backend",
     "record:tutorial": "node scripts/record-tutorial.js",
+    "smoke:map-hide:mobile": "node scripts/smoke-map-hide-mobile.js",
     "narrate:tutorial": "node scripts/narrate-tutorial.js",
     "install-all": "npm install && npm install --workspace=frontend && npm install --workspace=backend"
   },

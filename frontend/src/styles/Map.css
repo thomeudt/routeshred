@@ -66,6 +66,15 @@ body.map-pseudo-fullscreen .map-container {
   background: var(--bg-light) !important;
 }
 
+.map-container.controls-only-mode {
+  display: block;
+}
+
+.map-container.controls-only-mode .controls-panel {
+  width: 100%;
+  max-height: none;
+}
+
 .community-surface {
   flex: 1;
   display: flex;
