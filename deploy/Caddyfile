@@ -1,5 +1,6 @@
 :80 {
   encode gzip zstd
+  header Permissions-Policy "geolocation=(self)"
 
   reverse_proxy /auth* keycloak:8080 {
     header_up Host {host}

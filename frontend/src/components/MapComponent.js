@@ -226,10 +226,8 @@ function MapComponent({ isMapVisible = true }) {
       return;
     }
 
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-        setGpsError(`perm:${result.state}`);
-      });
+    if (window.isSecureContext === false) {
+      setGpsError(t('map.gpsRequiresHttps'));
       return;
     }
 
