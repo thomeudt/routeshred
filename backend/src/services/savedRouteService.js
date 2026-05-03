@@ -148,6 +148,10 @@ function sanitizeSavedRoutePayload(payload = {}) {
   };
 }
 
+/**
+ * @param {import('../types').SavedRoute} savedRoute
+ * @returns {import('../types').SavedRouteSummary}
+ */
 function summarizeSavedRoute(savedRoute) {
   return {
     id: savedRoute.id,
@@ -229,6 +233,11 @@ async function readRoutesForOwner(ownerSub, currentUser = {}) {
   return routes;
 }
 
+/**
+ * @param {string} sub - current user's Keycloak sub
+ * @param {import('../types').KeycloakUser} [user]
+ * @returns {Promise<import('../types').SavedRouteSummary[]>}
+ */
 async function listSavedRoutes(sub, user = {}) {
   await ensureUserRoutesDir(sub);
   let ownerDirs = [];
@@ -255,6 +264,11 @@ async function listSavedRoutes(sub, user = {}) {
   return routes.sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
 }
 
+/**
+ * @param {string} sub
+ * @param {string} routeId
+ * @returns {Promise<import('../types').SavedRoute|null>}
+ */
 async function readSavedRoute(sub, routeId) {
   const id = normalizeRouteId(routeId);
   if (!id) {
@@ -269,6 +283,13 @@ async function readSavedRoute(sub, routeId) {
   }
 }
 
+/**
+ * @param {string} currentSub
+ * @param {string} ownerSub
+ * @param {string} routeId
+ * @param {import('../types').KeycloakUser} [user]
+ * @returns {Promise<import('../types').SavedRoute|null>}
+ */
 async function readVisibleSavedRoute(currentSub, ownerSub, routeId, user = {}) {
   const owner = normalizeSub(ownerSub || currentSub);
   const route = await readSavedRoute(owner, routeId);
@@ -279,6 +300,12 @@ async function readVisibleSavedRoute(currentSub, ownerSub, routeId, user = {}) {
   return annotateSavedRoute(route, owner, { ...user, sub: currentSub }, await getStoredDisplayName(owner));
 }
 
+/**
+ * @param {string} sub
+ * @param {Partial<import('../types').SavedRoute>} payload
+ * @param {import('../types').KeycloakUser} [user]
+ * @returns {Promise<import('../types').SavedRoute>}
+ */
 async function writeSavedRoute(sub, payload = {}, user = {}) {
   const dir = await ensureUserRoutesDir(sub);
   const id = normalizeRouteId(payload.id) || crypto.randomUUID();

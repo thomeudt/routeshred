@@ -1,3 +1,6 @@
+/** @typedef {import('../types').AuthContext} AuthContext */
+/** @typedef {import('express').Request & { auth?: AuthContext }} AuthedRequest */
+
 const { fetchUserInfo, getKeycloakConfig } = require('../services/keycloakService');
 
 function parseBearerToken(authHeader) {

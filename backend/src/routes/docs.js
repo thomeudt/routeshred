@@ -20,7 +20,7 @@ const manualLimiter = rateLimit({
 router.use('/screenshots', express.static(SCREENSHOTS_DIR));
 
 const HTML_TEMPLATE = (title, body) => `<!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -179,8 +179,8 @@ const HTML_TEMPLATE = (title, body) => `<!DOCTYPE html>
 <body>
   <header class="doc-header">
     <div style="max-width:860px;margin:0 auto;">
-      <h1><span>Route</span>Shred — Benutzerhandbuch</h1>
-      <p>Vollständige Anleitung für Routenplanung, Export und Community-Features</p>
+      <h1><span>Route</span>Shred — User Manual</h1>
+      <p>Complete guide to route planning, export, and community features</p>
     </div>
   </header>
   <div class="page">${body}</div>
@@ -193,7 +193,7 @@ router.get('/manual', manualLimiter, async (req, res) => {
     const body = marked.parse(markdown);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=3600');
-    res.send(HTML_TEMPLATE('RouteShred — Benutzerhandbuch', body));
+    res.send(HTML_TEMPLATE('RouteShred — User Manual', body));
   } catch (err) {
     res.status(404).send('Handbuch nicht gefunden.');
   }

@@ -162,6 +162,19 @@ function buildOverpassApiList() {
  * Get optimal route using OSRM
  * In production, use a self-hosted OSRM instance with OpenCycleMap OSM data
  */
+/**
+ * Calculate a bike route between two points.
+ * @param {import('../types').LatLon} start - [lat, lon]
+ * @param {import('../types').LatLon} end - [lat, lon]
+ * @param {Object} [options]
+ * @param {string} [options.bikeType]
+ * @param {'fastest'|'scenic'|'offroad'} [options.preference]
+ * @param {'z2'|'sst'|'tt'|'threshold'} [options.rideType]
+ * @param {import('../types').LatLon[]} [options.waypoints]
+ * @param {Partial<import('../types').RiderProfile>} [options.riderProfile]
+ * @param {boolean} [options.fast] - skip optional enrichment (elevation, weather)
+ * @returns {Promise<import('../types').Route>}
+ */
 async function getRoute(start, end, options = {}) {
   const {
     bikeType = 'road',
@@ -358,6 +371,11 @@ async function getRoute(start, end, options = {}) {
   }
 }
 
+/**
+ * @param {object} route - raw route from routing engine
+ * @param {object} [context]
+ * @returns {import('../types').Route}
+ */
 function buildRouteResponse(route, context = {}) {
   return {
     geometry: route.geometry,
