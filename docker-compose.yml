@@ -18,6 +18,8 @@ services:
       - KEYCLOAK_URL=${KEYCLOAK_URL:-http://keycloak:8080}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-routeshred}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-routeshred-frontend}
+      - THUNDERFOREST_API_KEY=${THUNDERFOREST_API_KEY:-}
+      - TILE_CACHE_TTL_MS=${TILE_CACHE_TTL_MS:-7776000000}
     volumes:
       - ./backend/src:/app/src
       - ./data/cache:/app/data/cache
@@ -33,8 +35,8 @@ services:
       - "3000:3000"
     environment:
       - REACT_APP_API_URL=/api
-      - REACT_APP_TILE_URL=${REACT_APP_TILE_URL:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
-      - REACT_APP_TILE_ATTRIBUTION=${REACT_APP_TILE_ATTRIBUTION:-&copy; OpenStreetMap contributors}
+      - REACT_APP_TILE_URL=${REACT_APP_TILE_URL:-/api/tiles/cycle/{z}/{x}/{y}.png}
+      - REACT_APP_TILE_ATTRIBUTION=${REACT_APP_TILE_ATTRIBUTION:-&copy; <a href="https://www.opencyclemap.org">OpenCycleMap</a>}
       - REACT_APP_KEYCLOAK_ENABLED=${REACT_APP_KEYCLOAK_ENABLED:-true}
       - REACT_APP_KEYCLOAK_URL=${REACT_APP_KEYCLOAK_URL:-http://localhost:8080}
       - REACT_APP_KEYCLOAK_REALM=${REACT_APP_KEYCLOAK_REALM:-routeshred}

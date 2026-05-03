@@ -30,8 +30,8 @@ The production-ready Docker Compose file is `docker-compose.proxmox.yml`. It run
    KC_DB_USER=kc_routeshred
    KC_DB_PASSWORD=strong-db-password
 
-   # Optional: Thunderforest API key for OpenCycleMap tiles
-   REACT_APP_TILE_URL=https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=YOUR_KEY
+   # Thunderforest API key — backend proxies and caches tiles, key never reaches the browser
+   THUNDERFOREST_API_KEY=your-key-here
    ```
 
 2. **DNS**
@@ -170,7 +170,9 @@ Back up `./data/routes` and the Keycloak DB volume to preserve user data.
 | `REACT_APP_KEYCLOAK_URL` | — | Keycloak URL (shown to browser) |
 | `REACT_APP_KEYCLOAK_REALM` | `routeshred` | Realm name |
 | `REACT_APP_KEYCLOAK_CLIENT_ID` | `routeshred-frontend` | Client ID |
-| `REACT_APP_TILE_URL` | OSM default | Map tile URL template |
+| `THUNDERFOREST_API_KEY` | — | Thunderforest key; enables OpenCycleMap via tile proxy |
+| `TILE_CACHE_TTL_MS` | `7776000000` (90 days) | Tile cache TTL |
+| `REACT_APP_TILE_URL` | `/api/tiles/cycle/{z}/{x}/{y}.png` | Map tile URL (proxy default) |
 | `REACT_APP_TILE_ATTRIBUTION` | OSM attribution | Attribution string |
 
 ---
@@ -184,7 +186,7 @@ Back up `./data/routes` and the Keycloak DB volume to preserve user data.
 - [ ] Keycloak admin password changed from default
 - [ ] Keycloak DB password is strong and unique
 - [ ] `./data/routes` backed up regularly
-- [ ] Thunderforest API key set for production tile quality
+- [ ] `THUNDERFOREST_API_KEY` set (tiles are proxied and cached by backend, key stays server-side)
 - [ ] Health endpoint responds: `curl https://your-domain/api/health`
 
 ---

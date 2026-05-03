@@ -12,6 +12,7 @@ const profileRouter = require('./routes/profile');
 const savedRoutesRouter = require('./routes/savedRoutes');
 const usersRouter = require('./routes/users');
 const groupRidesRouter = require('./routes/groupRides');
+const tilesRouter = require('./routes/tiles');
 const { getRoutingEngineInfo } = require('./services/routingService');
 const { getKeycloakConfig } = require('./services/keycloakService');
 
@@ -34,6 +35,7 @@ app.use('/api/profile', profileRouter);
 app.use('/api/routes', savedRoutesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/group-rides', groupRidesRouter);
+app.use('/api/tiles', tilesRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -66,7 +68,8 @@ app.listen(PORT, () => {
   console.log(`🚴 Bike Route Planner Backend running on http://localhost:${PORT}`);
   const routing = getRoutingEngineInfo();
   console.log(`📍 Routing engine: ${routing.configuredEngine.toUpperCase()}`);
-  console.log(`🗺️ Map base: OpenCycleMap`);
+  const tileKey = process.env.THUNDERFOREST_API_KEY;
+  console.log(`🗺️ Tile proxy: ${tileKey ? 'Thunderforest (cached)' : 'disabled — set THUNDERFOREST_API_KEY'}`);
 });
 
 module.exports = app;

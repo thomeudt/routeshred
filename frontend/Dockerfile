@@ -9,8 +9,8 @@ ARG REACT_APP_KEYCLOAK_ENABLED=true
 ARG REACT_APP_KEYCLOAK_URL=http://localhost/auth
 ARG REACT_APP_KEYCLOAK_REALM=routeshred
 ARG REACT_APP_KEYCLOAK_CLIENT_ID=routeshred-frontend
-ARG REACT_APP_TILE_URL=https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=007b5abe80db44699c19474ee8d9500b
-ARG REACT_APP_TILE_ATTRIBUTION=&copy; OpenCycleMap
+ARG REACT_APP_TILE_URL=/api/tiles/cycle/{z}/{x}/{y}.png
+ARG REACT_APP_TILE_ATTRIBUTION=&copy; <a href="https://www.opencyclemap.org">OpenCycleMap</a>
 
 ENV REACT_APP_API_URL=$REACT_APP_API_URL \
 	REACT_APP_KEYCLOAK_ENABLED=$REACT_APP_KEYCLOAK_ENABLED \

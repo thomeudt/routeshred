@@ -108,14 +108,15 @@ Restart frontend and backend after changing env files.
 
 ## 6. Map Tiles (Optional)
 
-The default map layer is OpenStreetMap. For the Thunderforest OpenCycleMap layer with cycling infrastructure:
+Without configuration the app falls back to plain OpenStreetMap tiles. For Thunderforest OpenCycleMap (cycling infrastructure, surface types, elevation tints), add your key to `.env`:
 
 ```env
-REACT_APP_TILE_URL=https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=YOUR_KEY
-REACT_APP_TILE_ATTRIBUTION=OpenStreetMap contributors
+THUNDERFOREST_API_KEY=your-key-here
 ```
 
-Get a free API key at https://www.thunderforest.com
+The backend proxies all tile requests through `/api/tiles/cycle/{z}/{x}/{y}.png` and caches them on disk — the API key never reaches the browser.
+
+Get a free key at https://www.thunderforest.com
 
 ## API Quick Reference
 
