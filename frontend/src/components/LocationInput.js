@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FiX } from 'react-icons/fi';
+import { FiCrosshair, FiX } from 'react-icons/fi';
 import { activeLanguage, t } from '../i18n';
 
 const rawApiUrl = (process.env.REACT_APP_API_URL || '').trim().replace(/\/$/, '');
@@ -7,7 +7,17 @@ const API_BASE = rawApiUrl
   ? (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`)
   : '/api';
 
-function LocationInput({ label, value, point, placeholder, onSelect, onClear }) {
+function LocationInput({
+  label,
+  value,
+  point,
+  placeholder,
+  onSelect,
+  onClear,
+  onUseCurrentLocation,
+  currentLocationLoading = false,
+  currentLocationDisabled = false
+}) {
   const [query, setQuery] = useState(value || '');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -77,10 +87,29 @@ function LocationInput({ label, value, point, placeholder, onSelect, onClear }) 
     onClear();
   };
 
+  const handleUseCurrentLocation = () => {
+    setOpen(false);
+    setResults([]);
+    onUseCurrentLocation();
+  };
+
   return (
     <div className="location-input">
       <div className="location-input__label">
         <span>{label}</span>
+        {onUseCurrentLocation && (
+          <button
+            type="button"
+            className="location-current-btn"
+            onClick={handleUseCurrentLocation}
+            disabled={currentLocationDisabled || currentLocationLoading}
+            title={t('route.locations.useCurrent')}
+            aria-label={t('route.locations.useCurrent')}
+          >
+            <FiCrosshair />
+            <small>{currentLocationLoading ? t('route.locations.locating') : t('route.locations.useCurrentShort')}</small>
+          </button>
+        )}
       </div>
       <div className="location-input__field">
         <input

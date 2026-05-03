@@ -2644,6 +2644,47 @@
   letter-spacing: 0.04em;
 }
 
+.location-current-btn {
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, transparent), transparent 56%),
+    color-mix(in srgb, var(--surface-subtle) 78%, var(--surface));
+  color: color-mix(in srgb, var(--primary) 78%, var(--text-primary));
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 3px 8px;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.location-current-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.location-current-btn small {
+  color: inherit;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.location-current-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary) 68%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 20%, transparent), transparent 58%),
+    var(--surface);
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.location-current-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .location-input__field {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -2732,6 +2773,17 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.current-location-error {
+  border: 1px solid color-mix(in srgb, #b42318 28%, transparent);
+  background: color-mix(in srgb, #b42318 7%, var(--surface));
+  color: #b42318;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  padding: 8px 10px;
 }
 
 .waypoint-row {

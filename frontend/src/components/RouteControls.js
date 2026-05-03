@@ -322,6 +322,16 @@ function sampleGpxWaypoints(coordinates, maxWaypoints = 6) {
   return waypoints;
 }
 
+function getBrowserPosition(highAccuracy = true) {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: highAccuracy,
+      timeout: 12000,
+      maximumAge: 8000
+    });
+  });
+}
+
 function RouteControls({ socialSurfacesMoved = false }) {
   const { enabled: authEnabled, authenticated, token, user } = useAuth();
   const [engine, setEngine] = useState('unknown');
@@ -351,6 +361,7 @@ function RouteControls({ socialSurfacesMoved = false }) {
   const [roundtripTarget, setRoundtripTarget] = useState('');
   const [roundtripTime, setRoundtripTime] = useState(120);
   const [roundtripPersona, setRoundtripPersona] = useState('endurance');
+  const [locationPickState, setLocationPickState] = useState({ target: '', error: '' });
   const gpxInputRef = useRef(null);
   const {
     startPoint, endPoint,
@@ -462,6 +473,49 @@ function RouteControls({ socialSurfacesMoved = false }) {
     window.addEventListener('routeshred:set-tab', onSetTab);
     return () => window.removeEventListener('routeshred:set-tab', onSetTab);
   }, [authEnabled, authenticated]);
+
+  const pickCurrentLocationFor = async (target, applyLocation) => {
+    if (!navigator.geolocation) {
+      setLocationPickState({ target: '', error: t('map.gpsUnavailable') });
+      return;
+    }
+
+    if (window.isSecureContext === false) {
+      setLocationPickState({ target: '', error: t('map.gpsRequiresHttps') });
+      return;
+    }
+
+    setLocationPickState({ target, error: '' });
+    try {
+      let position;
+      try {
+        position = await getBrowserPosition(true);
+      } catch (error) {
+        if (error && error.code === 1) {
+          position = await getBrowserPosition(false);
+        } else {
+          throw error;
+        }
+      }
+
+      const lat = Number(position?.coords?.latitude);
+      const lng = Number(position?.coords?.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        throw new Error('Invalid geolocation response');
+      }
+
+      await applyLocation([lat, lng], t('route.locations.currentLocation'));
+      setLocationPickState({ target: '', error: '' });
+    } catch (error) {
+      if (error && error.code === 1) {
+        setLocationPickState({ target: '', error: t('map.gpsPermissionDenied') });
+      } else if (error && error.code === 3) {
+        setLocationPickState({ target: '', error: t('map.gpsTimeout') });
+      } else {
+        setLocationPickState({ target: '', error: t('map.gpsPositionUnavailable') });
+      }
+    }
+  };
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('routeshred:tab-changed', { detail: { tab: activeTab } }));
@@ -966,6 +1020,9 @@ function RouteControls({ socialSurfacesMoved = false }) {
                 point={startPoint}
                 onSelect={setStartPoint}
                 onClear={() => setStartPoint(null, '')}
+                onUseCurrentLocation={() => pickCurrentLocationFor('start', setStartPoint)}
+                currentLocationLoading={locationPickState.target === 'start'}
+                currentLocationDisabled={Boolean(locationPickState.target)}
               />
               <button
                 className={`waypoint-insert${dragGapIndex === 0 ? ' is-drop-target' : ''}${isDraggingWaypoint ? ' is-drag-mode' : ''}`}
@@ -987,6 +1044,9 @@ function RouteControls({ socialSurfacesMoved = false }) {
                       point={waypoint.point}
                       onSelect={(point, label) => updateWaypoint(waypoint.id, point, label)}
                       onClear={() => updateWaypoint(waypoint.id, null, '')}
+                      onUseCurrentLocation={() => pickCurrentLocationFor(`waypoint-${waypoint.id}`, (point, label) => updateWaypoint(waypoint.id, point, label))}
+                      currentLocationLoading={locationPickState.target === `waypoint-${waypoint.id}`}
+                      currentLocationDisabled={Boolean(locationPickState.target)}
                     />
                     <div className="waypoint-actions">
                       <button
@@ -1052,7 +1112,13 @@ function RouteControls({ socialSurfacesMoved = false }) {
                 point={endPoint}
                 onSelect={setEndPoint}
                 onClear={() => setEndPoint(null, '')}
+                onUseCurrentLocation={() => pickCurrentLocationFor('end', setEndPoint)}
+                currentLocationLoading={locationPickState.target === 'end'}
+                currentLocationDisabled={Boolean(locationPickState.target)}
               />
+              {locationPickState.error && (
+                <div className="current-location-error">{locationPickState.error}</div>
+              )}
               <div className="location-actions">
                 <button
                   className="btn-secondary btn-compact"

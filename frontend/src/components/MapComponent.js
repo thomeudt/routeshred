@@ -257,7 +257,7 @@ function MapComponent({ isMapVisible = true }) {
         }
       },
       (error) => {
-        if (error && error.code === error.PERMISSION_DENIED && highAccuracy) {
+        if (error && error.code === 1 && highAccuracy) {
           // iOS can return PERMISSION_DENIED when Precise Location is off.
           // Retry without high accuracy to use approximate location instead.
           navigator.geolocation.clearWatch(watchId);
@@ -265,9 +265,9 @@ function MapComponent({ isMapVisible = true }) {
           startGpsTracking(false);
           return;
         }
-        if (error && error.code === error.PERMISSION_DENIED) {
+        if (error && error.code === 1) {
           setGpsError(t('map.gpsPermissionDenied'));
-        } else if (error && error.code === error.TIMEOUT) {
+        } else if (error && error.code === 3) {
           setGpsError(t('map.gpsTimeout'));
         } else {
           setGpsError(t('map.gpsPositionUnavailable'));

@@ -55,6 +55,10 @@ const translations = {
         waypoint: 'Wegpunkt',
         addWaypoint: 'Wegpunkt hinzufügen',
         searchPlaceholder: 'Adresse oder POI suchen',
+        currentLocation: 'Aktuelle Position',
+        useCurrent: 'Aktuelle Position verwenden',
+        useCurrentShort: 'GPS',
+        locating: 'Suche',
         searching: 'Suche...',
         noResults: 'Keine Treffer'
       },
@@ -540,6 +544,10 @@ const translations = {
         waypoint: 'Waypoint',
         addWaypoint: 'Add waypoint',
         searchPlaceholder: 'Search address or POI',
+        currentLocation: 'Current location',
+        useCurrent: 'Use current location',
+        useCurrentShort: 'GPS',
+        locating: 'Locating',
         searching: 'Searching...',
         noResults: 'No results'
       },
