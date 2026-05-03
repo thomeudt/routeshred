@@ -1,21 +1,25 @@
 Willkommen zu RouteShred.
 
-In diesem kurzen Tutorial siehst du, wie du in wenigen Schritten eine Fahrradroute planst, analysierst und für dein Gerät exportierst.
+In diesem Tutorial siehst du den aktuellen Workflow: eine Route planen, mit deinem Profil abstimmen, analysieren und am Ende als GPX oder TCX exportieren.
 
-Links findest du die Steuerung für Planung, gespeicherte Routen, Community und Setup. Rechts zeigt die Karte sofort, wie sich jede Änderung auf die Strecke auswirkt.
+Links liegt die Planung mit den Tabs für Plan, Meine Routen, Community und Setup. Rechts bleibt die Karte im Blick und zeigt sofort, wie sich Start, Ziel und Zwischenziele auf die Strecke auswirken.
 
-Zuerst setzen wir Start und Ziel über die Suche. RouteShred übernimmt die ausgewählten Orte direkt aus den Vorschlägen und verwendet sie als Grundlage für die Berechnung.
+Start und Ziel kannst du über die Suche setzen, über einen Klick auf die Karte, oder direkt per GPS. Der GPS-Button funktioniert für Start, Ziel und jedes Zwischenziel, ohne die normale POI- und Adresssuche zu stören.
 
-Danach wählen wir eine Ride Persona. Coffee, Bunch, Endurance und Gravel setzen passende Routing- und Leistungsparameter mit nur einem Klick.
+Danach wählst du eine Ride Persona. Coffee, Bunch, Endurance und Gravel setzen passende Routing- und Leistungsparameter mit einem Klick. Wer genauer arbeiten will, kann Bikeprofil, Routenstil und Trainingszone manuell anpassen.
 
-Mit Berechnen erstellt BRouter die Strecke. Anschließend erscheinen Distanz, Höhenprofil, Wetterhinweise und weitere Kennzahlen direkt in der Seitenleiste.
+Wenn AI Roundtrip aktiv ist, reicht ein Zielgebiet, eine verfügbare Zeitspanne und eine Persona. OpenAI skizziert kompakte Loop-Ideen, aber die echte Strecke wird weiterhin von der Routing-Engine berechnet.
 
-Im Export-Bereich lässt sich die Route als GPX oder TCX herunterladen. Auf dem Smartphone kann sie außerdem direkt an kompatible Apps wie Wahoo weitergegeben werden.
+Mit Berechnen entsteht die Route. RouteShred zeigt Distanz, Dauer, Höhenprofil, Wetterhinweise, Oberflächenanalyse und die passenden Wattbereiche aus deinem Fahrerprofil.
 
-Wenn du angemeldet bist, bleiben gespeicherte und geteilte Routen in deinem Konto verfügbar und können später jederzeit erneut geladen werden.
+Für den schnellen Kartencheck gibt es einen Vollbildmodus. Gerade auf dem Smartphone hilft das, Route, Abzweige und Umgebung ohne überfüllte Oberfläche zu prüfen.
 
-Im Community-Bereich organisierst du Gruppenfahrten, teilst Touren mit anderen und hältst Kommentare zentral an einem Ort zusammen.
+Im Export-Bereich lädst du die Strecke als GPX oder TCX herunter. Auf mobilen Geräten kann die Route zusätzlich direkt an kompatible Apps wie Wahoo weitergegeben werden.
 
-Unter Setup hinterlegst du FTP, Gewicht und Fahrradprofile. So passt sich die Auswertung an deine persönlichen Werte an.
+Wenn du angemeldet bist, findest du in Meine Routen deine gespeicherten und geteilten Strecken. Du kannst nach Namen suchen oder einen Startbereich mit Radius setzen, um passende Routen in einer Region zu finden.
 
-Damit ist das Tutorial abgeschlossen. Den Sprechertext kannst du jederzeit anpassen und die Tonspur mit einem einzigen Befehl neu erzeugen.
+Im Community-Bereich organisierst du Group Rides. Die Karten zeigen Challenge-Stil, verknüpfte Route, Teilnehmende, Kommentare und optional einen Instagram-Link.
+
+Unter Setup pflegst du FTP, Gewicht und Fahrradprofile. Die Bike-Profile beeinflussen Routing und Auswertung, und der visuelle Header macht sofort klar, mit welchem Setup du gerade planst.
+
+Damit hast du den Kern von RouteShred: selbst gehostete Routenplanung, starke Bikeprofile, smarte Unterstützung und Community-Funktionen in einer Oberfläche.

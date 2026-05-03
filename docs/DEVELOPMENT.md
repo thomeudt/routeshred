@@ -191,6 +191,13 @@ npm run build
 
 # Record/update the browser tutorial video
 ROUTESHRED_TUTORIAL_USER=... ROUTESHRED_TUTORIAL_PASSWORD=... npm run record:tutorial
+
+# Add narration and mux final MP4
+TUTORIAL_TTS_PROVIDER=openai OPENAI_API_KEY=... npm run narrate:tutorial
+
+# If the voiceover is longer than the recording, the last video frame is held automatically.
+# Increase this only for very long narration overruns:
+TUTORIAL_FINAL_FRAME_HOLD_SECONDS=180 npm run narrate:tutorial
 ```
 
 ## Debugging

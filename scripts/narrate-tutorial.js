@@ -2,6 +2,12 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
+// Adds narration from docs/TUTORIAL_NARRATION.txt to the recorded tutorial.
+//
+// Usage:
+//   npm run narrate:tutorial
+//   TUTORIAL_TTS_PROVIDER=openai OPENAI_API_KEY=... npm run narrate:tutorial
+
 const ROOT = path.resolve(__dirname, '..');
 
 loadDotEnv(path.resolve(ROOT, '.env'));
@@ -22,12 +28,13 @@ const OPENAI_MODEL = String(process.env.TUTORIAL_OPENAI_MODEL || 'gpt-4o-mini-tt
 const OPENAI_VOICE = String(process.env.TUTORIAL_OPENAI_VOICE || 'verse').trim();
 const OPENAI_INSTRUCTIONS = String(
   process.env.TUTORIAL_OPENAI_INSTRUCTIONS
-  || 'Speak in warm, very natural German for a polished product tutorial. Calm pacing, clear pronunciation, subtle energy, no hype.'
+  || 'Sprich warm, ruhig und natürliches Deutsch für ein hochwertiges Produkttutorial. Klare Aussprache, entspannter Road-Cycling-Vibe, kurze Pausen zwischen Absätzen, kein Hype.'
 ).trim();
 const OPENAI_SPEED = Number(process.env.TUTORIAL_OPENAI_SPEED || '1.0');
 const ELEVENLABS_API_KEY = String(process.env.ELEVENLABS_API_KEY || '').trim();
 const ELEVENLABS_VOICE_ID = String(process.env.TUTORIAL_ELEVENLABS_VOICE_ID || '').trim();
 const ELEVENLABS_MODEL_ID = String(process.env.TUTORIAL_ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2').trim();
+const FINAL_FRAME_HOLD_SECONDS = Math.max(1, Number(process.env.TUTORIAL_FINAL_FRAME_HOLD_SECONDS || '90'));
 
 function loadDotEnv(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -227,7 +234,7 @@ async function synthesizeWithOpenAi(audioFile, narrationText) {
     speed: OPENAI_SPEED
   };
 
-  if (OPENAI_MODEL.startsWith('gpt-4o-mini-tts') && OPENAI_INSTRUCTIONS) {
+  if (OPENAI_MODEL.includes('tts') && OPENAI_INSTRUCTIONS) {
     body.instructions = OPENAI_INSTRUCTIONS;
   }
 
@@ -297,13 +304,17 @@ async function synthesizeAudio() {
 
 function buildFfmpegMuxArgs(audioFile) {
   const ext = path.extname(FINAL_FILE).toLowerCase();
+  const videoPadFilter = `tpad=stop_mode=clone:stop_duration=${FINAL_FRAME_HOLD_SECONDS}`;
 
   if (ext === '.webm') {
     return [
       '-y',
       '-i', VIDEO_FILE,
       '-i', audioFile,
-      '-c:v', 'copy',
+      '-filter:v', videoPadFilter,
+      '-c:v', 'libvpx-vp9',
+      '-b:v', '0',
+      '-crf', '32',
       '-c:a', 'libopus',
       '-b:a', '128k',
       '-shortest',
@@ -316,6 +327,7 @@ function buildFfmpegMuxArgs(audioFile) {
       '-y',
       '-i', VIDEO_FILE,
       '-i', audioFile,
+      '-filter:v', videoPadFilter,
       '-c:v', 'libx264',
       '-pix_fmt', 'yuv420p',
       '-preset', 'medium',
@@ -332,7 +344,9 @@ function buildFfmpegMuxArgs(audioFile) {
     '-y',
     '-i', VIDEO_FILE,
     '-i', audioFile,
-    '-c:v', 'copy',
+    '-filter:v', videoPadFilter,
+    '-c:v', 'libx264',
+    '-pix_fmt', 'yuv420p',
     '-c:a', 'aac',
     '-shortest',
     FINAL_FILE

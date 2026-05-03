@@ -2,23 +2,63 @@
 //
 // Usage (anonymous):    node scripts/record-tutorial.js
 // Usage (with login):   KC_USER=name KC_PASS=password node scripts/record-tutorial.js
+// Also accepted:        ROUTESHRED_TUTORIAL_USER=name ROUTESHRED_TUTORIAL_PASSWORD=password
 // Optional:
 //   TUTORIAL_BASE=http://localhost:3000
 //   TUTORIAL_OUT=docs/tutorial/routeshred-tutorial.webm
+//   TUTORIAL_PACE=1.9
 
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
+
+loadDotEnv(path.resolve(ROOT, '.env'));
+loadDotEnv(path.resolve(ROOT, '.env.local'));
+
 const BASE = process.env.TUTORIAL_BASE || 'http://localhost:3000';
 const OUT_FILE = path.resolve(ROOT, process.env.TUTORIAL_OUT || 'docs/tutorial/routeshred-tutorial.webm');
 const VIDEO_DIR = path.resolve(ROOT, 'docs/tutorial/.playwright-video');
-const KC_USER = process.env.KC_USER || '';
-const KC_PASS = process.env.KC_PASS || '';
+const KC_USER = process.env.KC_USER || process.env.ROUTESHRED_TUTORIAL_USER || process.env.TUTORIAL_USER || '';
+const KC_PASS = process.env.KC_PASS || process.env.ROUTESHRED_TUTORIAL_PASSWORD || process.env.TUTORIAL_PASSWORD || '';
 const AUTHENTICATED = Boolean(KC_USER && KC_PASS);
 const VP = { width: 1440, height: 900 };
-const PACE = Number(process.env.TUTORIAL_PACE || '1.8');
+const PACE = Number(process.env.TUTORIAL_PACE || '1.9');
+const DEMO_GEOLOCATION = {
+  latitude: Number(process.env.TUTORIAL_GEO_LAT || '48.5216'),
+  longitude: Number(process.env.TUTORIAL_GEO_LON || '9.0576')
+};
+
+function loadDotEnv(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+
+  const contents = fs.readFileSync(filePath, 'utf8');
+  for (const rawLine of contents.split(/\r?\n/u)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) {
+      continue;
+    }
+
+    const equalsIndex = line.indexOf('=');
+    if (equalsIndex <= 0) {
+      continue;
+    }
+
+    const key = line.slice(0, equalsIndex).trim();
+    if (!key || Object.prototype.hasOwnProperty.call(process.env, key)) {
+      continue;
+    }
+
+    let value = line.slice(equalsIndex + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value.replace(/\\n/gu, '\n');
+  }
+}
 
 function delay(ms) {
   return Math.round(ms * PACE);
@@ -41,13 +81,13 @@ async function chapter(page, title, subtitle = '') {
       overlay.setAttribute('data-tutorial-overlay', 'true');
       overlay.style.cssText = [
         'position:fixed',
-        'left:32px',
-        'bottom:32px',
+        'left:34px',
+        'bottom:34px',
         'z-index:999999',
         'max-width:560px',
         'padding:18px 22px',
-        'border-radius:10px',
-        'background:rgba(12,18,28,0.88)',
+        'border-radius:8px',
+        'background:rgba(11,17,25,0.88)',
         'color:white',
         'font:500 18px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
         'box-shadow:0 18px 50px rgba(0,0,0,0.32)',
@@ -62,7 +102,7 @@ async function chapter(page, title, subtitle = '') {
       ${subtitle ? `<div style="font-size:15px;opacity:.86">${subtitle}</div>` : ''}
     `;
   }, { title, subtitle });
-  await page.waitForTimeout(delay(2400));
+  await page.waitForTimeout(delay(2600));
 }
 
 async function hideChapter(page) {
@@ -167,6 +207,16 @@ async function fillLocation(page, index, text) {
   await page.waitForTimeout(delay(700));
 }
 
+async function clickCurrentLocation(page, index = 0) {
+  const button = page.locator('.location-input').nth(index).locator('.location-current-btn').first();
+  if (!await button.isVisible({ timeout: 3000 }).catch(() => false)) {
+    return false;
+  }
+  await button.click();
+  await page.waitForTimeout(delay(1500));
+  return true;
+}
+
 async function calculateRoute(page) {
   // Button text: "Route berechnen" (DE) / "Calculate Route" (EN)
   const btn = page.locator('button.btn-primary')
@@ -206,6 +256,67 @@ async function scrollControls(page, position) {
   await page.waitForTimeout(delay(1800));
 }
 
+async function openDetails(page, selectorOrText) {
+  const details = typeof selectorOrText === 'string' && selectorOrText.startsWith('.')
+    ? page.locator(selectorOrText).first()
+    : page.locator('details').filter({ hasText: selectorOrText }).first();
+
+  if (!await details.isVisible({ timeout: 2500 }).catch(() => false)) {
+    return false;
+  }
+
+  const isOpen = await details.evaluate((el) => el.open).catch(() => false);
+  if (!isOpen) {
+    await details.locator('summary').click();
+    await page.waitForTimeout(delay(900));
+  }
+  return true;
+}
+
+async function demoAiRoundtripPanel(page) {
+  await scrollControls(page, 640);
+  const opened = await openDetails(page, '.ai-roundtrip-collapsible');
+  if (!opened) {
+    return;
+  }
+
+  await chapter(page, 'AI Roundtrip', 'Zielgebiet, Zeitfenster und Persona erzeugen Loop-Ideen. Die echte Strecke berechnet danach die Routing-Engine.');
+  await hideChapter(page);
+
+  const target = page.locator('.ai-roundtrip-fields input[type="text"]').first();
+  if (await target.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await target.fill('');
+    await target.pressSequentially('Schönbuch Aussicht', { delay: 95 });
+    await page.waitForTimeout(delay(800));
+  }
+
+  const time = page.locator('.ai-roundtrip-fields input[type="number"]').first();
+  if (await time.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await time.fill('120');
+  }
+
+  const persona = page.locator('.ai-roundtrip-fields select').first();
+  if (await persona.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await persona.selectOption('endurance').catch(() => {});
+  }
+
+  await page.waitForTimeout(delay(1600));
+}
+
+async function showMapFullscreen(page) {
+  const button = page.locator('.fullscreen-toggle').first();
+  if (!await button.isVisible({ timeout: 2500 }).catch(() => false)) {
+    return;
+  }
+
+  await chapter(page, 'Karte groß ansehen', 'Für den finalen Check lässt sich die Karte in einen fokussierten Vollbildmodus schalten.');
+  await hideChapter(page);
+  await button.click();
+  await page.waitForTimeout(delay(1800));
+  await button.click().catch(() => {});
+  await page.waitForTimeout(delay(900));
+}
+
 async function runTutorial(page) {
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await login(page);
@@ -220,8 +331,10 @@ async function runTutorial(page) {
   await page.mouse.move(1020, 420);
   await page.waitForTimeout(delay(1400));
 
-  await chapter(page, 'Start und Ziel setzen', 'Adressen und Orte werden über die Suche ausgewählt. Danach berechnet BRouter die Strecke.');
+  await chapter(page, 'Start und Ziel setzen', 'Adressen, POIs, Kartenklicks oder GPS füllen Start, Ziel und Zwischenziele ohne Umwege.');
   await hideChapter(page);
+  await clickCurrentLocation(page, 0);
+  await page.waitForTimeout(delay(700));
   await fillLocation(page, 0, 'Tübingen');
   await page.waitForTimeout(delay(800));
   await fillLocation(page, 1, 'Herrenberg');
@@ -236,9 +349,15 @@ async function runTutorial(page) {
     await page.waitForTimeout(delay(1600));
   }
 
-  await chapter(page, 'Route berechnen', 'Nach dem Klick erscheinen Route, Distanz, Höhenprofil und Analyse.');
+  if (AUTHENTICATED) {
+    await demoAiRoundtripPanel(page);
+    await scrollControls(page, 220);
+  }
+
+  await chapter(page, 'Route berechnen', 'Nach dem Klick erscheinen Route, Distanz, Höhenprofil, Wetterhinweise und Oberflächenanalyse.');
   await hideChapter(page);
   await calculateRoute(page);
+  await showMapFullscreen(page);
   await page.mouse.wheel(0, 260);
   await page.waitForTimeout(delay(1800));
 
@@ -249,18 +368,28 @@ async function runTutorial(page) {
 
   if (AUTHENTICATED) {
     await clickTab(page, /routen|routes/i);
-    await chapter(page, 'Meine Routen', 'Gespeicherte und geteilte Routen bleiben im Konto verfügbar.');
+    await chapter(page, 'Meine Routen', 'Gespeicherte und geteilte Routen lassen sich durchsuchen und nach Startregion filtern.');
     await hideChapter(page);
+    const routeSearch = page.locator('.saved-route-search input').first();
+    if (await routeSearch.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await routeSearch.click();
+      await routeSearch.pressSequentially('Tübingen', { delay: 90 }).catch(() => {});
+    }
     await page.waitForTimeout(delay(2200));
 
     await clickTab(page, /community/i);
-    await chapter(page, 'Community und Gruppenfahrten', 'Group Rides können erstellt, gefiltert, geteilt und kommentiert werden.');
+    await chapter(page, 'Community und Gruppenfahrten', 'Challenge-Karten zeigen Route, Teilnehmende, Kommentare und optionale Instagram-Links.');
     await hideChapter(page);
+    const communitySearch = page.locator('.group-rides-filter-search input').first();
+    if (await communitySearch.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await communitySearch.click();
+      await communitySearch.pressSequentially('Sunday', { delay: 90 }).catch(() => {});
+    }
     await page.waitForTimeout(delay(2200));
   }
 
   await clickTab(page, /setup/i);
-  await chapter(page, 'Setup', 'FTP, Gewicht und Fahrradprofile bestimmen die persönliche Auswertung.');
+  await chapter(page, 'Setup', 'FTP, Gewicht und Fahrradprofile bestimmen Wattbereiche und geben dem Planer dein Bike-Profil mit.');
   await hideChapter(page);
   await page.waitForTimeout(delay(2600));
 }
@@ -281,6 +410,8 @@ async function main() {
   try {
     const context = await browser.newContext({
       viewport: VP,
+      permissions: ['geolocation'],
+      geolocation: DEMO_GEOLOCATION,
       recordVideo: {
         dir: VIDEO_DIR,
         size: VP
