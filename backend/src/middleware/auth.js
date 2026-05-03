@@ -24,17 +24,16 @@ async function requireAuth(req, res, next) {
 
   const token = parseBearerToken(req.headers.authorization);
   if (!token) {
+    console.warn(`[AUTH] No token — ${req.method} ${req.path} — ip=${req.ip}`);
     return res.status(401).json({ error: 'Unauthorized', message: 'Bearer token required' });
   }
 
   try {
     const userInfo = await fetchUserInfo(token);
-    req.auth = {
-      token,
-      user: userInfo
-    };
+    req.auth = { token, user: userInfo };
     next();
   } catch (error) {
+    console.warn(`[AUTH] Invalid token — ${req.method} ${req.path} — ip=${req.ip} — ${error.message}`);
     return res.status(401).json({ error: 'Unauthorized', message: 'Invalid or expired access token' });
   }
 }

@@ -3,6 +3,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const routingRouter = require('./routes/routing');
 const elevationRouter = require('./routes/elevation');
@@ -26,6 +27,11 @@ const IS_PROD = process.env.NODE_ENV === 'production';
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
   : ['http://localhost:3000', 'http://localhost:5050'];
+
+app.use(helmet({
+  crossOriginEmbedderPolicy: false, // Leaflet map tiles need cross-origin resources
+  contentSecurityPolicy: false      // Served behind Caddy which handles CSP in production
+}));
 
 app.use(cors({
   origin: (origin, cb) => {
@@ -56,12 +62,20 @@ const tightLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' }
 });
 
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' }
+});
+
 // Routes
 app.use('/api/routing', apiLimiter, routingRouter);
 app.use('/api/elevation', apiLimiter, elevationRouter);
 app.use('/api/export', tightLimiter, exportRouter);
 app.use('/api/geocode', tightLimiter, geocodeRouter);
-app.use('/api/auth', authRouter);
+app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/profile', profileRouter);
 app.use('/api/routes', savedRoutesRouter);
 app.use('/api/users', usersRouter);
