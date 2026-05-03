@@ -3,7 +3,6 @@ const rateLimit = require('express-rate-limit');
 const fsSync = require('fs');
 const fs = require('fs/promises');
 const path = require('path');
-const { marked } = require('marked');
 
 const router = express.Router();
 
@@ -24,6 +23,7 @@ const DOCS_DIR = DOCS_DIR_CANDIDATES.find((candidate) => {
 
 const MANUAL_PATH = DOCS_DIR ? path.join(DOCS_DIR, 'USER_MANUAL.md') : null;
 const SCREENSHOTS_DIR = DOCS_DIR ? path.join(DOCS_DIR, 'screenshots') : null;
+let markedModulePromise = null;
 
 const manualLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -35,6 +35,15 @@ const manualLimiter = rateLimit({
 
 if (SCREENSHOTS_DIR && fsSync.existsSync(SCREENSHOTS_DIR)) {
   router.use('/screenshots', express.static(SCREENSHOTS_DIR));
+}
+
+async function renderMarkdown(markdown) {
+  if (!markedModulePromise) {
+    markedModulePromise = import('marked');
+  }
+  const module = await markedModulePromise;
+  const parser = module.marked || module.default || module;
+  return parser.parse(markdown);
 }
 
 const HTML_TEMPLATE = (title, body) => `<!DOCTYPE html>
@@ -212,7 +221,7 @@ router.get('/manual', manualLimiter, async (req, res) => {
     }
 
     const markdown = await fs.readFile(MANUAL_PATH, 'utf8');
-    const body = marked.parse(markdown);
+    const body = await renderMarkdown(markdown);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.send(HTML_TEMPLATE('RouteShred — User Manual', body));

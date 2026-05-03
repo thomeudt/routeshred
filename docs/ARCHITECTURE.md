@@ -27,7 +27,7 @@
    └── OpenAI Responses API (optional AI Roundtrip planning)
 ```
 
-In production (Proxmox stack) Caddy sits in front and routes `/`, `/api/*`, and `/auth*` to the respective containers.
+In production (Proxmox stack) internal Caddy sits in front and routes `/`, `/api/*`, and `/auth*` to the respective containers. It is commonly exposed on host port `8080` behind an outer HTTPS proxy such as Nginx Proxy Manager.
 
 ---
 
@@ -78,9 +78,9 @@ Four personas act as quick-select presets. Selecting one sets `rideType` and `pr
 | `MapComponent.js` | Leaflet map, markers, route polyline, POI layer |
 | `RouteControls.js` | All planning UI: location inputs, personas, bike/ride setup, elevation, weather, export |
 | `ElevationProfile.js` | Recharts elevation chart with stats |
-| `LocationInput.js` | Address/POI search (Nominatim + Overpass shortcuts) |
-| `SavedRoutesPanel.js` | Saved route list: save, load, rename, share, delete |
-| `GroupRidesPanel.js` | Group ride feed: create, edit, join, leave, comment |
+| `LocationInput.js` | Address/POI search plus optional current-location shortcut |
+| `SavedRoutesPanel.js` | Saved route list: save, load, rename, share, delete, filter by name or start-region radius |
+| `GroupRidesPanel.js` | Group ride feed: create, edit, join, leave, participants, comments, linked route/Instagram actions |
 | `RouteDetail.js` | Full-page route detail view (deep-link target) |
 | `RouteTypeStats.js` | Terrain surface breakdown visualization |
 
@@ -164,7 +164,7 @@ Both use `downsample()` for large coordinate arrays and `escapeXml()` for safe n
 
 ### Saved Route Service (`savedRouteService.js`)
 
-Routes stored as JSON files in `ROUTESHRED_ROUTES_DIR`. Each file: `{id, ownerSub, name, visibility, sharedWith[], route, createdAt}`. Visibility: `private` | `public` | `shared`.
+Routes stored as JSON files in `ROUTESHRED_ROUTES_DIR`. Each file: `{id, ownerSub, name, visibility, sharedWith[], route, waypoints, createdAt}`. Route summaries include start/end coordinates where available so the frontend can filter saved routes by start-region radius. Visibility: `private` | `public` | `shared`.
 
 ### Tile Service (`tileService.js`)
 
@@ -178,7 +178,7 @@ Proxies Thunderforest map tiles to the browser. The API key never leaves the ser
 
 ### Group Ride Service (`groupRideService.js`)
 
-Group rides stored as JSON in `ROUTESHRED_ROUTES_DIR/group-rides/`. Fields include: `title`, `description`, `meetingPoint`, `startAt`, `visibility`, `coverPhoto`, `routeId`, `routeName`, `routeOwnerSub`, `participants[]`, `comments[]`.
+Group rides stored as JSON in `ROUTESHRED_GROUP_RIDES_DIR` or `ROUTESHRED_ROUTES_DIR/group-rides/`. Fields include: `title`, `description`, `meetingPoint`, `startAt`, `visibility`, `challenge`, `instagramUrl`, `routeId`, `routeName`, `routeOwnerSub`, `participants[]`, `comments[]`.
 
 ---
 
@@ -211,6 +211,8 @@ User sets start/end → clicks Calculate
   → ElevationProfile renders chart
   → RouteControls shows weather alerts + terrain stats
 ```
+
+Location input can come from three frontend paths: typed address/POI search (`LocationInput` → `/api/geocode/search`), map clicks/marker drags (`MapComponent`), or browser Geolocation (`navigator.geolocation`) for start, destination, or any waypoint. GPS requires a secure context (`https://` or `localhost`) and is allowed by Caddy's `Permissions-Policy: geolocation=(self)` header in production.
 
 ## Data Flow: Export / Share to Wahoo
 

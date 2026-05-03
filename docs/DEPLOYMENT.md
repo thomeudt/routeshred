@@ -2,13 +2,13 @@
 
 ## Recommended: Proxmox / Single-Host Docker Stack
 
-The production-ready Docker Compose file is `docker-compose.proxmox.yml`. It runs all services in one stack behind a Caddy reverse proxy with automatic HTTPS.
+The production-ready Docker Compose file is `docker-compose.proxmox.yml`. It runs all services in one stack behind an internal Caddy reverse proxy. In the current Proxmox setup, Caddy listens on host port `8080` and is usually placed behind Nginx Proxy Manager, OpenResty, or another edge proxy that terminates public HTTPS.
 
 ### Services
 
 | Service | Port (internal) | Purpose |
 |---------|----------------|---------|
-| `caddy` | 80, 443 | Reverse proxy + TLS |
+| `reverse-proxy` | host 8080 → internal 80 | Internal Caddy reverse proxy |
 | `frontend` | 3000 | React app (served as static build) |
 | `backend` | 5050 | Express API |
 | `brouter` | 17777 | BRouter routing engine |
@@ -34,9 +34,9 @@ The production-ready Docker Compose file is `docker-compose.proxmox.yml`. It run
    THUNDERFOREST_API_KEY=your-key-here
    ```
 
-2. **DNS**
+2. **DNS / outer proxy**
 
-   Point `PUBLIC_HOSTNAME` to your host IP. Open ports 80 and 443.
+   Point `PUBLIC_HOSTNAME` to your edge proxy. In Nginx Proxy Manager, create a proxy host for `PUBLIC_HOSTNAME` → `http://<proxmox-or-vm-ip>:8080`. Enable Websockets if available, use a normal Let's Encrypt certificate on the outer proxy, and avoid a second HTTPS redirect inside the app stack.
 
 3. **Start the stack**
 
@@ -48,17 +48,18 @@ The production-ready Docker Compose file is `docker-compose.proxmox.yml`. It run
 
    ```bash
    curl https://route.example.com/api/health
+   docker compose -f docker-compose.proxmox.yml logs --tail=120 backend reverse-proxy keycloak brouter
    ```
 
 ### Caddy URL Routing
 
 Defined in `deploy/Caddyfile`:
 
-- `https://route.example.com/` → frontend (React build)
-- `https://route.example.com/api/*` → backend (:5050)
-- `https://route.example.com/auth*` → Keycloak (:8080)
+- `/` → frontend (React build)
+- `/api/*` → backend (:5050)
+- `/auth*` → Keycloak (:8080)
 
-TLS certificates are managed automatically by Caddy via Let's Encrypt.
+Caddy also sets `Permissions-Policy: geolocation=(self)` so browser GPS can be used by the map and location fields. Public TLS is handled by the outer proxy in the Proxmox/Nginx Proxy Manager deployment. If you change Caddy to listen on the public hostname directly, then Caddy can manage Let's Encrypt itself, but do not run both Caddy and NPM as competing HTTPS redirectors for the same host.
 
 ### Updates
 
@@ -109,6 +110,13 @@ BROUTER_SEGMENTS_BASE_URL=https://brouter.de/brouter/segments4
 
 The backend downloads tiles on first use for the requested bounding box.
 
+To test the BRouter REST endpoint, use a complete request. A bare `/brouter` request returns `400 Bad Request`, which is expected:
+
+```bash
+docker compose -f docker-compose.proxmox.yml exec backend \
+  wget -S -O- "http://brouter:17777/brouter?lonlats=13.4,52.5|13.45,52.52&profile=trekking&format=geojson"
+```
+
 **Option B — Pre-download** (faster cold start):
 
 ```bash
@@ -146,8 +154,9 @@ Back up `./data/routes` and the Keycloak DB volume to preserve user data.
 | `PORT` | `5050` | HTTP port |
 | `NODE_ENV` | `development` | `production` disables verbose errors |
 | `ROUTING_ENGINE` | `brouter` | `brouter` or `osrm` |
-| `BROUTER_API` | `http://localhost:17777/brouter` | BRouter base URL |
+| `BROUTER_API` | `http://localhost:17777/brouter` | BRouter base URL; Proxmox compose overrides this to `http://brouter:17777/brouter` |
 | `OSRM_API` | `http://router.project-osrm.org` | OSRM base URL |
+| `BROUTER_FALLBACK_TO_OSRM` | `false` in Proxmox | Allows OSRM fallback if BRouter is unavailable |
 | `BROUTER_AUTO_FETCH_SEGMENTS` | `false` | Auto-download missing tiles |
 | `BROUTER_SEGMENTS_DIR` | `../brouter-data/segments4` | Local tile storage |
 | `KEYCLOAK_ENABLED` | `false` | Enable Keycloak auth |
@@ -190,13 +199,16 @@ Back up `./data/routes` and the Keycloak DB volume to preserve user data.
 
 - [ ] `NODE_ENV=production` set
 - [ ] All secrets in `.env`, not committed to git
-- [ ] HTTPS enforced (Caddy handles this automatically)
+- [ ] HTTPS enforced at the edge proxy or by public-facing Caddy
+- [ ] Edge proxy forwards `X-Forwarded-Proto=https` and does not create redirect loops with Caddy
 - [ ] BRouter tiles downloaded for target region
 - [ ] Keycloak admin password changed from default
 - [ ] Keycloak DB password is strong and unique
 - [ ] `./data/routes` backed up regularly
 - [ ] `THUNDERFOREST_API_KEY` set (tiles are proxied and cached by backend, key stays server-side)
 - [ ] Health endpoint responds: `curl https://your-domain/api/health`
+- [ ] GPS works on iOS/Android after granting browser location permission
+- [ ] Keycloak client valid redirect URI matches `PUBLIC_BASE_URL/*`
 
 ---
 

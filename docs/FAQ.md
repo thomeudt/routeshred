@@ -14,6 +14,9 @@ OpenStreetMap for road network and terrain, Thunderforest OpenCycleMap for the d
 **Does it work offline?**
 No. Routing, elevation, weather, and address search all require network access. Map tiles are cached by the browser after first load.
 
+**Does RouteShred send data to third parties?**
+Core saved route data stays on your server. Some features call external APIs: Open-Meteo/Open-Elevation for elevation/weather, Nominatim/Overpass for search and terrain metadata, Thunderforest for map tiles when configured, and OpenAI only when AI Roundtrip is enabled with an API key.
+
 **How accurate are elevation profiles?**
 Open-Meteo provides good global coverage with ~10 m resolution. Open-Elevation is used as fallback. For very precise analysis, consider integrating a local SRTM/DEM dataset.
 
@@ -60,7 +63,7 @@ The response includes `routingEngine` and the BRouter availability status.
 1. Confirm the backend is running: `curl http://localhost:5050/api/health`
 2. Check browser console for the exact error message
 3. If using BRouter, confirm it's running: `curl http://localhost:17777/brouter/version`
-4. If both fail, the OSRM demo server fallback may be rate-limited — try again or set up local BRouter
+4. If OSRM fallback is enabled, the OSRM demo server may be rate-limited — try again or set up local BRouter
 
 **Weather alerts not appearing**
 Weather alerts require Open-Meteo to return a forecast for the route coordinates. Check that the backend can reach `api.open-meteo.com`. Alerts only appear when significant wind, rain, heat, or UV conditions are detected.
@@ -90,6 +93,9 @@ Selecting a persona sets both `rideType` and `preference` at once. The power zon
 **Can I import routes from other apps?**
 Yes. The import button accepts `.gpx` and `.fit` files. Export from Komoot, Strava, Garmin Connect, etc. as GPX and import here. Start, end, and intermediate waypoints are extracted automatically.
 
+**Can I use my current location as start or destination?**
+Yes. The GPS button next to Start, Destination, and each waypoint fills that specific field with the browser's current location. It requires `https://` or `localhost` and browser location permission. On iOS, allow Safari Websites under Settings → Privacy & Security → Location Services.
+
 **How do I send a route to my Wahoo ELEMNT?**
 
 On mobile: after calculating a route, open the Export section and tap **An Wahoo senden**. This uses the Web Share API to open your phone's native share sheet, where you select the Wahoo Companion App. The app receives the `.gpx` file and syncs it to the device.
@@ -99,11 +105,14 @@ On desktop: use **TCX exportieren** or **GPX exportieren** to download the file,
 **How do I save a route?**
 You need to be logged in (Keycloak). After calculating a route, type a name in the save bar at the top of the plan panel and click Save. Saved routes appear in the **Meine Routen** tab.
 
+**Can I filter my routes by region?**
+Yes. In Meine Routen, search by name or set a start region with the address/POI search and choose a radius. The list then shows routes whose start point lies inside that radius.
+
 **Can I share a route?**
 Yes. In Meine Routen, switch a route to **Public** or use per-user sharing. Public routes get a shareable link that works without login. Anyone with the link can load the route onto the map.
 
 **What are group rides?**
-Group rides are community events tied to a date, meeting point, and optionally a saved route. You create one in the Community tab. Other logged-in users can join, leave, and comment. Only the creator can edit or delete their rides.
+Group rides are community events tied to a date, meeting point, challenge style, optional Instagram link, and optionally a saved route. You create one in the Community tab. Other logged-in users can join, leave, and comment. Only the creator can edit or delete their rides.
 
 **Is there a map layer switcher?**
 Not as a UI control. The default tile layer is Thunderforest OpenCycleMap, proxied and cached by the backend. To change it, set `REACT_APP_TILE_URL` in `frontend/.env` to any `{z}/{x}/{y}` tile URL (e.g. OpenTopoMap). Without a `THUNDERFOREST_API_KEY` the backend falls back to plain OpenStreetMap tiles automatically.
@@ -136,8 +145,8 @@ Frontend: React 18, Zustand, Leaflet, Recharts, react-icons.
 Backend: Node.js, Express, BRouter, OSRM, Open-Meteo, Keycloak.
 Everything is plain JavaScript (no TypeScript).
 
-**MIT license — can I use this commercially?**
-Yes. Attribution appreciated but not required.
+**AGPL license — can I use this commercially?**
+Yes, but RouteShred is AGPL-3.0-only. If you modify it and run it as a network service, you must provide the corresponding source code under the same license.
 
 ---
 

@@ -7,7 +7,7 @@
 
 **Self-hosted, open-source route planner for cyclists who want control.**
 
-RouteShred gives you BRouter's bike-optimised profiles, AI-assisted roundtrip planning, terrain-aware surface breakdowns, weather alerts, power-zone previews, and one-tap device export — running entirely on your own server, with no subscription and no data sent to third parties.
+RouteShred gives you BRouter's bike-optimised profiles, optional AI-assisted roundtrip planning, terrain-aware surface breakdowns, weather alerts, power-zone previews, and one-tap device export — running on your own server, with no subscription. Core routing stays self-hosted; optional integrations such as OpenAI, Open-Meteo, Thunderforest, Nominatim, and Overpass are only used when configured or needed for their feature.
 
 > Works fully without login. Keycloak auth is optional and unlocks saved routes, group rides, and community features.
 
@@ -39,6 +39,7 @@ RouteShred is for clubs, coaches, and technically-minded riders who want those c
 - **Ride personas** — one-click presets for Coffee Ride, Bunch Ride, Endurance, and Gravel
 - **Bike profiles** — load BRouter custom `.brf` profiles or use built-in road/gravel/MTB defaults
 - **Route preferences** — Fastest, Scenic, Offroad
+- **Location shortcuts** — use address/POI search, map clicks, or the current GPS position for start, destination, and waypoints
 - **Waypoints** — add intermediate points, reorder, delete
 - **Return route** — calculate round-trip automatically
 - **GPX / FIT import** — load routes from Komoot, Strava, Garmin, etc.
@@ -57,9 +58,9 @@ RouteShred is for clubs, coaches, and technically-minded riders who want those c
 
 ### Social & Community *(requires Keycloak)*
 - **Saved routes** — save, rename, delete, load back onto map
-- **Sharing** — public links, per-user sharing, deep-link loading
-- **Group rides** — create group ride events, link a route, join/leave, comments
-- **Community feed** — browse public rides from all users
+- **Sharing** — public links, per-user sharing, deep-link loading, region/radius filtering
+- **Group rides** — create group ride events, link a route, join/leave, participants, comments, Instagram links
+- **Community feed** — browse public rides from all users with challenge-coded cards
 
 ### Auth & Profiles *(optional)*
 - **Keycloak OIDC** — optional; enables saved routes, profiles, and social features
@@ -110,7 +111,7 @@ ROUTESHRED_CACHE_DIR=./data/cache
 
 # Optional AI Roundtrip planner
 AI_ROUNDTRIP_ENABLED=false
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5-nano
 # OPENAI_API_KEY=sk-...
 ```
 
@@ -156,7 +157,7 @@ BROUTER_SEGMENTS_BASE_URL=https://brouter.de/brouter/segments4
 BROUTER_AUTO_FETCH_SEGMENTS=true
 ```
 
-If BRouter is unavailable, RouteShred falls back to OSRM automatically.
+If BRouter is unavailable, RouteShred can fall back to OSRM when `BROUTER_FALLBACK_TO_OSRM=true`. Production deployments should keep this explicit so accidental OSRM routing is easy to spot.
 
 ### Local Cache
 
@@ -242,9 +243,11 @@ The Caddy reverse proxy routes:
 - `/api/*` → backend (port 5050)
 - `/auth*` → Keycloak (port 8080)
 
+The production Caddyfile also sends `Permissions-Policy: geolocation=(self)` so browser GPS can be used for start, destination, waypoints, and live map tracking. If you put the stack behind Nginx Proxy Manager or another outer proxy, terminate HTTPS there and proxy to Caddy over HTTP without forcing a second HTTPS redirect.
+
 **Security notes for public deployments:**
 - Set strong Keycloak admin and DB passwords before first start
-- Run behind HTTPS — Caddy handles TLS automatically with a public hostname
+- Run behind HTTPS — in the Proxmox stack this is usually the outer proxy (for example Nginx Proxy Manager) forwarding to Caddy on port `8080`
 - The Thunderforest API key is kept server-side; it never reaches the browser
 - Rate limiting is applied to the `/api/docs/manual` and routing endpoints
 - Review `KEYCLOAK_ENABLED` — leave `false` if you only want a private planning tool with no user accounts
@@ -261,7 +264,7 @@ A product positioning guide for differentiation vs. Komoot is at [docs/POSITIONI
 
 1. Open `http://localhost:3000`
 2. Choose a ride persona (Coffee, Bunch, Endurance, Gravel) or configure manually
-3. Set start and end points — type an address or click the map
+3. Set start and end points — type an address, use GPS, or click the map
 4. Add waypoints as needed
 5. Click **Calculate**
 6. Inspect the elevation profile and weather alerts

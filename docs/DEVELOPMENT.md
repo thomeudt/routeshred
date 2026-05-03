@@ -34,9 +34,11 @@ backend/src/
 │   ├── savedRoutes.js       # CRUD /api/routes
 │   ├── groupRides.js        # CRUD /api/group-rides + join/leave/comments
 │   ├── users.js             # GET /api/users/search, /resolve
-│   └── tiles.js             # GET /api/tiles/:style/:z/:x/:y.png
+│   ├── tiles.js             # GET /api/tiles/:style/:z/:x/:y.png
+│   └── docs.js              # GET /api/docs/manual, screenshots
 └── services/
     ├── routingService.js    # BRouter / OSRM + terrain + weather
+    ├── openaiRoutePlannerService.js # Optional OpenAI-assisted loops
     ├── elevationService.js  # Open-Meteo / Open-Elevation + cache
     ├── exportService.js     # TCX + GPX template generation
     ├── geocodingService.js  # Nominatim + Overpass POI search
@@ -52,9 +54,9 @@ frontend/src/
 │   ├── MapComponent.js      # Leaflet map, markers, polyline, POI layer
 │   ├── RouteControls.js     # Full planning UI (personas, bike, export…)
 │   ├── ElevationProfile.js  # Recharts elevation chart
-│   ├── LocationInput.js     # Address/POI search input
-│   ├── SavedRoutesPanel.js  # Saved routes list
-│   ├── GroupRidesPanel.js   # Group rides feed
+│   ├── LocationInput.js     # Address/POI search + GPS shortcut
+│   ├── SavedRoutesPanel.js  # Saved routes list + search/radius filters
+│   ├── GroupRidesPanel.js   # Group rides feed, participants, comments
 │   ├── RouteDetail.js       # Deep-link route detail page
 │   └── RouteTypeStats.js    # Terrain surface breakdown chart
 ├── store/
@@ -146,7 +148,9 @@ function MyComponent() {
 Key store actions:
 - `setStartPoint(point, label)` / `setEndPoint(point, label)`
 - `insertWaypoint(point, label, index)`
+- `updateWaypoint(id, point, label)` / `moveWaypoint(fromIndex, toIndex)`
 - `calculateRoute()` — calls backend, updates `route`
+- `planAiRoundtrip(options, token)` — authenticated AI-assisted loop planning
 - `exportRoute(format)` — `'tcx'` or `'gpx'`, triggers download
 - `saveRoute(name)` / `loadSavedRoute(id, ownerSub)` / `deleteSavedRoute(id)`
 - `loadSavedRoutes()` — refreshes `savedRoutes` list
@@ -181,6 +185,12 @@ cd backend && npm test
 
 # Frontend (React Testing Library)
 cd frontend && npm test
+
+# Production-style build
+npm run build
+
+# Record/update the browser tutorial video
+ROUTESHRED_TUTORIAL_USER=... ROUTESHRED_TUTORIAL_PASSWORD=... npm run record:tutorial
 ```
 
 ## Debugging
@@ -230,6 +240,14 @@ The frontend proxies `/api` to `http://localhost:5050` via `"proxy"` in `fronten
 **Route geometry has no elevation (`coord[2]` is null)**
 
 The elevation enrichment runs after routing. Check `ROUTESHRED_CACHE_DIR` is writable and that Open-Meteo is reachable. Elevation fallback is Open-Elevation.
+
+**`/api/docs/manual` crashes with `ERR_REQUIRE_ESM`**
+
+Use the current `docs.js` implementation, which dynamically imports `marked`. If you update `marked`, keep the route CommonJS-compatible because the backend still runs as CommonJS on Node 18.
+
+**GPS works on desktop but not iOS Safari**
+
+Geolocation requires `https://` or `localhost`. In production, keep `Permissions-Policy: geolocation=(self)` on the app response and allow location for Safari Websites in iOS settings.
 
 ## Code Style
 

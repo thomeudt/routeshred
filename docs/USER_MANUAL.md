@@ -87,7 +87,9 @@ Enter an address, place name, or POI term (e.g. "café", "bike shop"). The sugge
 Click directly on the map. If no start is set yet, the first click becomes the start, the second the destination.
 
 **By GPS:**
-Click the GPS icon next to the start field to use your current location (requires location permission in the browser).
+Click the **GPS** button next to Start, Destination, or any waypoint to use your current position for that field. This does not interfere with the address/POI search; it simply fills that one field with "Current location".
+
+On iPhone/iPad, Safari must be allowed to use location services for the website. Check iOS Settings → Privacy & Security → Location Services → Safari Websites if the browser says GPS access is blocked.
 
 ### Step 2 — Choose a Ride Persona or Parameters
 
@@ -95,7 +97,7 @@ Select one of the four ride personas (Coffee, Bunch, Endurance, Gravel) or manua
 
 ### Step 3 — Calculate
 
-Click **Calculate**. RouteShred sends the request to BRouter, fetches the elevation profile from Open-Meteo, and calculates weather alerts. The route appears as a blue line on the map with the elevation profile below.
+Click **Calculate**. RouteShred sends the request to the configured routing engine, fetches the elevation profile from Open-Meteo, and calculates weather alerts. The route appears as a blue line on the map with analysis below.
 
 ![Calculated route on map](./screenshots/04-route-calculated.png)
 
@@ -209,7 +211,7 @@ You can import an existing route from Komoot, Strava, Garmin Connect, or any oth
 
 *Elevation profile with key metrics and chart.*
 
-After calculating a route, the elevation profile appears as an interactive chart below the map.
+After calculating a route, the elevation profile appears as an interactive chart in the Plan view. The Setup view focuses on rider and bike profile settings and does not show the elevation chart.
 
 ### Reading the Elevation Profile
 
@@ -307,7 +309,7 @@ The fastest way on mobile devices:
 
 ### My Routes
 
-The **My Routes** tab shows all your saved routes as well as routes others have shared with you.
+The **My Routes** tab shows all your saved routes as well as routes others have shared with you. You can search by route name and filter by a start region: enter a place/address, choose a radius, and only routes whose start point lies within that area are shown.
 
 **Load a route:** Click on a route in the list. It loads onto the map and can be edited or exported straight away.
 
@@ -347,7 +349,7 @@ The route stays under your control. The recipient can view and load it, but cann
 
 *Community tab with public group rides.*
 
-The **Community** tab shows all public group rides and the rides you are participating in.
+The **Community** tab shows all public group rides and the rides you are participating in. Past rides are hidden by default and can be shown explicitly. The cards use challenge-coded visuals, show participants, comments, linked routes, and optional Instagram links.
 
 ### Creating a Group Ride
 
@@ -358,6 +360,7 @@ The **Community** tab shows all public group rides and the rides you are partici
    - **Date & Time** — start time
    - **Meeting point** — address or description
    - **Route** (optional) — select one of your saved routes
+   - **Instagram link** (optional) — link a post/reel for extra context
    - **Visibility** — Public or Private
 3. Click **Create**
 
@@ -367,7 +370,7 @@ Click on a public group ride and then click **Join**. Your name appears in the p
 
 ### Commenting
 
-Each group ride has a comment section for organisational notes (max. 500 characters per comment). Only logged-in users can comment.
+Each group ride has a comment section for organisational notes (max. 500 characters per comment). Only logged-in users can comment. Participants are shown on the ride card so it is clear who has joined.
 
 ### Editing / Deleting a Group Ride
 
@@ -414,12 +417,12 @@ RouteShred uses Keycloak for authentication. Click **Login** in the top right.
 
 ### Creating a New Account
 
-Select **Register** on the Keycloak login page. You will need:
+If registration is enabled in Keycloak, select **Register** on the Keycloak login page. You will need:
 - Username
 - Email address
 - Password (min. 8 characters)
 
-After registration you are logged in immediately.
+After registration you are logged in immediately. On self-hosted private instances the administrator may disable public registration and create users manually.
 
 ### Staying Logged In
 
@@ -439,6 +442,12 @@ You can use RouteShred fully without an account: route planning, analysis, expor
 
 **Quick start by clicking the map:**
 Click directly on the map without typing any address. The first click sets the start, the second the destination.
+
+**Start from here:**
+Use the GPS button on Start, Destination, or any waypoint to fill that field with your current position. This works best on HTTPS and requires browser location permission.
+
+**Map fullscreen:**
+Use the fullscreen button on the map for route inspection on mobile. On iOS Safari, fullscreen is implemented as an in-app fullscreen mode because browser-native fullscreen support is limited.
 
 **Testing an alternative route:**
 After calculating, change the preference (e.g. from Scenic to Fastest) and click Calculate again — instant comparison.
@@ -484,6 +493,14 @@ The button is only visible on devices where the browser reports Web Share API su
 
 Not supported: desktop browsers, Firefox on iOS.
 
+### GPS Says Access Is Blocked
+
+1. Confirm the app is opened via `https://` or `localhost`. iOS Safari blocks website geolocation in insecure contexts.
+2. iOS: Settings → Privacy & Security → Location Services → Safari Websites → allow location while using Safari.
+3. In Safari's website settings for your RouteShred domain, set Location to Ask or Allow.
+4. If you previously tapped "Don't Allow", remove the website data for the domain and try again.
+5. Private browsing and installed home-screen web apps can behave differently; test once in a normal Safari tab.
+
 ### Map Shows Only OpenStreetMap, Not OpenCycleMap
 
 The backend tile proxy requires a Thunderforest API key. Check:
@@ -497,6 +514,7 @@ The backend tile proxy requires a Thunderforest API key. Check:
 2. Does `REACT_APP_KEYCLOAK_URL` in the frontend match the Keycloak address?
 3. Browser console → network errors on `/auth/realms/routeshred/...`?
 4. Cookie blockers or private browsing mode can block Keycloak redirects
+5. If redirects fail after changing the public hostname, log the user out of all Keycloak sessions or clear old browser sessions so stale redirect URIs are not reused
 
 ### Saved Route Is Gone
 
