@@ -88,6 +88,7 @@ export const useRouteStore = create((set, get) => ({
   savedRoutesError: null,
   activeSavedRouteId: null,
   activeSavedRouteOwner: null,
+  routeName: '',
   routeSaveState: 'idle',
   aiRoundtripLoading: false,
   aiRoundtripPhase: '',
@@ -98,6 +99,7 @@ export const useRouteStore = create((set, get) => ({
   error: null,
 
   // Actions
+  setRouteName: (name) => set({ routeName: name }),
   loadBikeProfiles: async (token = '') => {
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
@@ -219,6 +221,7 @@ export const useRouteStore = create((set, get) => ({
     includeReturnTrip: false,
     activeSavedRouteId: null,
     activeSavedRouteOwner: null,
+    routeName: '',
     loading: false,
     error: null
   }),
@@ -509,6 +512,7 @@ export const useRouteStore = create((set, get) => ({
         includeReturnTrip: Boolean(savedRoute.includeReturnTrip),
         route: savedRoute.route || null,
         returnRoute: savedRoute.returnRoute || null,
+        routeName: savedRoute.name || '',
         savedRoutesLoading: false,
         error: null
       });
@@ -550,6 +554,7 @@ export const useRouteStore = create((set, get) => ({
         includeReturnTrip: Boolean(savedRoute.includeReturnTrip),
         route: savedRoute.route || null,
         returnRoute: savedRoute.returnRoute || null,
+        routeName: savedRoute.name || '',
         savedRoutesLoading: false,
         error: null
       });

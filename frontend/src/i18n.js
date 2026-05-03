@@ -344,6 +344,7 @@ const translations = {
         }
       },
       setupSections: {
+        locations: 'Strecke',
         bike: 'Bike-Profil',
         bikeHint: 'Fahrrad-spezifisches Routingprofil auswählen oder eigene Profile verwalten.',
         user: 'Fahrerprofil',
@@ -363,6 +364,7 @@ const translations = {
         waypointDragAria: 'Wegpunkt ziehen',
         waypointDragTitle: 'Wegpunkt ziehen zum Umsortieren',
         waypointHint: 'Am Griff ziehen, dann in einer markierten Lücke ablegen.',
+        waypointsShort: 'WP',
         reverseRoute: 'Route umkehren',
         calculateReturnTrip: 'Rückfahrt berechnen',
         returnDistance: 'Rückfahrt Distanz',
@@ -793,6 +795,7 @@ const translations = {
         }
       },
       setupSections: {
+        locations: 'Route',
         bike: 'Bike profile',
         bikeHint: 'Choose bike-specific routing profile or manage custom profiles.',
         user: 'Rider profile',
@@ -812,6 +815,7 @@ const translations = {
         waypointDragAria: 'Drag waypoint',
         waypointDragTitle: 'Drag waypoint to reorder',
         waypointHint: 'Drag from the handle, then drop into a highlighted gap.',
+        waypointsShort: 'WP',
         reverseRoute: 'Reverse route',
         calculateReturnTrip: 'Calculate return trip',
         returnDistance: 'Return distance',

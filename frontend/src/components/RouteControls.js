@@ -280,7 +280,10 @@ function RouteControls({ socialSurfacesMoved = false }) {
   const [profileSaveState, setProfileSaveState] = useState('idle');
   const [gpxImportError, setGpxImportError] = useState('');
   const [gpxImportSuccess, setGpxImportSuccess] = useState('');
-  const [routeName, setRouteName] = useState('');
+  const [locationsOpen, setLocationsOpen] = useState(true);
+  const [trainingOpen, setTrainingOpen] = useState(true);
+  const [aiRoundtripOpen, setAiRoundtripOpen] = useState(false);
+  const prevRouteRef = useRef(null);
   const [roundtripTarget, setRoundtripTarget] = useState('');
   const [roundtripTime, setRoundtripTime] = useState(120);
   const [roundtripPersona, setRoundtripPersona] = useState('endurance');
@@ -295,6 +298,7 @@ function RouteControls({ socialSurfacesMoved = false }) {
     reverseRoute,
     calculateRoute, exportRoute, resetRoute, planAiRoundtrip,
     loadSavedRoutes, saveCurrentRoute, routeSaveState,
+    routeName, setRouteName,
     aiRoundtripLoading, aiRoundtripPhase, aiRoundtripError, aiRoundtripCandidates, aiRoundtripSelected,
     loading, route, returnRoute
   } = useRouteStore();
@@ -399,6 +403,15 @@ function RouteControls({ socialSurfacesMoved = false }) {
     window.dispatchEvent(new CustomEvent('routeshred:tab-changed', { detail: { tab: activeTab } }));
   }, [activeTab]);
 
+  useEffect(() => {
+    if (route && !prevRouteRef.current) setLocationsOpen(false);
+    prevRouteRef.current = route;
+  }, [route]);
+
+  useEffect(() => {
+    if (aiRoundtripLoading) setAiRoundtripOpen(true);
+  }, [aiRoundtripLoading]);
+
   const handleCalculate = () => { if (startPoint && endPoint) calculateRoute(); };
   const handlePlanRoundtrip = () => {
     planAiRoundtrip({
@@ -462,6 +475,8 @@ function RouteControls({ socialSurfacesMoved = false }) {
       }
 
       setGpxImportSuccess(t(isFit ? 'route.fitImport.success' : 'route.gpxImport.success', { count: waypointsFromGpx.length }));
+      const baseName = file.name.replace(/\.[^.]+$/, '');
+      if (baseName) setRouteName(baseName);
     } catch (error) {
       const message = String(error && error.message ? error.message : '');
       if (message.includes('at least start and end')) {
@@ -835,7 +850,20 @@ function RouteControls({ socialSurfacesMoved = false }) {
 
       {activeTab === 'plan' && (
         <>
-          <div className="control-group">
+          <details
+            className="panel-collapsible locations-collapsible"
+            open={locationsOpen}
+            onToggle={(e) => setLocationsOpen(e.currentTarget.open)}
+          >
+            <summary>
+              <span>{t('route.setupSections.locations')}</span>
+              <small>
+                {startLabel && endLabel
+                  ? `${startLabel.split(',')[0]} → ${endLabel.split(',')[0]}${waypoints.length ? ` · ${waypoints.length} ${t('route.controls.waypointsShort')}` : ''}`
+                  : t('route.hints.setPoints')}
+              </small>
+            </summary>
+          <div className="locations-collapsible-body">
             <div className="location-stack">
               <LocationInput
                 label={t('route.locations.start')}
@@ -847,11 +875,13 @@ function RouteControls({ socialSurfacesMoved = false }) {
               <button
                 className={`waypoint-insert${dragGapIndex === 0 ? ' is-drop-target' : ''}${isDraggingWaypoint ? ' is-drag-mode' : ''}`}
                 type="button"
+                title={getWaypointGapLabel(0)}
+                aria-label={getWaypointGapLabel(0)}
                 onClick={() => insertWaypoint(null, '', 0)}
                 onDragOver={(event) => handleWaypointGapDragOver(event, 0)}
                 onDrop={(event) => handleWaypointGapDrop(event, 0)}
               >
-                {isDraggingWaypoint ? <FiMenu /> : <FiPlus />} {getWaypointGapLabel(0)}
+                {isDraggingWaypoint ? <FiMenu /> : <FiPlus />}
               </button>
               {waypoints.map((waypoint, index) => (
                 <React.Fragment key={waypoint.id}>
@@ -906,11 +936,13 @@ function RouteControls({ socialSurfacesMoved = false }) {
                   <button
                     className={`waypoint-insert${dragGapIndex === index + 1 ? ' is-drop-target' : ''}${isDraggingWaypoint ? ' is-drag-mode' : ''}`}
                     type="button"
+                    title={getWaypointGapLabel(index + 1)}
+                    aria-label={getWaypointGapLabel(index + 1)}
                     onClick={() => insertWaypoint(null, '', index + 1)}
                     onDragOver={(event) => handleWaypointGapDragOver(event, index + 1)}
                     onDrop={(event) => handleWaypointGapDrop(event, index + 1)}
                   >
-                    {isDraggingWaypoint ? <FiMenu /> : <FiPlus />} {getWaypointGapLabel(index + 1)}
+                    {isDraggingWaypoint ? <FiMenu /> : <FiPlus />}
                   </button>
                 </React.Fragment>
               ))}
@@ -947,86 +979,178 @@ function RouteControls({ socialSurfacesMoved = false }) {
               </div>
             </div>
           </div>
+          </details>
 
-          <div className="plan-action-bar">
-            <div className="ai-roundtrip-panel">
-              <div className="ai-roundtrip-heading">
-                <div>
-                  <strong>{t('route.aiRoundtrip.title')}</strong>
-                  <span>{t('route.aiRoundtrip.hint')}</span>
+          <details
+            className="panel-collapsible training-collapsible"
+            open={trainingOpen}
+            onToggle={(e) => setTrainingOpen(e.currentTarget.open)}
+          >
+            <summary>
+              <span>{t('route.setupSections.training')}</span>
+              <small>
+                {activePersonaLabel
+                  ? `${activePersonaLabel} · ${t(`rideTypes.${rideType}.label`)} · ${t(`preferences.${preference}`)}`
+                  : `${t(`rideTypes.${rideType}.label`)} · ${t(`preferences.${preference}`)}`}
+              </small>
+            </summary>
+            <div className="training-collapsible-body">
+              <div className="control-group">
+                <label>{t('route.personas.title')}</label>
+                <div className="persona-buttons">
+                  {RIDE_PERSONAS.map((persona) => {
+                    const PersonaIcon = PERSONA_ICONS[persona.id] || FiCompass;
+                    return (
+                      <button
+                        key={persona.id}
+                        type="button"
+                        className={`persona-btn persona-${persona.id}${activePersonaId === persona.id ? ' active' : ''}`}
+                        onClick={() => { setRideType(persona.rideType); setPreference(persona.preference); }}
+                        title={t(`route.personas.${persona.id}.sub`)}
+                      >
+                        <PersonaIcon className="persona-icon" size={16} />
+                        <span className="persona-label">{t(`route.personas.${persona.id}.label`)}</span>
+                        <span className="persona-visual" aria-hidden="true">
+                          <span /><span /><span />
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <FiCompass />
               </div>
-              <div className="ai-roundtrip-fields">
-                <label>
-                  <span>{t('route.aiRoundtrip.target')}</span>
-                  <input
-                    type="text"
-                    value={roundtripTarget}
-                    onChange={(event) => setRoundtripTarget(event.target.value)}
-                    placeholder={t('route.aiRoundtrip.targetPlaceholder')}
-                    maxLength="160"
-                  />
-                </label>
-                <label>
-                  <span>{t('route.aiRoundtrip.timeBudget')}</span>
-                  <input
-                    type="number"
-                    min="30"
-                    max="600"
-                    step="15"
-                    value={roundtripTime}
-                    onChange={(event) => setRoundtripTime(Number(event.target.value) || 120)}
-                  />
-                </label>
-                <label>
-                  <span>{t('route.aiRoundtrip.persona')}</span>
-                  <select
-                    value={roundtripPersona}
-                    onChange={(event) => setRoundtripPersona(event.target.value)}
-                  >
-                    {RIDE_PERSONAS.map((persona) => (
-                      <option key={persona.id} value={persona.id}>
-                        {t(`route.personas.${persona.id}.label`)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+
+              <div className="control-group">
+                <label>{t('route.rideType')}</label>
+                <div className="ride-type-buttons">
+                  {RIDE_TYPES.map(({ id }) => {
+                    const RideTypeIcon = RIDE_TYPE_ICONS[id] || FiZap;
+                    return (
+                      <button
+                        key={id}
+                        className={`ride-type-btn${rideType === id ? ' active' : ''}`}
+                        onClick={() => setRideType(id)}
+                        title={t(`rideTypes.${id}.subtitle`)}
+                      >
+                        <RideTypeIcon className="rt-icon" size={14} />
+                        <span className="rt-label">{t(`rideTypes.${id}.label`)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <button
-                className="btn-secondary ai-roundtrip-action"
-                type="button"
-                onClick={handlePlanRoundtrip}
-                disabled={!startPoint || !roundtripTarget.trim() || loading || aiRoundtripLoading}
-              >
-                <FiZap />
-                {aiRoundtripLoading ? t('route.aiRoundtrip.planning') : t('route.aiRoundtrip.action')}
-              </button>
-              {aiRoundtripLoading && (
-                <div className="ai-roundtrip-progress">
-                  <span className="ai-roundtrip-spinner" />
-                  <span>{aiRoundtripStatus}</span>
-                </div>
-              )}
-              {aiRoundtripSelected && (
-                <div className="ai-roundtrip-result">
-                  <strong>{aiRoundtripSelected.title}</strong>
-                  <span>{aiRoundtripSelected.description}</span>
-                </div>
-              )}
-              {aiRoundtripCandidates.length > 1 && (
-                <div className="ai-roundtrip-candidates">
-                  {aiRoundtripCandidates.slice(0, 3).map((candidate) => (
-                    <span key={candidate.id || candidate.title}>
-                      {candidate.title}
-                      {candidate.distance ? ` · ${Math.round(candidate.distance / 1000)} km` : ''}
-                    </span>
+
+              <div className="control-group">
+                <label>{t('route.style')}</label>
+                <div className="preference-buttons">
+                  {['fastest', 'scenic', 'offroad'].map((id) => (
+                    <button
+                      key={id}
+                      className={preference === id ? 'active' : ''}
+                      onClick={() => setPreference(id)}
+                    >
+                      {t(`preferences.${id}`)}
+                    </button>
                   ))}
                 </div>
-              )}
-              {aiRoundtripError && <small className="ai-roundtrip-error">{aiRoundtripError}</small>}
-            </div>
+              </div>
 
+              {rideType && riderProfile.ftp && (
+                <PowerZonePreview rideType={rideType} ftp={riderProfile.ftp} />
+              )}
+            </div>
+          </details>
+
+          <details
+            className="panel-collapsible ai-roundtrip-collapsible"
+            open={aiRoundtripOpen}
+            onToggle={(e) => setAiRoundtripOpen(e.currentTarget.open)}
+          >
+              <summary>
+                <span className="ai-roundtrip-summary-title">
+                  <FiCompass size={13} />
+                  {t('route.aiRoundtrip.title')}
+                </span>
+                <small>
+                  {aiRoundtripLoading
+                    ? t('route.aiRoundtrip.planning')
+                    : aiRoundtripSelected
+                      ? aiRoundtripSelected.title
+                      : t('route.aiRoundtrip.hint')}
+                </small>
+              </summary>
+              <div className="ai-roundtrip-body">
+                <div className="ai-roundtrip-fields">
+                  <label>
+                    <span>{t('route.aiRoundtrip.target')}</span>
+                    <input
+                      type="text"
+                      value={roundtripTarget}
+                      onChange={(event) => setRoundtripTarget(event.target.value)}
+                      placeholder={t('route.aiRoundtrip.targetPlaceholder')}
+                      maxLength="160"
+                    />
+                  </label>
+                  <label>
+                    <span>{t('route.aiRoundtrip.timeBudget')}</span>
+                    <input
+                      type="number"
+                      min="30"
+                      max="600"
+                      step="15"
+                      value={roundtripTime}
+                      onChange={(event) => setRoundtripTime(Number(event.target.value) || 120)}
+                    />
+                  </label>
+                  <label>
+                    <span>{t('route.aiRoundtrip.persona')}</span>
+                    <select
+                      value={roundtripPersona}
+                      onChange={(event) => setRoundtripPersona(event.target.value)}
+                    >
+                      {RIDE_PERSONAS.map((persona) => (
+                        <option key={persona.id} value={persona.id}>
+                          {t(`route.personas.${persona.id}.label`)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <button
+                  className="btn-secondary ai-roundtrip-action"
+                  type="button"
+                  onClick={handlePlanRoundtrip}
+                  disabled={!startPoint || !roundtripTarget.trim() || loading || aiRoundtripLoading}
+                >
+                  <FiZap />
+                  {aiRoundtripLoading ? t('route.aiRoundtrip.planning') : t('route.aiRoundtrip.action')}
+                </button>
+                {aiRoundtripLoading && (
+                  <div className="ai-roundtrip-progress">
+                    <span className="ai-roundtrip-spinner" />
+                    <span>{aiRoundtripStatus}</span>
+                  </div>
+                )}
+                {aiRoundtripSelected && (
+                  <div className="ai-roundtrip-result">
+                    <strong>{aiRoundtripSelected.title}</strong>
+                    <span>{aiRoundtripSelected.description}</span>
+                  </div>
+                )}
+                {aiRoundtripCandidates.length > 1 && (
+                  <div className="ai-roundtrip-candidates">
+                    {aiRoundtripCandidates.slice(0, 3).map((candidate) => (
+                      <span key={candidate.id || candidate.title}>
+                        {candidate.title}
+                        {candidate.distance ? ` · ${Math.round(candidate.distance / 1000)} km` : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {aiRoundtripError && <small className="ai-roundtrip-error">{aiRoundtripError}</small>}
+              </div>
+            </details>
+
+          <div className="plan-action-bar">
             <input
               ref={gpxInputRef}
               className="gpx-file-input"
@@ -1036,29 +1160,31 @@ function RouteControls({ socialSurfacesMoved = false }) {
             />
             <div className="plan-primary-actions">
               <button
-                className="btn-secondary"
-                onClick={handleOpenGpxPicker}
-                disabled={loading}
-                type="button"
-              >
-                <FiUpload /> {t('route.importRouteFile')}
-              </button>
-              <button
                 className={`btn-primary${startPoint && endPoint && !route && !loading ? ' calculate-ready' : ''}`}
                 onClick={handleCalculate}
                 disabled={!startPoint || !endPoint || loading}
               >
                 <FiNavigation /> {t('route.calculate')}
               </button>
-              {(startPoint || endPoint || route) && (
+              <div className="plan-secondary-actions">
                 <button
-                  className="btn-secondary btn-danger"
-                  onClick={handleResetRoute}
+                  className="btn-secondary"
+                  onClick={handleOpenGpxPicker}
                   disabled={loading}
+                  type="button"
                 >
-                  <FiTrash2 /> {t('route.delete')}
+                  <FiUpload /> {t('route.importRouteFile')}
                 </button>
-              )}
+                {(startPoint || endPoint || route) && (
+                  <button
+                    className="btn-secondary btn-danger"
+                    onClick={handleResetRoute}
+                    disabled={loading}
+                  >
+                    <FiTrash2 /> {t('route.delete')}
+                  </button>
+                )}
+              </div>
             </div>
 
             {route && authEnabled && authenticated && (
@@ -1478,74 +1604,6 @@ function RouteControls({ socialSurfacesMoved = false }) {
             </div>
           </section>
 
-          <section className="setup-section">
-            <h3 className="setup-section-title">{t('route.setupSections.training')}</h3>
-
-            <div className="control-group">
-              <label>{t('route.personas.title')}</label>
-              <div className="persona-buttons">
-                {RIDE_PERSONAS.map((persona) => {
-                  const PersonaIcon = PERSONA_ICONS[persona.id] || FiCompass;
-                  return (
-                  <button
-                    key={persona.id}
-                    type="button"
-                    className={`persona-btn persona-${persona.id}${activePersonaId === persona.id ? ' active' : ''}`}
-                    onClick={() => { setRideType(persona.rideType); setPreference(persona.preference); }}
-                    title={t(`route.personas.${persona.id}.sub`)}
-                  >
-                    <PersonaIcon className="persona-icon" size={16} />
-                    <span className="persona-label">{t(`route.personas.${persona.id}.label`)}</span>
-                    <span className="persona-visual" aria-hidden="true">
-                      <span />
-                      <span />
-                      <span />
-                    </span>
-                  </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="control-group">
-              <label>{t('route.rideType')}</label>
-              <div className="ride-type-buttons">
-                {RIDE_TYPES.map(({ id }) => {
-                  const RideTypeIcon = RIDE_TYPE_ICONS[id] || FiZap;
-                  return (
-                  <button
-                    key={id}
-                    className={`ride-type-btn${rideType === id ? ' active' : ''}`}
-                    onClick={() => setRideType(id)}
-                    title={t(`rideTypes.${id}.subtitle`)}
-                  >
-                    <RideTypeIcon className="rt-icon" size={14} />
-                    <span className="rt-label">{t(`rideTypes.${id}.label`)}</span>
-                  </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="control-group">
-              <label>{t('route.style')}</label>
-              <div className="preference-buttons">
-                {['fastest', 'scenic', 'offroad'].map((id) => (
-                  <button
-                    key={id}
-                    className={preference === id ? 'active' : ''}
-                    onClick={() => setPreference(id)}
-                  >
-                    {t(`preferences.${id}`)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {rideType && riderProfile.ftp && !route && (
-              <PowerZonePreview rideType={rideType} ftp={riderProfile.ftp} />
-            )}
-          </section>
         </>
       )}
     </div>

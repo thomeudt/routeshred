@@ -123,10 +123,24 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .panel-collapsible[open] summary {
   border-bottom: 1px solid var(--border);
+}
+
+.locations-collapsible-body {
+  padding: 10px 12px 12px;
+}
+
+.training-collapsible-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .setup-section {
@@ -1636,7 +1650,7 @@
 .location-stack {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .location-input {
@@ -1813,38 +1827,75 @@
 
 .waypoint-insert {
   width: 100%;
-  display: inline-flex;
+  position: relative;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  border: 1px dashed var(--border);
-  background: var(--surface-subtle);
-  color: var(--text-secondary);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 7px 8px;
+  border: none;
+  background: transparent;
   cursor: pointer;
-  min-height: 30px;
+  padding: 3px 0;
+  color: var(--border);
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.waypoint-insert::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--border);
+  transition: background 0.15s;
+}
+
+.waypoint-insert svg {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  padding: 1px;
+  width: 13px;
+  height: 13px;
 }
 
 .waypoint-insert:hover {
-  border-color: var(--primary);
   color: var(--primary);
+}
+
+.waypoint-insert:hover::before {
+  background: var(--primary);
 }
 
 .waypoint-insert.is-drag-mode {
-  border-style: solid;
-  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
-  background: color-mix(in srgb, var(--primary) 6%, var(--surface-subtle));
+  color: var(--border);
+}
+
+.waypoint-insert.is-drag-mode::before {
+  background: var(--border);
+  height: 1px;
 }
 
 .waypoint-insert.is-drop-target {
-  border-color: var(--primary);
   color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 16%, var(--surface-subtle));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 45%, transparent);
+  padding: 6px 0;
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+}
+
+.waypoint-insert.is-drop-target::before {
+  background: var(--primary);
+  height: 3px;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--primary) 50%, transparent);
+}
+
+.waypoint-insert.is-drop-target svg {
+  width: 16px;
+  height: 16px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  padding: 2px;
 }
 
 .waypoint-hint {
@@ -2197,22 +2248,32 @@
   gap: 8px;
 }
 
-.ai-roundtrip-panel {
+.ai-roundtrip-collapsible {
+  border-color: color-mix(in srgb, var(--border) 70%, var(--primary));
+}
+
+.ai-roundtrip-collapsible summary {
+  background: color-mix(in srgb, var(--surface-subtle) 60%, color-mix(in srgb, var(--primary) 6%, white));
+}
+
+.ai-roundtrip-summary-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  color: var(--primary) !important;
+}
+
+.ai-roundtrip-body {
   display: grid;
   gap: 10px;
-  border: 1px solid color-mix(in srgb, var(--border) 82%, var(--primary));
-  background: color-mix(in srgb, var(--surface-subtle) 88%, white);
   padding: 12px;
+  background: color-mix(in srgb, var(--surface-subtle) 88%, white);
 }
 
-.ai-roundtrip-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.ai-roundtrip-heading strong,
 .ai-roundtrip-result strong {
   display: block;
   color: var(--text-primary);
@@ -2222,19 +2283,12 @@
   text-transform: uppercase;
 }
 
-.ai-roundtrip-heading span,
 .ai-roundtrip-result span {
   display: block;
   margin-top: 3px;
   color: var(--text-secondary);
   font-size: 11px;
   line-height: 1.35;
-}
-
-.ai-roundtrip-heading svg {
-  color: var(--primary);
-  flex: 0 0 auto;
-  margin-top: 2px;
 }
 
 .ai-roundtrip-fields {
@@ -2323,13 +2377,19 @@
 }
 
 .plan-primary-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
-.plan-primary-actions .btn-danger {
-  grid-column: 1 / -1;
+.plan-secondary-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.plan-secondary-actions .btn-secondary {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .gpx-file-input {
@@ -2654,16 +2714,31 @@
     gap: 8px;
   }
 
+  /* keep 3-across on mobile — labels are short */
   .preference-buttons {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
   }
 
+  /* keep 2×2 on mobile — 4 personas, 2 columns is compact and readable */
   .persona-buttons {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 
   .training-control-toggle {
     grid-template-columns: 1fr;
+  }
+
+  /* ensure comfortable touch targets in the training collapsible */
+  .training-collapsible-body .persona-btn {
+    min-height: 48px;
+  }
+
+  .training-collapsible-body .ride-type-btn {
+    padding: 12px 4px;
+  }
+
+  .training-collapsible-body .preference-buttons button {
+    min-height: 44px;
   }
 
   .rider-profile-inputs {
