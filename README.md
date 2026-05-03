@@ -168,10 +168,21 @@ The Keycloak realm is imported automatically from `docs/keycloak/routeshred-real
 
 ### Custom Map Tiles
 
+RouteShred proxies Thunderforest OpenCycleMap tiles through the backend — the API key never reaches the browser, and tiles are cached server-side for 90 days.
+
+Backend (`.env`):
 ```env
-REACT_APP_TILE_URL=https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=YOUR_KEY
-REACT_APP_TILE_ATTRIBUTION=OpenStreetMap contributors
+THUNDERFOREST_API_KEY=your-key-here
+TILE_CACHE_TTL_MS=7776000000   # 90 days (default)
 ```
+
+Frontend (`frontend/.env`):
+```env
+REACT_APP_TILE_URL=/api/tiles/cycle/{z}/{x}/{y}.png
+REACT_APP_TILE_ATTRIBUTION=© OpenCycleMap contributors
+```
+
+The default `REACT_APP_TILE_URL` is already set to `/api/tiles/cycle/{z}/{x}/{y}.png`. Without a `THUNDERFOREST_API_KEY` the backend returns 503 and the frontend falls back to plain OpenStreetMap tiles automatically.
 
 Get a free Thunderforest key at https://www.thunderforest.com
 
@@ -197,6 +208,10 @@ The Caddy reverse proxy routes:
 - `/auth*` → Keycloak (port 8080)
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full production guide.
+
+## User Manual
+
+A full end-user guide covering route planning, personas, export, Wahoo transfer, saved routes, group rides, and profile setup is at [docs/USER_MANUAL.md](docs/USER_MANUAL.md).
 
 ## How to Use
 
@@ -250,7 +265,11 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full production guide.
 - `GET /api/geocode/search` — address / POI search
 
 ### Users
-- `GET /api/users` — user lookup (auth)
+- `GET /api/users/search?q=<query>` — search users by name/email (auth)
+- `GET /api/users/resolve?ids=<sub1,sub2>` — resolve user display names (auth)
+
+### Tiles
+- `GET /api/tiles/:style/:z/:x/:y.png` — proxied + cached Thunderforest tiles
 
 ## Project Structure
 

@@ -106,7 +106,7 @@ Yes. In Meine Routen, switch a route to **Public** or use per-user sharing. Publ
 Group rides are community events tied to a date, meeting point, and optionally a saved route. You create one in the Community tab. Other logged-in users can join, leave, and comment. Only the creator can edit or delete their rides.
 
 **Is there a map layer switcher?**
-Not as a UI control — tile layers are configured via `REACT_APP_TILE_URL`. The default is OpenStreetMap; you can switch to Thunderforest OpenCycleMap, OpenTopoMap, or any other tile provider that supports the `{z}/{x}/{y}` URL format.
+Not as a UI control. The default tile layer is Thunderforest OpenCycleMap, proxied and cached by the backend. To change it, set `REACT_APP_TILE_URL` in `frontend/.env` to any `{z}/{x}/{y}` tile URL (e.g. OpenTopoMap). Without a `THUNDERFOREST_API_KEY` the backend falls back to plain OpenStreetMap tiles automatically.
 
 ---
 

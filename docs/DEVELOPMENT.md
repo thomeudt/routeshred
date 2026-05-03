@@ -33,7 +33,8 @@ backend/src/
 │   ├── profile.js           # GET/PUT /api/profile
 │   ├── savedRoutes.js       # CRUD /api/routes
 │   ├── groupRides.js        # CRUD /api/group-rides + join/leave/comments
-│   └── users.js             # GET /api/users
+│   ├── users.js             # GET /api/users/search, /resolve
+│   └── tiles.js             # GET /api/tiles/:style/:z/:x/:y.png
 └── services/
     ├── routingService.js    # BRouter / OSRM + terrain + weather
     ├── elevationService.js  # Open-Meteo / Open-Elevation + cache
@@ -42,7 +43,8 @@ backend/src/
     ├── keycloakService.js   # Token validation, requireAuth middleware
     ├── profileService.js    # Rider profile persistence (JSON files)
     ├── savedRouteService.js # Route persistence (JSON files)
-    └── groupRideService.js  # Group ride persistence + sanitization
+    ├── groupRideService.js  # Group ride persistence + sanitization
+    └── tileService.js       # Thunderforest tile proxy + disk cache
 
 frontend/src/
 ├── components/

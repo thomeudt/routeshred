@@ -15,7 +15,7 @@
 │                  Node.js / Express Backend (:5050)               │
 │  /api/routing      /api/elevation   /api/export                  │
 │  /api/geocode      /api/auth        /api/profile                 │
-│  /api/routes       /api/group-rides /api/users                   │
+│  /api/routes       /api/group-rides /api/users  /api/tiles       │
 └──┬──────────┬───────────┬──────────────┬────────────────────────┘
    │          │           │              │
 ┌──▼───┐  ┌──▼──────┐ ┌──▼──────┐  ┌──▼─────────────────────────┐
@@ -106,7 +106,8 @@ Four personas act as quick-select presets. Selecting one sets `rideType` and `pr
 | `profile.js` | `/api/profile` | `profileService.js` |
 | `savedRoutes.js` | `/api/routes` | `savedRouteService.js` |
 | `groupRides.js` | `/api/group-rides` | `groupRideService.js` |
-| `users.js` | `/api/users` | `keycloakService.js` |
+| `users.js` | `/api/users` | `keycloakService.js` + `profileService.js` |
+| `tiles.js` | `/api/tiles` | `tileService.js` |
 
 ### Routing Service (`routingService.js`)
 
@@ -148,6 +149,16 @@ Both use `downsample()` for large coordinate arrays and `escapeXml()` for safe n
 ### Saved Route Service (`savedRouteService.js`)
 
 Routes stored as JSON files in `ROUTESHRED_ROUTES_DIR`. Each file: `{id, ownerSub, name, visibility, sharedWith[], route, createdAt}`. Visibility: `private` | `public` | `shared`.
+
+### Tile Service (`tileService.js`)
+
+Proxies Thunderforest map tiles to the browser. The API key never leaves the server.
+
+- Validates style against a fixed whitelist (`cycle`, `landscape`, `outdoors`, `transport`, …)
+- Checks disk cache first (`ROUTESHRED_CACHE_DIR/tiles/{style}/{z}/{x}/{y}.png`), TTL configurable via `TILE_CACHE_TTL_MS` (default 90 days)
+- On cache miss: fetches from `tile.thunderforest.com` with the server-side API key, writes to cache asynchronously
+- Returns 503 if `THUNDERFOREST_API_KEY` is not set (frontend falls back to plain OSM tiles)
+- Rate-limited at 300 req/min per IP via `tileLimiter`
 
 ### Group Ride Service (`groupRideService.js`)
 
@@ -222,6 +233,6 @@ Auth is entirely optional. Without `KEYCLOAK_ENABLED=true` the app runs in anony
 | Open-Elevation | Elevation fallback | None |
 | Nominatim | Address search | None (rate limit: 1 req/s) |
 | Overpass | POI + terrain data | None |
-| Thunderforest | Map tiles | API key (`REACT_APP_TILE_URL`) |
+| Thunderforest | Map tiles (proxied via `/api/tiles`, key stays server-side) | `THUNDERFOREST_API_KEY` |
 | BRouter | Routing | None (self-hosted) |
 | OSRM | Routing fallback | None |
