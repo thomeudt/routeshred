@@ -25,18 +25,32 @@
 
 .map-wrapper.is-fullscreen {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: 1300;
   border: 0;
   border-radius: 0;
+  margin: 0;
 }
 
 .map-wrapper.is-fullscreen .leaflet-container {
-  height: 100dvh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: -webkit-fill-available;
 }
 
+html.map-pseudo-fullscreen,
 body.map-pseudo-fullscreen {
+  height: 100%;
+  overflow: hidden;
+}
+
+body.map-pseudo-fullscreen #root {
+  height: 100%;
   overflow: hidden;
 }
 

@@ -386,8 +386,10 @@ function MapComponent({ isMapVisible = true }) {
 
   useEffect(() => {
     if (isPseudoFullscreen) {
+      document.documentElement.classList.add('map-pseudo-fullscreen');
       document.body.classList.add('map-pseudo-fullscreen');
     } else {
+      document.documentElement.classList.remove('map-pseudo-fullscreen');
       document.body.classList.remove('map-pseudo-fullscreen');
     }
 
@@ -396,7 +398,10 @@ function MapComponent({ isMapVisible = true }) {
       setTimeout(() => map.invalidateSize(), 0);
     }
 
-    return () => document.body.classList.remove('map-pseudo-fullscreen');
+    return () => {
+      document.documentElement.classList.remove('map-pseudo-fullscreen');
+      document.body.classList.remove('map-pseudo-fullscreen');
+    };
   }, [isPseudoFullscreen]);
 
   const showSnapFeedback = (point) => {
