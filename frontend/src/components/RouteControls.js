@@ -160,26 +160,42 @@ function getWeatherAgeLabel(weatherAlerts) {
 }
 
 function parseGpxCoordinates(gpxContent) {
-  if (typeof DOMParser === 'undefined') {
-    throw new Error('GPX parsing is not available in this environment');
-  }
-
-  const xml = new DOMParser().parseFromString(String(gpxContent || ''), 'application/xml');
-  if (xml.querySelector('parsererror')) {
+  const xmlText = String(gpxContent || '').trim();
+  if (!xmlText || !xmlText.includes('<')) {
     throw new Error('Invalid GPX XML');
   }
 
-  const trkptNodes = Array.from(xml.getElementsByTagName('trkpt'));
-  const rteptNodes = Array.from(xml.getElementsByTagName('rtept'));
-  const nodes = trkptNodes.length >= 2 ? trkptNodes : rteptNodes;
+  const extractPoints = (tagName) => {
+    const points = [];
+    const tagRegex = new RegExp(`<${tagName}\\b([^>]*)\\/?\\s*>`, 'gi');
+    let match;
 
-  const coordinates = nodes
-    .map((node) => {
-      const lat = Number(node.getAttribute('lat'));
-      const lon = Number(node.getAttribute('lon'));
-      return Number.isFinite(lat) && Number.isFinite(lon) ? [lat, lon] : null;
-    })
-    .filter(Boolean);
+    while ((match = tagRegex.exec(xmlText)) !== null) {
+      const attrs = String(match[1] || '');
+      const latMatch = attrs.match(/\blat\s*=\s*(['"])([^'"]+)\1/i);
+      const lonMatch = attrs.match(/\blon\s*=\s*(['"])([^'"]+)\1/i);
+      if (!latMatch || !lonMatch) {
+        continue;
+      }
+
+      const lat = Number(latMatch[2]);
+      const lon = Number(lonMatch[2]);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        continue;
+      }
+      if (Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+        continue;
+      }
+
+      points.push([lat, lon]);
+    }
+
+    return points;
+  };
+
+  const trkptCoordinates = extractPoints('trkpt');
+  const rteptCoordinates = extractPoints('rtept');
+  const coordinates = trkptCoordinates.length >= 2 ? trkptCoordinates : rteptCoordinates;
 
   if (coordinates.length < 2) {
     throw new Error('GPX needs at least start and end coordinates');

@@ -23,7 +23,13 @@ router.get('/:style/:z/:x/:y.png', async (req, res) => {
     if (err.message.includes('not configured')) {
       return res.status(503).end();
     }
-    console.error(`Tile proxy error ${style}/${z}/${x}/${y}:`, err.message);
+    console.error('Tile proxy error', {
+      style,
+      z,
+      x,
+      y,
+      message: err.message
+    });
     res.status(502).end();
   }
 });

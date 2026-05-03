@@ -441,22 +441,105 @@ function parseTimeBudgetMinutes(value) {
 
   const text = String(value || '').toLowerCase().trim();
   if (!text) return 120;
-  const hourMatch = text.match(/(\d+(?:[.,]\d+)?)\s*(h|std|stunde|stunden|hour|hours)/);
-  const minuteMatch = text.match(/(\d+)\s*(m|min|minute|minutes)/);
-  const colonMatch = text.match(/^(\d{1,2}):(\d{2})$/);
 
-  if (colonMatch) {
-    return Number(colonMatch[1]) * 60 + Number(colonMatch[2]);
+  const hhmm = parseClockMinutes(text);
+  if (hhmm !== null) {
+    return hhmm;
   }
 
-  const hours = hourMatch ? Number(hourMatch[1].replace(',', '.')) : 0;
-  const minutes = minuteMatch ? Number(minuteMatch[1]) : 0;
-  if (hours || minutes) {
-    return hours * 60 + minutes;
+  const unitMinutes = parseUnitMinutes(text);
+  if (unitMinutes !== null) {
+    return unitMinutes;
   }
 
   const numeric = Number(text.replace(',', '.'));
   return Number.isFinite(numeric) ? numeric : 120;
+}
+
+function parseClockMinutes(text) {
+  const parts = String(text || '').split(':');
+  if (parts.length !== 2) {
+    return null;
+  }
+
+  const hours = parts[0].trim();
+  const minutes = parts[1].trim();
+  if (!/^\d{1,2}$/.test(hours) || !/^\d{2}$/.test(minutes)) {
+    return null;
+  }
+
+  return Number(hours) * 60 + Number(minutes);
+}
+
+function parseUnitMinutes(text) {
+  const source = String(text || '');
+  const hourPrefixes = ['h', 'std', 'stunde', 'stunden', 'hour', 'hours'];
+  const minutePrefixes = ['m', 'min', 'minute', 'minutes'];
+
+  let totalMinutes = 0;
+  let foundUnit = false;
+  let i = 0;
+
+  while (i < source.length) {
+    // Seek to next numeric token.
+    while (i < source.length && !isDigit(source[i])) {
+      i += 1;
+    }
+    if (i >= source.length) {
+      break;
+    }
+
+    let numberToken = '';
+    let seenSeparator = false;
+    while (i < source.length) {
+      const ch = source[i];
+      if (isDigit(ch)) {
+        numberToken += ch;
+        i += 1;
+        continue;
+      }
+      if ((ch === '.' || ch === ',') && !seenSeparator) {
+        seenSeparator = true;
+        numberToken += ch;
+        i += 1;
+        continue;
+      }
+      break;
+    }
+
+    while (i < source.length && source[i] === ' ') {
+      i += 1;
+    }
+
+    let unitToken = '';
+    while (i < source.length && isAsciiLetter(source[i])) {
+      unitToken += source[i];
+      i += 1;
+    }
+
+    const numeric = Number(numberToken.replace(',', '.'));
+    if (!Number.isFinite(numeric)) {
+      continue;
+    }
+
+    if (hourPrefixes.some((prefix) => unitToken.startsWith(prefix))) {
+      totalMinutes += numeric * 60;
+      foundUnit = true;
+    } else if (minutePrefixes.some((prefix) => unitToken.startsWith(prefix))) {
+      totalMinutes += numeric;
+      foundUnit = true;
+    }
+  }
+
+  return foundUnit ? totalMinutes : null;
+}
+
+function isDigit(ch) {
+  return ch >= '0' && ch <= '9';
+}
+
+function isAsciiLetter(ch) {
+  return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
 }
 
 function normalizePersona(value) {

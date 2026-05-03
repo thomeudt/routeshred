@@ -340,9 +340,15 @@ function buildFfmpegMuxArgs(audioFile) {
 }
 
 function getSuggestedFfmpegCommand(audioFile) {
-  return `ffmpeg ${buildFfmpegMuxArgs(audioFile).map((arg) => (
-    /[\s"]/u.test(arg) ? `"${arg.replace(/"/gu, '\\"')}"` : arg
-  )).join(' ')}`;
+  const quoteForShell = (value) => {
+    const arg = String(value);
+    // POSIX-safe quoting: wrap in single quotes and escape embedded single quotes.
+    return `'${arg.replace(/'/g, `'"'"'`)}'`;
+  };
+
+  return `ffmpeg ${buildFfmpegMuxArgs(audioFile)
+    .map((arg) => quoteForShell(arg))
+    .join(' ')}`;
 }
 
 function muxVideoAndAudio(audioFile) {

@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const fs = require('fs/promises');
 const path = require('path');
 const { marked } = require('marked');
@@ -7,6 +8,14 @@ const router = express.Router();
 
 const MANUAL_PATH = path.resolve(__dirname, '../../../docs/USER_MANUAL.md');
 const SCREENSHOTS_DIR = path.resolve(__dirname, '../../../docs/screenshots');
+
+const manualLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' }
+});
 
 router.use('/screenshots', express.static(SCREENSHOTS_DIR));
 
@@ -178,7 +187,7 @@ const HTML_TEMPLATE = (title, body) => `<!DOCTYPE html>
 </body>
 </html>`;
 
-router.get('/manual', async (req, res) => {
+router.get('/manual', manualLimiter, async (req, res) => {
   try {
     const markdown = await fs.readFile(MANUAL_PATH, 'utf8');
     const body = marked.parse(markdown);
