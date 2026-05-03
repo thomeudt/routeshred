@@ -23,6 +23,10 @@
   border: 1px solid var(--border);
 }
 
+.map-wrapper.map-wrapper-hidden {
+  display: none;
+}
+
 .map-wrapper.is-fullscreen {
   position: fixed;
   top: 0;
@@ -62,6 +66,8 @@ body.map-pseudo-fullscreen .map-container {
 .map-container.map-hidden {
   padding: 12px !important;
   background: var(--bg-light) !important;
+  flex: 1;
+  min-height: 0;
 }
 
 .map-container.controls-only-mode {

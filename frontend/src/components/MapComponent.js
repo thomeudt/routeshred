@@ -82,6 +82,7 @@ function MapComponent({ isMapVisible = true }) {
   const suppressNextMapClickRef = useRef(false);
   const gpsWatchIdRef = useRef(null);
   const gpsHasCenteredRef = useRef(false);
+  const prevMapVisibleRef = useRef(isMapVisible);
   const routePositions = route && route.geometry && Array.isArray(route.geometry.coordinates)
     ? route.geometry.coordinates
       .filter((coord) => Array.isArray(coord) && coord.length >= 2 && Number.isFinite(Number(coord[0])) && Number.isFinite(Number(coord[1])))
@@ -451,6 +452,15 @@ function MapComponent({ isMapVisible = true }) {
     };
   }, [isFullscreen]);
 
+  useEffect(() => {
+    const wasHidden = !prevMapVisibleRef.current;
+    prevMapVisibleRef.current = isMapVisible;
+    if (isMapVisible && wasHidden && mapRef.current) {
+      setTimeout(() => { mapRef.current && mapRef.current.invalidateSize(); }, 50);
+      setTimeout(() => { mapRef.current && mapRef.current.invalidateSize(); }, 300);
+    }
+  }, [isMapVisible]);
+
   const showSnapFeedback = (point) => {
     if (snapFeedbackTimeoutRef.current) {
       clearTimeout(snapFeedbackTimeoutRef.current);
@@ -469,10 +479,9 @@ function MapComponent({ isMapVisible = true }) {
 
   return (
     <div className={`map-container${!isMapVisible ? ' map-hidden controls-only-mode' : ''}${showSocialSurface ? ' social-mode' : ''}`}>
-      {isMapVisible && (
-        <div
+      <div
           ref={mapWrapperRef}
-          className={`map-wrapper${showSocialSurface && !isFullscreen ? ' map-compact' : ''}${isFullscreen ? ' is-fullscreen' : ''}`}
+          className={`map-wrapper${showSocialSurface && !isFullscreen ? ' map-compact' : ''}${isFullscreen ? ' is-fullscreen' : ''}${!isMapVisible ? ' map-wrapper-hidden' : ''}`}
         >
         <MapContainer
           center={mapCenter}
@@ -658,7 +667,6 @@ function MapComponent({ isMapVisible = true }) {
           {!gpsError && gpsTracking && <p className="gps-status">{t('map.gpsTrackingOn')}</p>}
         </div>
       </div>
-      )}
 
       {showRoutesSurface && (
         <section className="community-surface">
