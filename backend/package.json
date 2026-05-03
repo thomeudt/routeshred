@@ -1,6 +1,7 @@
 {
   "name": "routeshred-backend",
   "version": "0.1.0",
+  "license": "AGPL-3.0-only",
   "description": "RouteShred Backend - Bike route planning API",
   "main": "src/server.js",
   "scripts": {

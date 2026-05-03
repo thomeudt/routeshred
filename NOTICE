@@ -1,0 +1,85 @@
+RouteShred — Third-Party Notices
+=================================
+
+This product includes software developed by third parties.
+The following components are distributed as part of this project
+and require attribution under their respective licenses.
+
+-------------------------------------------------------------------------------
+react-leaflet and @react-leaflet/core
+-------------------------------------------------------------------------------
+Copyright (c) 2020 Paul Le Cam and contributors
+License: Hippocratic License 2.1
+Source:  https://github.com/PaulLeCam/react-leaflet
+
+The Hippocratic License 2.1 is reproduced in full at:
+https://firstdonoharm.dev/version/2/1/license.html
+
+Summary: This license permits use and redistribution for purposes consistent
+with the UN Universal Declaration of Human Rights and applicable human rights
+law. It is not an OSI-approved open source license.
+
+-------------------------------------------------------------------------------
+keycloak-js
+-------------------------------------------------------------------------------
+Copyright (c) Red Hat, Inc. and Keycloak contributors
+License: Apache License, Version 2.0
+Source:  https://github.com/keycloak/keycloak
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+-------------------------------------------------------------------------------
+leaflet
+-------------------------------------------------------------------------------
+Copyright (c) 2010-2023, Vladimir Agafonkin
+Copyright (c) 2010-2011, CloudMade
+License: BSD 2-Clause
+Source:  https://github.com/Leaflet/Leaflet
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.
+
+-------------------------------------------------------------------------------
+Additional MIT / ISC / BSD-3 runtime dependencies
+-------------------------------------------------------------------------------
+The following packages are used at runtime and are distributed under
+permissive licenses (MIT, ISC, or BSD-3-Clause) that require only
+preservation of their copyright notices, which are retained unmodified
+in the distributed node_modules / build output:
+
+  axios                  MIT     Copyright (c) 2014-present Matt Zabriskie
+  recharts               MIT     Copyright (c) 2015-2024 Recharts Group
+  react / react-dom      MIT     Copyright (c) Meta Platforms, Inc.
+  react-icons            MIT     Copyright (c) 2018 Jonathon Belotti
+  zustand                MIT     Copyright (c) 2019 Paul Henschel
+  fit-file-parser        MIT     Copyright (c) 2015 Miro Mannino
+  xml                    MIT     Copyright (c) 2011 Dylan Greene
+  express                MIT     Copyright (c) 2009-2014 TJ Holowaychuk
+  cors                   MIT     Copyright (c) 2013 Troy Goode
+  helmet                 MIT     Copyright (c) 2012-2024 Evan Hahn
+  express-rate-limit     MIT     Copyright (c) 2022 Nathan Friedly
+  dotenv                 BSD-2   Copyright (c) 2015 Scott Motte
+  marked                 MIT     Copyright (c) 2011-2018 Christopher Jeffrey
+  http-proxy-middleware  MIT     Copyright (c) 2015 Steven Sojka
+  qs                     BSD-3   Copyright (c) 2014 Nathan LaFreniere

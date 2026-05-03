@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "RouteShred - Open-source bike route planner for road and gravel bikes",
   "private": true,
+  "license": "AGPL-3.0-only",
   "workspaces": [
     "frontend",
     "backend"

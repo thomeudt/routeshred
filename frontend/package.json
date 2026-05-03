@@ -2,6 +2,7 @@
   "name": "routeshred-frontend",
   "version": "0.1.0",
   "private": true,
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "@react-leaflet/core": "^2.1.0",
     "axios": "^1.6.1",
