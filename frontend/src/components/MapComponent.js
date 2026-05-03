@@ -252,12 +252,13 @@ function MapComponent({ isMapVisible = true }) {
         }
       },
       (error) => {
+        const code = error ? error.code : '?';
         if (error && error.code === error.PERMISSION_DENIED) {
-          setGpsError(t('map.gpsPermissionDenied'));
+          setGpsError(`${t('map.gpsPermissionDenied')} [${code}]`);
         } else if (error && error.code === error.TIMEOUT) {
-          setGpsError(t('map.gpsTimeout'));
+          setGpsError(`${t('map.gpsTimeout')} [${code}]`);
         } else {
-          setGpsError(t('map.gpsPositionUnavailable'));
+          setGpsError(`${t('map.gpsPositionUnavailable')} [${code}]`);
         }
         stopGpsTracking();
       },
