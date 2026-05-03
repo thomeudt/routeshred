@@ -1,0 +1,21 @@
+Willkommen zu RouteShred.
+
+In diesem kurzen Tutorial siehst du, wie du in wenigen Schritten eine Fahrradroute planst, analysierst und für dein Gerät exportierst.
+
+Links findest du die Steuerung für Planung, gespeicherte Routen, Community und Setup. Rechts zeigt die Karte sofort, wie sich jede Änderung auf die Strecke auswirkt.
+
+Zuerst setzen wir Start und Ziel über die Suche. RouteShred übernimmt die ausgewählten Orte direkt aus den Vorschlägen und verwendet sie als Grundlage für die Berechnung.
+
+Danach wählen wir eine Ride Persona. Coffee, Bunch, Endurance und Gravel setzen passende Routing- und Leistungsparameter mit nur einem Klick.
+
+Mit Berechnen erstellt BRouter die Strecke. Anschließend erscheinen Distanz, Höhenprofil, Wetterhinweise und weitere Kennzahlen direkt in der Seitenleiste.
+
+Im Export-Bereich lässt sich die Route als GPX oder TCX herunterladen. Auf dem Smartphone kann sie außerdem direkt an kompatible Apps wie Wahoo weitergegeben werden.
+
+Wenn du angemeldet bist, bleiben gespeicherte und geteilte Routen in deinem Konto verfügbar und können später jederzeit erneut geladen werden.
+
+Im Community-Bereich organisierst du Gruppenfahrten, teilst Touren mit anderen und hältst Kommentare zentral an einem Ort zusammen.
+
+Unter Setup hinterlegst du FTP, Gewicht und Fahrradprofile. So passt sich die Auswertung an deine persönlichen Werte an.
+
+Damit ist das Tutorial abgeschlossen. Den Sprechertext kannst du jederzeit anpassen und die Tonspur mit einem einzigen Befehl neu erzeugen.

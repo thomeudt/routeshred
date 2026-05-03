@@ -18,6 +18,11 @@ const KC_USER = process.env.KC_USER || '';
 const KC_PASS = process.env.KC_PASS || '';
 const AUTHENTICATED = Boolean(KC_USER && KC_PASS);
 const VP = { width: 1440, height: 900 };
+const PACE = Number(process.env.TUTORIAL_PACE || '1.8');
+
+function delay(ms) {
+  return Math.round(ms * PACE);
+}
 
 async function wait(ms) {
   await new Promise((resolve) => setTimeout(resolve, ms));
@@ -57,7 +62,7 @@ async function chapter(page, title, subtitle = '') {
       ${subtitle ? `<div style="font-size:15px;opacity:.86">${subtitle}</div>` : ''}
     `;
   }, { title, subtitle });
-  await page.waitForTimeout(1800);
+  await page.waitForTimeout(delay(2400));
 }
 
 async function hideChapter(page) {
@@ -76,20 +81,28 @@ async function login(page) {
     throw new Error('The app requires login. Run with KC_USER=... KC_PASS=... npm run record:tutorial');
   }
 
+  const loginBtn = page.locator('.header-btn, button').filter({ hasText: /login|sign in|anmelden/i }).first();
+  const appLoginVisible = await loginBtn.isVisible({ timeout: 1500 }).catch(() => false);
+  const locationInputVisible = await page.locator('.location-input input').first().isVisible({ timeout: 500 }).catch(() => false);
+
+  if (!AUTHENTICATED && !locationInputVisible && appLoginVisible) {
+    throw new Error('The app requires login. Run with KC_USER=... KC_PASS=... npm run record:tutorial');
+  }
+
   if (!AUTHENTICATED) {
     return;
   }
 
   if (!loginPageVisible) {
-    const loginBtn = page.locator('.header-btn, button').filter({ hasText: /login|anmelden/i }).first();
-    if (!await loginBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
+    if (!appLoginVisible && locationInputVisible) {
       return;
     }
 
     await chapter(page, 'Anmelden', 'Mit Konto werden gespeicherte Routen und Community-Funktionen sichtbar.');
+    await page.waitForTimeout(delay(600));
     await loginBtn.click();
     await page.waitForURL(/\/realms\//, { timeout: 12000 }).catch(() => {});
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(delay(1000));
   }
 
   const passField = page.locator('#password, input[name="password"]').first();
@@ -98,7 +111,9 @@ async function login(page) {
   }
 
   await userField.fill(KC_USER);
+  await page.waitForTimeout(delay(450));
   await passField.fill(KC_PASS);
+  await page.waitForTimeout(delay(450));
   await page.locator('[type="submit"], #kc-login').first().click();
   await page.waitForURL(new RegExp(BASE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), { timeout: 15000 }).catch(() => {});
   await waitForMap(page);
@@ -128,33 +143,46 @@ async function clickTab(page, textRe) {
     .first();
   if (await tab.isVisible({ timeout: 5000 }).catch(() => false)) {
     await tab.click();
-    await page.waitForTimeout(900);
+    await page.waitForTimeout(delay(1200));
   }
 }
 
 async function fillLocation(page, index, text) {
   const input = page.locator('.location-input input').nth(index);
-  await input.waitFor({ timeout: 10000 });
+  await input.waitFor({ timeout: 8000 });
   await input.click();
+  // Clear first, then type character-by-character to fire React onChange per keystroke.
   await input.fill('');
-  await input.pressSequentially(text, { delay: 70 });
+  await input.pressSequentially(text, { delay: 130 });
 
+  // Wait for debounce (250ms) + geocoding API response. Do not silently continue:
+  // if no result is selected, the calculate button stays disabled.
   const firstResult = page.locator('.location-results button').first();
-  if (await firstResult.isVisible({ timeout: 12000 }).catch(() => false)) {
-    await firstResult.click();
-  }
+  await firstResult.waitFor({ timeout: 10000 });
+  await page.waitForTimeout(delay(500));
+  await firstResult.click();
+
+  // Wait until the input value is settled and dropdown closed.
   await page.waitForSelector('.location-results', { state: 'hidden', timeout: 3000 }).catch(() => {});
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(delay(700));
 }
 
 async function calculateRoute(page) {
-  const btn = page.locator('button.btn-primary, button')
+  // Button text: "Route berechnen" (DE) / "Calculate Route" (EN)
+  const btn = page.locator('button.btn-primary')
     .filter({ hasText: /berech|calculat/i })
     .first();
-  await btn.waitFor({ timeout: 10000 });
+  await btn.waitFor({ timeout: 8000 });
+  await btn.evaluate((button) => {
+    if (button.disabled) {
+      throw new Error('Calculate button is still disabled after selecting start and destination.');
+    }
+  });
   await btn.click();
-  await page.waitForSelector('.route-stats, .route-stats-collapsible, .leaflet-interactive', { timeout: 60000 });
-  await page.waitForTimeout(1200);
+  console.log('  -> route calculating...');
+  // .route-stats only renders when route is set AND loading is false.
+  await page.waitForSelector('.route-stats, .route-stats-collapsible', { timeout: 45000 });
+  await page.waitForTimeout(delay(1800));
 }
 
 async function scrollControls(page, position) {
@@ -175,7 +203,7 @@ async function scrollControls(page, position) {
       }
     }
   }, position);
-  await page.waitForTimeout(1100);
+  await page.waitForTimeout(delay(1800));
 }
 
 async function runTutorial(page) {
@@ -183,18 +211,21 @@ async function runTutorial(page) {
   await login(page);
   await waitForMap(page);
   await dismissModal(page);
+  await clickTab(page, /plan/i);
 
   await chapter(page, 'RouteShred im Überblick', 'Planung links, Karte rechts: Start, Ziel, Profil und Routenanalyse in einer Oberfläche.');
   await hideChapter(page);
   await page.mouse.move(320, 240);
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(delay(1400));
   await page.mouse.move(1020, 420);
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(delay(1400));
 
   await chapter(page, 'Start und Ziel setzen', 'Adressen und Orte werden über die Suche ausgewählt. Danach berechnet BRouter die Strecke.');
   await hideChapter(page);
   await fillLocation(page, 0, 'Tübingen');
+  await page.waitForTimeout(delay(800));
   await fillLocation(page, 1, 'Herrenberg');
+  await page.waitForTimeout(delay(1200));
 
   await scrollControls(page, 220);
   await chapter(page, 'Ride Persona wählen', 'Coffee, Bunch, Endurance und Gravel setzen passende Routing- und Leistungsparameter.');
@@ -202,39 +233,36 @@ async function runTutorial(page) {
   const persona = page.locator('button, label').filter({ hasText: /coffee|kaffee|endurance|gravel/i }).first();
   if (await persona.isVisible({ timeout: 3000 }).catch(() => false)) {
     await persona.click().catch(() => {});
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(delay(1600));
   }
 
   await chapter(page, 'Route berechnen', 'Nach dem Klick erscheinen Route, Distanz, Höhenprofil und Analyse.');
   await hideChapter(page);
   await calculateRoute(page);
   await page.mouse.wheel(0, 260);
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(delay(1800));
 
   await scrollControls(page, 'bottom');
   await chapter(page, 'Export und Geräte', 'GPX/TCX lassen sich herunterladen oder mobil an Wahoo senden.');
   await hideChapter(page);
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(delay(2200));
 
   if (AUTHENTICATED) {
     await clickTab(page, /routen|routes/i);
     await chapter(page, 'Meine Routen', 'Gespeicherte und geteilte Routen bleiben im Konto verfügbar.');
     await hideChapter(page);
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(delay(2200));
 
     await clickTab(page, /community/i);
     await chapter(page, 'Community und Gruppenfahrten', 'Group Rides können erstellt, gefiltert, geteilt und kommentiert werden.');
     await hideChapter(page);
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(delay(2200));
   }
 
   await clickTab(page, /setup/i);
   await chapter(page, 'Setup', 'FTP, Gewicht und Fahrradprofile bestimmen die persönliche Auswertung.');
   await hideChapter(page);
-  await page.waitForTimeout(1400);
-
-  await chapter(page, 'Fertig', 'Das Video kann direkt als WebM weiterverarbeitet oder vertont werden.');
-  await page.waitForTimeout(1800);
+  await page.waitForTimeout(delay(2600));
 }
 
 async function main() {
