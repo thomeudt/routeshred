@@ -403,14 +403,28 @@ function MapComponent({ isMapVisible = true }) {
       document.body.classList.remove('map-pseudo-fullscreen');
     }
 
-    const map = mapRef.current;
-    if (map) {
+    const scheduleInvalidate = () => {
+      const map = mapRef.current;
+      if (!map) return;
       setTimeout(() => map.invalidateSize(), 0);
+      setTimeout(() => map.invalidateSize(), 160);
+      setTimeout(() => map.invalidateSize(), 400);
+    };
+
+    scheduleInvalidate();
+
+    if (isPseudoFullscreen && window.visualViewport) {
+      window.visualViewport.addEventListener('resize', scheduleInvalidate);
+      window.visualViewport.addEventListener('scroll', scheduleInvalidate);
     }
 
     return () => {
       document.documentElement.classList.remove('map-pseudo-fullscreen');
       document.body.classList.remove('map-pseudo-fullscreen');
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', scheduleInvalidate);
+        window.visualViewport.removeEventListener('scroll', scheduleInvalidate);
+      }
     };
   }, [isPseudoFullscreen]);
 
