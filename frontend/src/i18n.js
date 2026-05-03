@@ -3,6 +3,10 @@ const translations = {
     app: {
       tagline: 'Fast roads, group rides, coffee stops'
     },
+    help: {
+      button: 'Hilfe',
+      tooltip: 'Benutzerhandbuch öffnen'
+    },
     auth: {
       loginRequiredTitle: 'Anmeldung erforderlich',
       loginRequiredBody: 'Melde dich mit deinem RouteShred-Konto an, um Profile zu laden und zu speichern.',
@@ -373,6 +377,10 @@ const translations = {
   en: {
     app: {
       tagline: 'Fast roads, group rides, coffee stops'
+    },
+    help: {
+      button: 'Help',
+      tooltip: 'Open user manual'
     },
     auth: {
       loginRequiredTitle: 'Login required',

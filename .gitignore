@@ -230,3 +230,6 @@ bun.lockb
 *.bak
 *.orig
 *.rej
+
+# Docs tutorial artifacts
+docs/tutorial/

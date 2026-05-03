@@ -1,0 +1,283 @@
+// Browser screencast script for docs/USER_MANUAL.md
+//
+// Usage (anonymous):    node scripts/record-tutorial.js
+// Usage (with login):   KC_USER=name KC_PASS=password node scripts/record-tutorial.js
+// Optional:
+//   TUTORIAL_BASE=http://localhost:3000
+//   TUTORIAL_OUT=docs/tutorial/routeshred-tutorial.webm
+
+const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
+
+const ROOT = path.resolve(__dirname, '..');
+const BASE = process.env.TUTORIAL_BASE || 'http://localhost:3000';
+const OUT_FILE = path.resolve(ROOT, process.env.TUTORIAL_OUT || 'docs/tutorial/routeshred-tutorial.webm');
+const VIDEO_DIR = path.resolve(ROOT, 'docs/tutorial/.playwright-video');
+const KC_USER = process.env.KC_USER || '';
+const KC_PASS = process.env.KC_PASS || '';
+const AUTHENTICATED = Boolean(KC_USER && KC_PASS);
+const VP = { width: 1440, height: 900 };
+
+async function wait(ms) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForMap(page) {
+  await page.waitForSelector('.leaflet-container', { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(1500);
+}
+
+async function chapter(page, title, subtitle = '') {
+  await page.evaluate(({ title, subtitle }) => {
+    let overlay = document.querySelector('[data-tutorial-overlay]');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.setAttribute('data-tutorial-overlay', 'true');
+      overlay.style.cssText = [
+        'position:fixed',
+        'left:32px',
+        'bottom:32px',
+        'z-index:999999',
+        'max-width:560px',
+        'padding:18px 22px',
+        'border-radius:10px',
+        'background:rgba(12,18,28,0.88)',
+        'color:white',
+        'font:500 18px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+        'box-shadow:0 18px 50px rgba(0,0,0,0.32)',
+        'backdrop-filter:blur(8px)',
+        'pointer-events:none'
+      ].join(';');
+      document.body.appendChild(overlay);
+    }
+
+    overlay.innerHTML = `
+      <div style="font-size:24px;font-weight:750;margin-bottom:4px">${title}</div>
+      ${subtitle ? `<div style="font-size:15px;opacity:.86">${subtitle}</div>` : ''}
+    `;
+  }, { title, subtitle });
+  await page.waitForTimeout(1800);
+}
+
+async function hideChapter(page) {
+  await page.evaluate(() => {
+    const overlay = document.querySelector('[data-tutorial-overlay]');
+    if (overlay) overlay.remove();
+  });
+}
+
+async function login(page) {
+  const userField = page.locator('#username, input[name="username"]').first();
+  const loginPageVisible = await userField.isVisible({ timeout: 1500 }).catch(() => false)
+    || /\/realms\//.test(page.url());
+
+  if (!AUTHENTICATED && loginPageVisible) {
+    throw new Error('The app requires login. Run with KC_USER=... KC_PASS=... npm run record:tutorial');
+  }
+
+  if (!AUTHENTICATED) {
+    return;
+  }
+
+  if (!loginPageVisible) {
+    const loginBtn = page.locator('.header-btn, button').filter({ hasText: /login|anmelden/i }).first();
+    if (!await loginBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
+      return;
+    }
+
+    await chapter(page, 'Anmelden', 'Mit Konto werden gespeicherte Routen und Community-Funktionen sichtbar.');
+    await loginBtn.click();
+    await page.waitForURL(/\/realms\//, { timeout: 12000 }).catch(() => {});
+    await page.waitForTimeout(800);
+  }
+
+  const passField = page.locator('#password, input[name="password"]').first();
+  if (!await userField.isVisible({ timeout: 7000 }).catch(() => false)) {
+    return;
+  }
+
+  await userField.fill(KC_USER);
+  await passField.fill(KC_PASS);
+  await page.locator('[type="submit"], #kc-login').first().click();
+  await page.waitForURL(new RegExp(BASE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), { timeout: 15000 }).catch(() => {});
+  await waitForMap(page);
+}
+
+async function dismissModal(page) {
+  await page.keyboard.press('Escape').catch(() => {});
+  for (const sel of [
+    '[aria-label*="close" i]',
+    '[aria-label*="schließ" i]',
+    '[class*="modal-overlay"]',
+    '[class*="overlay"]',
+    'button.close'
+  ]) {
+    const el = page.locator(sel).first();
+    if (await el.isVisible({ timeout: 400 }).catch(() => false)) {
+      await el.click({ force: true }).catch(() => {});
+      break;
+    }
+  }
+  await page.waitForTimeout(400);
+}
+
+async function clickTab(page, textRe) {
+  const tab = page.locator('[role="tab"], .header-tabs button, nav button, button')
+    .filter({ hasText: textRe })
+    .first();
+  if (await tab.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await tab.click();
+    await page.waitForTimeout(900);
+  }
+}
+
+async function fillLocation(page, index, text) {
+  const input = page.locator('.location-input input').nth(index);
+  await input.waitFor({ timeout: 10000 });
+  await input.click();
+  await input.fill('');
+  await input.pressSequentially(text, { delay: 70 });
+
+  const firstResult = page.locator('.location-results button').first();
+  if (await firstResult.isVisible({ timeout: 12000 }).catch(() => false)) {
+    await firstResult.click();
+  }
+  await page.waitForSelector('.location-results', { state: 'hidden', timeout: 3000 }).catch(() => {});
+  await page.waitForTimeout(500);
+}
+
+async function calculateRoute(page) {
+  const btn = page.locator('button.btn-primary, button')
+    .filter({ hasText: /berech|calculat/i })
+    .first();
+  await btn.waitFor({ timeout: 10000 });
+  await btn.click();
+  await page.waitForSelector('.route-stats, .route-stats-collapsible, .leaflet-interactive', { timeout: 60000 });
+  await page.waitForTimeout(1200);
+}
+
+async function scrollControls(page, position) {
+  await page.evaluate((pos) => {
+    const candidates = [
+      '.sidebar',
+      '.route-controls',
+      '.plan-controls',
+      '.controls-panel',
+      '.left-panel',
+      'aside',
+      '.panel'
+    ];
+    for (const sel of candidates) {
+      const el = document.querySelector(sel);
+      if (el) {
+        el.scrollTo({ top: pos === 'bottom' ? el.scrollHeight : pos, behavior: 'smooth' });
+      }
+    }
+  }, position);
+  await page.waitForTimeout(1100);
+}
+
+async function runTutorial(page) {
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await login(page);
+  await waitForMap(page);
+  await dismissModal(page);
+
+  await chapter(page, 'RouteShred im Überblick', 'Planung links, Karte rechts: Start, Ziel, Profil und Routenanalyse in einer Oberfläche.');
+  await hideChapter(page);
+  await page.mouse.move(320, 240);
+  await page.waitForTimeout(800);
+  await page.mouse.move(1020, 420);
+  await page.waitForTimeout(800);
+
+  await chapter(page, 'Start und Ziel setzen', 'Adressen und Orte werden über die Suche ausgewählt. Danach berechnet BRouter die Strecke.');
+  await hideChapter(page);
+  await fillLocation(page, 0, 'Tübingen');
+  await fillLocation(page, 1, 'Herrenberg');
+
+  await scrollControls(page, 220);
+  await chapter(page, 'Ride Persona wählen', 'Coffee, Bunch, Endurance und Gravel setzen passende Routing- und Leistungsparameter.');
+  await hideChapter(page);
+  const persona = page.locator('button, label').filter({ hasText: /coffee|kaffee|endurance|gravel/i }).first();
+  if (await persona.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await persona.click().catch(() => {});
+    await page.waitForTimeout(700);
+  }
+
+  await chapter(page, 'Route berechnen', 'Nach dem Klick erscheinen Route, Distanz, Höhenprofil und Analyse.');
+  await hideChapter(page);
+  await calculateRoute(page);
+  await page.mouse.wheel(0, 260);
+  await page.waitForTimeout(900);
+
+  await scrollControls(page, 'bottom');
+  await chapter(page, 'Export und Geräte', 'GPX/TCX lassen sich herunterladen oder mobil an Wahoo senden.');
+  await hideChapter(page);
+  await page.waitForTimeout(1200);
+
+  if (AUTHENTICATED) {
+    await clickTab(page, /routen|routes/i);
+    await chapter(page, 'Meine Routen', 'Gespeicherte und geteilte Routen bleiben im Konto verfügbar.');
+    await hideChapter(page);
+    await page.waitForTimeout(1200);
+
+    await clickTab(page, /community/i);
+    await chapter(page, 'Community und Gruppenfahrten', 'Group Rides können erstellt, gefiltert, geteilt und kommentiert werden.');
+    await hideChapter(page);
+    await page.waitForTimeout(1200);
+  }
+
+  await clickTab(page, /setup/i);
+  await chapter(page, 'Setup', 'FTP, Gewicht und Fahrradprofile bestimmen die persönliche Auswertung.');
+  await hideChapter(page);
+  await page.waitForTimeout(1400);
+
+  await chapter(page, 'Fertig', 'Das Video kann direkt als WebM weiterverarbeitet oder vertont werden.');
+  await page.waitForTimeout(1800);
+}
+
+async function main() {
+  fs.mkdirSync(path.dirname(OUT_FILE), { recursive: true });
+  fs.mkdirSync(VIDEO_DIR, { recursive: true });
+
+  console.log(`Recording tutorial from ${BASE}`);
+  console.log(`Mode: ${AUTHENTICATED ? `authenticated (${KC_USER})` : 'anonymous'}`);
+
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-dev-shm-usage']
+  });
+
+  let videoPath = '';
+  try {
+    const context = await browser.newContext({
+      viewport: VP,
+      recordVideo: {
+        dir: VIDEO_DIR,
+        size: VP
+      }
+    });
+    const page = await context.newPage();
+    await runTutorial(page);
+    const video = page.video();
+    await page.close();
+    await context.close();
+    videoPath = await video.path();
+  } finally {
+    await browser.close();
+  }
+
+  if (!videoPath || !fs.existsSync(videoPath)) {
+    throw new Error('Playwright did not produce a video file.');
+  }
+
+  fs.copyFileSync(videoPath, OUT_FILE);
+  console.log(`Done: ${path.relative(ROOT, OUT_FILE)}`);
+}
+
+main().catch((err) => {
+  console.error('\nFATAL:', err.message);
+  console.error(`Make sure the app is running at ${BASE}.`);
+  process.exit(1);
+});

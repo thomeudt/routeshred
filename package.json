@@ -21,10 +21,12 @@
     "build": "npm run build --workspace=frontend && npm run build --workspace=backend",
     "start": "npm start --workspace=backend",
     "test": "npm test --workspace=frontend && npm test --workspace=backend",
+    "record:tutorial": "node scripts/record-tutorial.js",
     "install-all": "npm install && npm install --workspace=frontend && npm install --workspace=backend"
   },
   "devDependencies": {
-    "concurrently": "^8.2.0"
+    "concurrently": "^8.2.0",
+    "playwright": "^1.59.1"
   },
   "engines": {
     "node": ">=18.0.0",

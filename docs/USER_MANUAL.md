@@ -42,6 +42,10 @@ RouteShred ist ein selbst gehosteter Fahrradroutenplaner für Rennrad- und Grave
 
 ## 2. Die Oberfläche auf einen Blick
 
+![RouteShred Übersicht](./screenshots/01-overview.png)
+
+*Abbildung: Hauptansicht mit Seitenleiste und Karte.*
+
 Die App besteht aus zwei Bereichen:
 
 ```
@@ -66,6 +70,10 @@ Auf der Karte kannst du jederzeit klicken, um Start oder Ziel zu setzen. Ein Rec
 
 ## 3. Erste Route planen
 
+![Start- und Zieleingabe](./screenshots/02-location-input.png)
+
+*Abbildung: Eingabe von Start/Ziel mit Vorschlägen.*
+
 ### Schritt 1 — Start und Ziel eingeben
 
 Im **Plan**-Tab gibt es zwei Adressfelder: Start und Ziel.
@@ -87,6 +95,10 @@ Wähle eine der vier Ride Personas (Coffee, Bunch, Endurance, Gravel) oder stell
 
 Klicke **Berechnen**. RouteShred sendet die Anfrage an BRouter, holt das Höhenprofil bei Open-Meteo ab und berechnet Wetterwarnungen. Die Route erscheint als blaue Linie auf der Karte, das Höhenprofil darunter.
 
+![Berechnete Route auf der Karte](./screenshots/04-route-calculated.png)
+
+*Abbildung: Ergebnis nach der Routenberechnung.*
+
 ### Schritt 4 — Rückroute (optional)
 
 Aktiviere **Rückroute einbeziehen**, um automatisch die Rückfahrt auf demselben oder einem alternativen Weg zu berechnen. Die Gesamtdistanz verdoppelt sich entsprechend.
@@ -94,6 +106,10 @@ Aktiviere **Rückroute einbeziehen**, um automatisch die Rückfahrt auf demselbe
 ---
 
 ## 4. Ride Personas & Routenparameter
+
+![Ride Personas](./screenshots/03-personas.png)
+
+*Abbildung: Persona-Auswahl und Routenparameter im Plan-Tab.*
 
 ### Ride Personas
 
@@ -165,6 +181,10 @@ Du kannst eine bestehende Route aus Komoot, Strava, Garmin Connect oder einer an
 
 ## 7. Höhenprofil & Analyse
 
+![Höhenprofil](./screenshots/05-elevation-profile.png)
+
+*Abbildung: Höhenprofil mit Kennzahlen und Verlauf.*
+
 Nach der Routenberechnung erscheint das Höhenprofil als interaktives Diagramm unterhalb der Karte.
 
 ### Höhenprofil lesen
@@ -211,6 +231,10 @@ Warnungen erscheinen direkt unter der Persona-Auswahl. Klicke auf eine Warnung, 
 
 ## 9. Export & Übertragung auf das Gerät
 
+![Export-Bereich](./screenshots/06-export.png)
+
+*Abbildung: TCX/GPX-Export und Geräte-Übergabe.*
+
 ### TCX herunterladen
 
 Für Wahoo ELEMNT, Garmin, und andere Geräte. Klicke **TCX exportieren** — der Browser lädt die Datei herunter. Übertrage sie anschließend über die Geräte-App oder Garmin Connect / Wahoo Cloud.
@@ -236,9 +260,17 @@ Der schnellste Weg auf mobilen Geräten:
 
 > **Falls Wahoo nicht in der Auswahl erscheint:** Stelle sicher, dass die Wahoo Companion App für Dateiimport registriert ist. Öffne die App einmalig und importiere eine GPX-Datei manuell — danach erkennt iOS/Android die App als Handler.
 
+![Mobile Ansicht](./screenshots/11-mobile.png)
+
+*Abbildung: Mobile Nutzung inkl. Share-Flow zu Wahoo.*
+
 ---
 
 ## 10. Routen speichern & verwalten
+
+![Meine Routen](./screenshots/08-saved-routes.png)
+
+*Abbildung: Bereich „Meine Routen" mit gespeicherten Touren.*
 
 > Speichern erfordert ein Konto (Login).
 
@@ -287,6 +319,10 @@ Die Route bleibt unter deiner Kontrolle. Der Empfänger kann sie ansehen und lad
 
 ## 12. Gruppenfahrten
 
+![Community und Gruppenfahrten](./screenshots/09-community.png)
+
+*Abbildung: Community-Tab mit öffentlichen Gruppenfahrten.*
+
 Der **Community**-Tab zeigt alle öffentlichen Gruppenfahrten und die Fahrten, an denen du teilnimmst.
 
 ### Gruppenfahrt erstellen
@@ -316,6 +352,10 @@ Nur der Ersteller kann eine Gruppenfahrt bearbeiten oder löschen. Klicke auf da
 ---
 
 ## 13. Profil einrichten
+
+![Setup und Profil](./screenshots/07-setup.png)
+
+*Abbildung: Setup-Tab mit Profil- und Fahrrad-Einstellungen.*
 
 Im **Setup**-Tab konfigurierst du dein Fahrerprofil. Die Werte werden für die Leistungszonenvorschau und beim Speichern von Routen verwendet.
 
@@ -394,6 +434,10 @@ Der Zustand der Planung (Start, Ziel, Wegpunkte) bleibt im Browser-Tab erhalten,
 ---
 
 ## 16. Fehlerbehebung
+
+![Hilfe-Seite](./screenshots/10-help-page.png)
+
+*Abbildung: Hilfe-/Support-Bereich für typische Probleme.*
 
 ### Route lässt sich nicht berechnen
 

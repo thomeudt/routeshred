@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FiLogOut, FiMap, FiMapPin } from 'react-icons/fi';
+import { FiHelpCircle, FiLogOut, FiMap, FiMapPin } from 'react-icons/fi';
 import { t } from '../i18n';
 import '../styles/Header.css';
 
@@ -50,6 +50,18 @@ function Header({
           </div>
 
           <div className="header-auth">
+            <a
+              className="header-btn header-icon-btn help-btn"
+              href="/api/docs/manual"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t('help.tooltip')}
+              title={t('help.tooltip')}
+            >
+              <FiHelpCircle />
+              <span>{t('help.button')}</span>
+            </a>
+
             {showMapToggle && (
               <button
                 className="header-btn header-icon-btn map-toggle-btn"
