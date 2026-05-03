@@ -38,10 +38,9 @@
 }
 
 .map-wrapper.is-fullscreen .leaflet-container {
-  position: absolute !important;
-  inset: 0 !important;
-  height: auto !important;
-  width: auto !important;
+  height: 100% !important;
+  width: 100%;
+  min-height: 100%;
 }
 
 html.map-pseudo-fullscreen,
