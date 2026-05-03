@@ -2,22 +2,46 @@
 
 [![Backend](https://github.com/thomeudt/routeshred/actions/workflows/node.js.yml/badge.svg?job=backend)](https://github.com/thomeudt/routeshred/actions/workflows/node.js.yml)
 [![Frontend](https://github.com/thomeudt/routeshred/actions/workflows/node.js.yml/badge.svg?job=frontend)](https://github.com/thomeudt/routeshred/actions/workflows/node.js.yml)
+![Status](https://img.shields.io/badge/status-beta-yellow)
+![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 
-**The open-source bike route planner for road and gravel riders.**
+**Self-hosted, open-source route planner for cyclists who want control.**
 
-A modern self-hosted web application for planning cycling routes with terrain-aware routing, elevation profiles, weather alerts, and community features.
+RouteShred gives you BRouter's bike-optimised profiles, terrain-aware surface breakdowns, weather alerts, power-zone previews, and one-tap device export — running entirely on your own server, with no subscription and no data sent to third parties.
+
+> Works fully without login. Keycloak auth is optional and unlocks saved routes, group rides, and community features.
 
 ![RouteShred Teaser Screenshot](docs/screenshots/01-overview.png)
+
+## Why RouteShred?
+
+Most route planners are cloud services. RouteShred is a server you run yourself:
+
+| | RouteShred | Komoot | Strava Routes | BRouter Web |
+|---|---|---|---|---|
+| Self-hosted | ✅ | ❌ | ❌ | ✅ (limited) |
+| BRouter profiles | ✅ custom `.brf` | ❌ | ❌ | ✅ |
+| Terrain breakdown | ✅ surface % | paid | ❌ | ❌ |
+| Weather alerts | ✅ wind/rain/UV | ❌ | ❌ | ❌ |
+| Power-zone preview | ✅ FTP-based | ❌ | ❌ | ❌ |
+| TCX/GPX export | ✅ free | paid | paid | ✅ |
+| Share to Wahoo | ✅ | ❌ | ❌ | ❌ |
+| Group rides | ✅ | paid | ❌ | ❌ |
+| Open source (AGPL) | ✅ | ❌ | ❌ | ✅ |
+| No subscription | ✅ | freemium | freemium | ✅ |
+
+RouteShred is for clubs, coaches, and technically-minded riders who want those capabilities without handing data to a platform.
 
 ## Features
 
 ### Route Planning
 - **Ride personas** — one-click presets for Coffee Ride, Bunch Ride, Endurance, and Gravel
-- **Bike profiles** — load BRouter custom profiles or use built-in road/gravel/MTB defaults
+- **Bike profiles** — load BRouter custom `.brf` profiles or use built-in road/gravel/MTB defaults
 - **Route preferences** — Fastest, Scenic, Offroad
 - **Waypoints** — add intermediate points, reorder, delete
 - **Return route** — calculate round-trip automatically
 - **GPX / FIT import** — load routes from Komoot, Strava, Garmin, etc.
+- **AI Roundtrip** — optional OpenAI-assisted round-trip planning (requires API key)
 
 ### Analysis
 - **Elevation profile** — interactive chart with gain/loss and gradient
@@ -30,14 +54,14 @@ A modern self-hosted web application for planning cycling routes with terrain-aw
 - **GPX export** — universal format
 - **Share to Wahoo** — Web Share API sends GPX directly to the Wahoo Companion App on mobile
 
-### Social & Community
+### Social & Community *(requires Keycloak)*
 - **Saved routes** — save, rename, delete, load back onto map
 - **Sharing** — public links, per-user sharing, deep-link loading
 - **Group rides** — create group ride events, link a route, join/leave, comments
 - **Community feed** — browse public rides from all users
 
-### Auth & Profiles
-- **Keycloak OIDC** — optional, enables saved routes, profiles, and social features
+### Auth & Profiles *(optional)*
+- **Keycloak OIDC** — optional; enables saved routes, profiles, and social features
 - **Rider profile** — weight, FTP, bike type; persisted per user
 
 ## Tech Stack
@@ -85,7 +109,7 @@ ROUTESHRED_CACHE_DIR=./data/cache
 
 # Optional AI Roundtrip planner
 AI_ROUNDTRIP_ENABLED=false
-OPENAI_MODEL=gpt-5-nano
+OPENAI_MODEL=gpt-4o-mini
 # OPENAI_API_KEY=sk-...
 ```
 
@@ -151,7 +175,7 @@ Cached data:
 
 ### Keycloak Authentication
 
-Authentication is optional. Without it, RouteShred runs in anonymous mode (route planning only). With Keycloak, users get saved routes, rider profiles, and community features.
+Authentication is optional. Without it, RouteShred runs in anonymous mode (route planning, export, and weather alerts all work). With Keycloak, users get saved routes, rider profiles, and community features.
 
 ```bash
 docker compose up -d keycloak keycloak-db
@@ -217,11 +241,18 @@ The Caddy reverse proxy routes:
 - `/api/*` → backend (port 5050)
 - `/auth*` → Keycloak (port 8080)
 
+**Security notes for public deployments:**
+- Set strong Keycloak admin and DB passwords before first start
+- Run behind HTTPS — Caddy handles TLS automatically with a public hostname
+- The Thunderforest API key is kept server-side; it never reaches the browser
+- Rate limiting is applied to the `/api/docs/manual` and routing endpoints
+- Review `KEYCLOAK_ENABLED` — leave `false` if you only want a private planning tool with no user accounts
+
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full production guide.
 
 ## User Manual
 
-A full end-user guide covering route planning, personas, export, Wahoo transfer, saved routes, group rides, and profile setup is at [docs/USER_MANUAL.md](docs/USER_MANUAL.md).
+A full end-user guide covering route planning, personas, export, Wahoo transfer, saved routes, group rides, and profile setup is at [docs/USER_MANUAL.md](docs/USER_MANUAL.md) and served at `/api/docs/manual` in a running instance.
 
 A product positioning guide for differentiation vs. Komoot is at [docs/POSITIONING_VS_KOMOOT.md](docs/POSITIONING_VS_KOMOOT.md).
 
@@ -284,6 +315,10 @@ A product positioning guide for differentiation vs. Komoot is at [docs/POSITIONI
 ### Tiles
 - `GET /api/tiles/:style/:z/:x/:y.png` — proxied + cached Thunderforest tiles
 
+### Docs
+- `GET /api/docs/manual` — rendered user manual (HTML)
+- `GET /api/docs/screenshots/:file` — manual screenshots
+
 ## Project Structure
 
 ```
@@ -318,6 +353,8 @@ routeshred/
 ## License
 
 GNU Affero General Public License v3.0 only (AGPL-3.0-only) — see [LICENSE](LICENSE)
+
+Modified versions of RouteShred that are run as a network service must publish their source code under the same license.
 
 ## Acknowledgments
 
