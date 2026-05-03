@@ -7,6 +7,8 @@
 
 A modern self-hosted web application for planning cycling routes with terrain-aware routing, elevation profiles, weather alerts, and community features.
 
+![RouteShred Teaser Screenshot](docs/screenshots/01-overview.png)
+
 ## Features
 
 ### Route Planning
