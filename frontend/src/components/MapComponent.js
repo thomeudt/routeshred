@@ -226,6 +226,13 @@ function MapComponent({ isMapVisible = true }) {
       return;
     }
 
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+        setGpsError(`perm:${result.state}`);
+      });
+      return;
+    }
+
     setGpsError('');
     gpsHasCenteredRef.current = false;
 
