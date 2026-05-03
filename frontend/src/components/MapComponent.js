@@ -220,7 +220,7 @@ function MapComponent({ isMapVisible = true }) {
     setGpsTracking(false);
   };
 
-  const startGpsTracking = () => {
+  const startGpsTracking = (highAccuracy = true) => {
     if (!navigator.geolocation) {
       setGpsError(t('map.gpsUnavailable'));
       return;
@@ -252,18 +252,25 @@ function MapComponent({ isMapVisible = true }) {
         }
       },
       (error) => {
-        const code = error ? error.code : '?';
+        if (error && error.code === error.PERMISSION_DENIED && highAccuracy) {
+          // iOS can return PERMISSION_DENIED when Precise Location is off.
+          // Retry without high accuracy to use approximate location instead.
+          navigator.geolocation.clearWatch(watchId);
+          gpsWatchIdRef.current = null;
+          startGpsTracking(false);
+          return;
+        }
         if (error && error.code === error.PERMISSION_DENIED) {
-          setGpsError(`${t('map.gpsPermissionDenied')} [${code}]`);
+          setGpsError(t('map.gpsPermissionDenied'));
         } else if (error && error.code === error.TIMEOUT) {
-          setGpsError(`${t('map.gpsTimeout')} [${code}]`);
+          setGpsError(t('map.gpsTimeout'));
         } else {
-          setGpsError(`${t('map.gpsPositionUnavailable')} [${code}]`);
+          setGpsError(t('map.gpsPositionUnavailable'));
         }
         stopGpsTracking();
       },
       {
-        enableHighAccuracy: true,
+        enableHighAccuracy: highAccuracy,
         timeout: 12000,
         maximumAge: 8000
       }
