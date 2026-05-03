@@ -1,268 +1,250 @@
-# Bike Route Planner - Development Guide
+# RouteShred — Development Guide
 
-## 🚀 Getting Started with Development
+## Starting the Dev Environment
 
-### Backend Development
+```bash
+# Frontend + Backend only (no BRouter, OSRM demo server used)
+npm run dev
 
-#### File Structure
-```
-backend/
-├── src/
-│   ├── server.js           # Express app entry point
-│   ├── routes/
-│   │   ├── routing.js      # Routing endpoints
-│   │   ├── elevation.js    # Elevation endpoints
-│   │   └── export.js       # Export endpoints
-│   └── services/
-│       ├── routingService.js
-│       ├── elevationService.js
-│       └── exportService.js
+# Frontend + Backend + BRouter Docker container
+npm run dev:brouter
+
+# Full stack via Docker (BRouter + Keycloak + app)
+npm run dev:brouter:docker
 ```
 
-#### Adding a New API Endpoint
+Individual workspaces:
+```bash
+npm run dev --workspace=frontend   # http://localhost:3000
+npm run dev --workspace=backend    # http://localhost:5050
+```
 
-1. Create route handler in `src/routes/`:
+## File Structure
+
+```
+backend/src/
+├── server.js                # Express entry point, route registration
+├── routes/
+│   ├── routing.js           # POST /api/routing/route, /analyze
+│   ├── elevation.js         # POST /api/elevation/profile
+│   ├── export.js            # POST /api/export/tcx, /gpx
+│   ├── geocode.js           # GET /api/geocode/search
+│   ├── auth.js              # GET /api/auth/config, /me
+│   ├── profile.js           # GET/PUT /api/profile
+│   ├── savedRoutes.js       # CRUD /api/routes
+│   ├── groupRides.js        # CRUD /api/group-rides + join/leave/comments
+│   └── users.js             # GET /api/users
+└── services/
+    ├── routingService.js    # BRouter / OSRM + terrain + weather
+    ├── elevationService.js  # Open-Meteo / Open-Elevation + cache
+    ├── exportService.js     # TCX + GPX template generation
+    ├── geocodingService.js  # Nominatim + Overpass POI search
+    ├── keycloakService.js   # Token validation, requireAuth middleware
+    ├── profileService.js    # Rider profile persistence (JSON files)
+    ├── savedRouteService.js # Route persistence (JSON files)
+    └── groupRideService.js  # Group ride persistence + sanitization
+
+frontend/src/
+├── components/
+│   ├── Header.js            # App bar: tabs, auth buttons
+│   ├── MapComponent.js      # Leaflet map, markers, polyline, POI layer
+│   ├── RouteControls.js     # Full planning UI (personas, bike, export…)
+│   ├── ElevationProfile.js  # Recharts elevation chart
+│   ├── LocationInput.js     # Address/POI search input
+│   ├── SavedRoutesPanel.js  # Saved routes list
+│   ├── GroupRidesPanel.js   # Group rides feed
+│   ├── RouteDetail.js       # Deep-link route detail page
+│   └── RouteTypeStats.js    # Terrain surface breakdown chart
+├── store/
+│   └── routeStore.js        # Zustand store — all app state + async actions
+├── styles/
+│   ├── RouteControls.css    # Primary stylesheet (panels, forms, buttons)
+│   ├── Header.css           # Header / tabs
+│   ├── Map.css              # Map container
+│   ├── ElevationProfile.css # Elevation panel
+│   └── RouteTypeStats.css   # Stats chart
+└── i18n.js                  # DE + EN translations
+```
+
+## Adding an API Endpoint
+
+1. Create a route handler in `backend/src/routes/`:
+
 ```javascript
-// src/routes/new-feature.js
+// backend/src/routes/myFeature.js
 const express = require('express');
 const router = express.Router();
-const { newFeatureLogic } = require('../services/newFeatureService');
+const { doTheThing } = require('../services/myFeatureService');
 
 router.post('/', async (req, res) => {
   try {
-    const result = await newFeatureLogic(req.body);
+    const result = await doTheThing(req.body);
     res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 module.exports = router;
 ```
 
-2. Register in `src/server.js`:
+2. Register in `backend/src/server.js`:
+
 ```javascript
-const newFeatureRouter = require('./routes/new-feature');
-app.use('/api/new-feature', newFeatureRouter);
+const myFeatureRouter = require('./routes/myFeature');
+app.use('/api/my-feature', myFeatureRouter);
 ```
 
-#### Testing Endpoints with cURL
+3. For protected endpoints use `requireAuth` from `keycloakService`:
 
-```bash
-# Create route
-curl -X POST http://localhost:5000/api/routing/route \
-  -H "Content-Type: application/json" \
-  -d '{"start":[51.5,-0.1],"end":[51.4,-0.1],"bikeType":"road"}'
-
-# Get elevation
-curl -X POST http://localhost:5000/api/elevation/profile \
-  -H "Content-Type: application/json" \
-  -d '{"coordinates":[[51.5,-0.1],[51.4,-0.1]]}'
-```
-
-### Frontend Development
-
-#### Component Structure
-```
-frontend/src/
-├── components/
-│   ├── MapComponent.js     # Main map interface
-│   ├── RouteControls.js    # Control panel
-│   ├── ElevationProfile.js # Chart
-│   ├── Header.js           # Navigation
-│   └── RouteDetail.js      # Route details page
-├── store/
-│   └── routeStore.js       # Zustand state management
-└── styles/
-    ├── Map.css
-    ├── RouteControls.css
-    └── ElevationProfile.css
-```
-
-#### Adding a New React Component
-
-1. Create component file:
 ```javascript
-// frontend/src/components/NewComponent.js
+const { requireAuth } = require('../services/keycloakService');
+router.get('/protected', requireAuth, async (req, res) => {
+  // req.user.sub, req.user.preferred_username available
+});
+```
+
+## Adding a React Component
+
+1. Create the component:
+
+```javascript
+// frontend/src/components/MyPanel.js
 import React from 'react';
 import { useRouteStore } from '../store/routeStore';
-import '../styles/NewComponent.css';
+import { t } from '../i18n';
+import '../styles/MyPanel.css';
 
-function NewComponent() {
+function MyPanel() {
   const { route } = useRouteStore();
-  
-  return <div className="new-component">{/* JSX */}</div>;
+  return <div className="my-panel">{/* JSX */}</div>;
 }
 
-export default NewComponent;
+export default MyPanel;
 ```
 
-2. Add styles:
-```css
-/* frontend/src/styles/NewComponent.css */
-.new-component {
-  /* styles */
-}
-```
+2. Add styles in `frontend/src/styles/MyPanel.css`.
 
-3. Import and use:
-```javascript
-import NewComponent from './components/NewComponent';
+3. Import and render in the appropriate parent (usually `RouteControls.js` for new panels in the plan/setup tabs).
 
-// In App.js or parent component
-<NewComponent />
-```
-
-#### Using the Zustand Store
+## Using the Zustand Store
 
 ```javascript
 import { useRouteStore } from '../store/routeStore';
 
 function MyComponent() {
-  const { route, calculateRoute, startPoint, setStartPoint } = useRouteStore();
-  
-  return (
-    <button onClick={() => setStartPoint([51.5, -0.1])}>
-      Set Start
-    </button>
-  );
+  // Subscribe to specific slices to avoid unnecessary re-renders
+  const route = useRouteStore(state => state.route);
+  const { calculateRoute, setStartPoint } = useRouteStore();
+
+  return <button onClick={calculateRoute}>Calculate</button>;
 }
 ```
 
-#### Common State Management Tasks
+Key store actions:
+- `setStartPoint(point, label)` / `setEndPoint(point, label)`
+- `insertWaypoint(point, label, index)`
+- `calculateRoute()` — calls backend, updates `route`
+- `exportRoute(format)` — `'tcx'` or `'gpx'`, triggers download
+- `saveRoute(name)` / `loadSavedRoute(id, ownerSub)` / `deleteSavedRoute(id)`
+- `loadSavedRoutes()` — refreshes `savedRoutes` list
+
+## Adding Translations
+
+Add keys to both locale blocks in `frontend/src/i18n.js`:
 
 ```javascript
-// Get current state
-const route = useRouteStore(state => state.route);
+// German block (de)
+myFeature: {
+  title: 'Meine Funktion',
+  action: 'Ausführen',
+},
 
-// Set state
-useRouteStore(state => state.setStartPoint([51.5, -0.1]));
-
-// Subscribe to changes
-useEffect(() => {
-  const unsubscribe = useRouteStore.subscribe(
-    state => state.route,
-    route => console.log('Route updated:', route)
-  );
-  return unsubscribe;
-}, []);
+// English block (en)
+myFeature: {
+  title: 'My Feature',
+  action: 'Execute',
+},
 ```
 
-## 🧪 Testing
+Use in components: `t('myFeature.title')` or `t('myFeature.action')`.
 
-### Backend Tests
+Supports `{{variable}}` interpolation: `t('route.count', { count: 3 })`.
+
+## Testing
+
 ```bash
-cd backend
-npm test
+# Backend (Jest)
+cd backend && npm test
+
+# Frontend (React Testing Library)
+cd frontend && npm test
 ```
 
-### Frontend Tests
-```bash
-cd frontend
-npm test
-```
+## Debugging
 
-## 🔍 Debugging
+### Backend
 
-### Backend Debugging
 ```bash
-# Start with debugging enabled
 node --inspect-brk backend/src/server.js
-
-# Open Chrome DevTools
-chrome://inspect
-
-# Or use VS Code debugger - press F5
+# Open Chrome → chrome://inspect
 ```
 
-### Frontend Debugging
-- Open Chrome DevTools (F12)
-- React DevTools extension
-- Redux DevTools for state inspection
+Or use VS Code: press F5 (launch config in `.vscode/launch.json` if present).
 
-## 📦 Bundle Size Analysis
+Check the health endpoint to confirm routing engine and config:
 
 ```bash
-npm install -g webpack-bundle-analyzer
-
-# Analyze frontend bundle
-cd frontend
-npm run build
-npx webpack-bundle-analyzer build/static/js/main.*.js
+curl http://localhost:5050/api/health
 ```
 
-## 🐛 Common Issues & Solutions
+### Frontend
 
-### CORS Errors
-**Problem**: Frontend can't connect to backend
-**Solution**: 
-```javascript
-// In backend/src/server.js
-app.use(cors({
-  origin: 'http://localhost:3000',
-  credentials: true
-}));
-```
+- React DevTools browser extension
+- Zustand DevTools (works with Redux DevTools extension)
+- Check `Network` tab for `/api/*` requests
 
-### Port Already in Use
-**Problem**: "Port 5000 already in use"
-**Solution**:
+## Common Issues
+
+**"Port 5050 already in use"**
+
 ```bash
-lsof -i :5000
+lsof -i :5050
 kill -9 <PID>
 ```
 
-### Leaflet Marker Icons Not Showing
-**Problem**: Markers appear without icons
-**Solution**: Already fixed in MapComponent.js with icon URL configuration
+`npm run dev:brouter` handles this automatically.
 
-### Route Not Appearing on Map
-**Problem**: Route calculated but not visible
-**Solution**:
-1. Check if coordinates are in correct format [lon, lat]
-2. Verify Leaflet Polyline coordinates are [lat, lon]
-3. Check route.geometry structure
+**CORS errors in browser**
 
-## 📚 Resources
+The frontend proxies `/api` to `http://localhost:5050` via `"proxy"` in `frontend/package.json`. This only works with `npm run dev --workspace=frontend`. If you're running the frontend build statically, configure `REACT_APP_API_URL` and ensure the backend has the correct `CORS_ORIGIN`.
 
-- [OSRM Documentation](http://project-osrm.org)
-- [Leaflet.js Guide](https://leafletjs.com)
-- [React Hooks](https://react.dev/reference/react)
-- [Zustand](https://github.com/pmndrs/zustand)
-- [Express.js](https://expressjs.com)
+**BRouter returns empty route**
 
-## 🎨 Code Style
+1. Confirm BRouter is running: `curl http://localhost:17777/brouter/version`
+2. Check that `.rd5` segments exist in `brouter-data/segments4/` for the requested region
+3. Enable `BROUTER_AUTO_FETCH_SEGMENTS=true` to auto-download missing tiles
 
-We use:
-- **Frontend**: ESLint with React rules
-- **Backend**: ESLint with Node.js rules
+**Route geometry has no elevation (`coord[2]` is null)**
+
+The elevation enrichment runs after routing. Check `ROUTESHRED_CACHE_DIR` is writable and that Open-Meteo is reachable. Elevation fallback is Open-Elevation.
+
+## Code Style
+
+ESLint is configured for both workspaces:
 
 ```bash
-# Lint code
-npm run lint
+# Lint
+npm run lint --workspace=backend
+npm run lint --workspace=frontend
 
-# Fix linting issues
-npm run lint -- --fix
+# Auto-fix
+npm run lint --workspace=backend -- --fix
 ```
 
-## 🚀 Performance Tips
-
-1. **Frontend**:
-   - Use React.memo for components
-   - Lazy load heavy components
-   - Use virtualization for long lists
-
-2. **Backend**:
-   - Cache OSRM responses
-   - Use connection pooling
-   - Optimize elevation API batching
-
-3. **Data**:
-   - Simplify route geometry (10m accuracy)
-   - Cache elevation profiles
-   - Use CDN for static assets
+No Tailwind in active use — all styling is plain CSS in `frontend/src/styles/`.
 
 ---
 
-For architecture details, see [ARCHITECTURE.md](./ARCHITECTURE.md)
-For deployment, see [DEPLOYMENT.md](./DEPLOYMENT.md)
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for system design details.
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for production deployment.

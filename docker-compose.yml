@@ -33,8 +33,8 @@ services:
       - "3000:3000"
     environment:
       - REACT_APP_API_URL=/api
-      - REACT_APP_TILE_URL=${REACT_APP_TILE_URL:-https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=007b5abe80db44699c19474ee8d9500b}
-      - REACT_APP_TILE_ATTRIBUTION=${REACT_APP_TILE_ATTRIBUTION:-&copy; OpenCycleMap}
+      - REACT_APP_TILE_URL=${REACT_APP_TILE_URL:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
+      - REACT_APP_TILE_ATTRIBUTION=${REACT_APP_TILE_ATTRIBUTION:-&copy; OpenStreetMap contributors}
       - REACT_APP_KEYCLOAK_ENABLED=${REACT_APP_KEYCLOAK_ENABLED:-true}
       - REACT_APP_KEYCLOAK_URL=${REACT_APP_KEYCLOAK_URL:-http://localhost:8080}
       - REACT_APP_KEYCLOAK_REALM=${REACT_APP_KEYCLOAK_REALM:-routeshred}

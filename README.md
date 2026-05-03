@@ -1,213 +1,153 @@
-# 🔥 RouteShred
+# RouteShred
 
-**The open-source bike route planner for road and gravel bikes.**
+**The open-source bike route planner for road and gravel riders.**
 
-A modern web application for planning epic bike routes optimized for road and gravel bikes using **OpenCycleMap** and **OSRM** (Open Source Routing Machine).
+A modern self-hosted web application for planning cycling routes with terrain-aware routing, elevation profiles, weather alerts, and community features.
 
-## 🚀 Features
+## Features
 
-### Core Functionality
-- **Smart Route Planning**: Calculate optimal routes using OSRM with bike-specific profiles
-- **Multi-Bike Support**: Road bike, gravel bike, and MTB routing profiles
-- **Route Preferences**: Choose between fastest, scenic, or offroad routes
-- **Elevation Analysis**: Detailed elevation profiles with gain/loss calculations
-- **Terrain Analysis**: Real-time terrain type detection using OSM data
+### Route Planning
+- **Ride personas** — one-click presets for Coffee Ride, Bunch Ride, Endurance, and Gravel
+- **Bike profiles** — load BRouter custom profiles or use built-in road/gravel/MTB defaults
+- **Route preferences** — Fastest, Scenic, Offroad
+- **Waypoints** — add intermediate points, reorder, delete
+- **Return route** — calculate round-trip automatically
+- **GPX / FIT import** — load routes from Komoot, Strava, Garmin, etc.
 
-### Import/Export
-- **Wahoo Export**: Direct TCX export for Wahoo computers, Garmin, and other devices
-- **GPX Format**: Universal GPX support for maximum compatibility
-- **Route Sharing**: Save and share routes with community
+### Analysis
+- **Elevation profile** — interactive chart with gain/loss and gradient
+- **Terrain breakdown** — surface type percentages (asphalt, gravel, trail…)
+- **Weather alerts** — wind, rain, heat, UV, and crosswind warnings via Open-Meteo
+- **Power zone preview** — FTP-based target watts for each ride type (Z2, SST, TT, Threshold)
 
-### Map & UI
-- **OpenCycleMap Integration**: Purpose-built cycling map with cycle routes
-- **Interactive Map**: Click-to-set waypoints with live route preview
-- **Elevation Chart**: Beautiful visualization of height profile
-- **Responsive Design**: Works on desktop, tablet, and mobile
+### Export & Devices
+- **TCX export** — Wahoo, Garmin, and other head units
+- **GPX export** — universal format
+- **Share to Wahoo** — Web Share API sends GPX directly to the Wahoo Companion App on mobile
 
-## 📋 Tech Stack
+### Social & Community
+- **Saved routes** — save, rename, delete, load back onto map
+- **Sharing** — public links, per-user sharing, deep-link loading
+- **Group rides** — create group ride events, link a route, join/leave, comments
+- **Community feed** — browse public rides from all users
+
+### Auth & Profiles
+- **Keycloak OIDC** — optional, enables saved routes, profiles, and social features
+- **Rider profile** — weight, FTP, bike type; persisted per user
+
+## Tech Stack
 
 ### Frontend
-- **React 18** - UI framework
-- **React Leaflet** - Interactive mapping
-- **Zustand** - State management
-- **Recharts** - Data visualization
-- **Tailwind CSS** - Styling
+- React 18, Zustand (state), React Leaflet, Recharts
+- react-icons, keycloak-js 24, fit-file-parser
+- i18n: German (default) + English
 
 ### Backend
-- **Node.js + Express** - Server framework
-- **BRouter (optional, recommended)** - Bike-optimized routing engine
-- **OSRM** - Fallback/open routing engine
-- **Open Elevation API** - Elevation data
-- **Axios** - HTTP client
+- Node.js / Express
+- BRouter (primary routing engine, self-hosted)
+- OSRM (fallback routing engine)
+- Open-Meteo (elevation + weather)
+- Open-Elevation (elevation fallback)
+- Nominatim + Overpass (geocoding + POI search)
+- Keycloak 24 + PostgreSQL 16 (auth, optional)
 
-### Data Sources
-- **OpenStreetMap**: Road network and POI data
-- **OpenCycleMap**: Cycling-specific map layer
-- **Open Elevation**: Elevation data
-
-## 🛠️ Installation
+## Installation
 
 ### Prerequisites
-- Node.js >= 18.0.0
-- npm >= 9.0.0
+
+- Node.js >= 18.0.0, npm >= 9.0.0
+- Docker + Docker Compose (for BRouter, Keycloak)
 
 ### Quick Start
 
-1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/bike-route-planner.git
-cd bike-route-planner
-```
-
-2. **Install dependencies** (monorepo setup)
-```bash
+git clone https://github.com/yourusername/routeshred.git
+cd routeshred
 npm install
 npm install --workspace=frontend
 npm install --workspace=backend
 ```
 
-3. **Configure environment**
-
-Backend (`.env`):
+Backend (`.env` at project root):
 ```env
 PORT=5050
 NODE_ENV=development
-OSRM_API=http://router.project-osrm.org
-ROUTING_ENGINE=osrm
+ROUTING_ENGINE=brouter
 BROUTER_API=http://localhost:17777/brouter
+OSRM_API=http://router.project-osrm.org
 ROUTESHRED_ROUTES_DIR=./data/routes
+ROUTESHRED_CACHE_DIR=./data/cache
 ```
 
-Frontend (`.env` in frontend folder):
+Frontend (`frontend/.env`):
 ```env
 REACT_APP_API_URL=/api
 ```
 
-4. **Start development servers**
 ```bash
-# From root directory - starts both frontend and backend
+# Start frontend + backend (no BRouter)
 npm run dev
 
-# Start dev mode with BRouter (builds from official BRouter repo and starts on localhost:17777)
+# Start with BRouter Docker container
 npm run dev:brouter
 
-# Start dev mode with Docker-managed BRouter + app stack
+# Start with full Docker stack (BRouter + Keycloak)
 npm run dev:brouter:docker
-
-# Start/stop only Keycloak
-npm run keycloak:up
-npm run keycloak:down
-
-# Or run separately:
-npm run dev --workspace=frontend  # Runs on http://localhost:3000
-npm run dev --workspace=backend   # Runs on http://localhost:5050
 ```
 
-`npm run dev:brouter` automatically frees port `5050` if a previous backend instance is still running.
+`npm run dev:brouter` auto-frees port 5050 if a previous instance is still running.
 
-### Enable BRouter
+### BRouter
 
-RouteShred supports BRouter as a first-class routing engine.
-
-1. Run a BRouter server (local or Docker) on `http://localhost:17777/brouter`.
-   Quick start via Docker Compose (builds from `abrensch/brouter` tag `v1.7.9`):
+BRouter is the preferred routing engine. It uses bike-optimized `.brf` profiles and `.rd5` segment tiles.
 
 ```bash
+# Build and start BRouter on localhost:17777
 npm run brouter:build
 npm run brouter:up
-```
 
-Stop it with:
-
-```bash
+# Stop
 npm run brouter:down
 ```
 
-Persistent data directories used by Docker Compose:
+Volume mounts used by Docker Compose:
+- `brouter-data/segments4` — `.rd5` routing tiles (auto-fetched if `BROUTER_AUTO_FETCH_SEGMENTS=true`)
+- `brouter-data/customprofiles` — custom `.brf` profiles
 
-- `brouter-data/segments4`: `.rd5` routing tiles
-- `brouter-data/customprofiles`: custom `.brf` profiles
-
-Note: segment files are not bundled. RouteShred backend can auto-fetch required `.rd5` tiles
-for local BRouter into `brouter-data/segments4`.
-
-Optional backend env settings for this behavior:
-
+Relevant env vars:
 ```env
 BROUTER_SEGMENTS_DIR=../brouter-data/segments4
 BROUTER_SEGMENTS_BASE_URL=https://brouter.de/brouter/segments4
 BROUTER_AUTO_FETCH_SEGMENTS=true
 ```
 
-### Local Data Cache
+If BRouter is unavailable, RouteShred falls back to OSRM automatically.
 
-RouteShred can keep reusable routing metadata and elevation profiles on disk so
-repeat requests do not need to hit public APIs every time.
+### Local Cache
 
-Default cache location:
+Routing metadata and elevation data are cached on disk to avoid repeated API calls.
 
 ```env
 ROUTESHRED_CACHE_DIR=./data/cache
-```
-
-Cached locally:
-
-- Elevation profiles from Open-Meteo/Open-Elevation
-- Overpass cycleway, major-road, and waypoint lookup responses
-- BRouter `.rd5` routing segments in `brouter-data/segments4`
-- User profiles in `data/profiles` (when Keycloak auth is enabled)
-- User-saved routes in `data/routes` (when Keycloak auth is enabled)
-
-Useful cache settings:
-
-```env
 ELEVATION_CACHE_TTL_MS=2592000000
 OVERPASS_CACHE_TTL_MS=604800000
 ELEVATION_OPEN_METEO_BATCH_SIZE=50
 ```
 
-Map display tiles are separate from routing/elevation data. To use local map
-tiles, run a tile server such as TileServer GL, Martin, or a local raster tile
-server, then point the frontend at it:
+Cached data:
+- Elevation profiles (Open-Meteo / Open-Elevation)
+- Overpass cycleway, major-road, and POI lookup responses
+- BRouter `.rd5` segments
 
-```env
-REACT_APP_TILE_URL=http://localhost:8080/styles/cycle/{z}/{x}/{y}.png
-REACT_APP_TILE_ATTRIBUTION=OpenStreetMap contributors
-```
-2. Configure backend `.env`:
+### Keycloak Authentication
 
-```env
-ROUTING_ENGINE=brouter
-BROUTER_API=http://localhost:17777/brouter
-```
-
-3. Restart backend:
-
-```bash
-npm run dev --workspace=backend
-```
-
-4. Verify engine in health endpoint:
-
-```bash
-curl http://localhost:5050/api/health
-```
-
-If BRouter is unavailable, RouteShred automatically falls back to OSRM so routing keeps working.
-
-### Authentication With Keycloak
-
-RouteShred supports Keycloak as Identity Provider (OIDC) for user login and
-persistent rider profiles.
-
-1. Start Keycloak (realm import is automatic):
+Authentication is optional. Without it, RouteShred runs in anonymous mode (route planning only). With Keycloak, users get saved routes, rider profiles, and community features.
 
 ```bash
 docker compose up -d keycloak keycloak-db
 ```
 
-2. Configure backend (`.env` at project root):
-
+Backend (`.env`):
 ```env
 KEYCLOAK_ENABLED=true
 KEYCLOAK_URL=http://localhost:8080
@@ -216,8 +156,7 @@ KEYCLOAK_CLIENT_ID=routeshred-frontend
 ROUTESHRED_PROFILE_DIR=./data/profiles
 ```
 
-3. Configure frontend (`frontend/.env`):
-
+Frontend (`frontend/.env`):
 ```env
 REACT_APP_KEYCLOAK_ENABLED=true
 REACT_APP_KEYCLOAK_URL=http://localhost:8080
@@ -225,217 +164,138 @@ REACT_APP_KEYCLOAK_REALM=routeshred
 REACT_APP_KEYCLOAK_CLIENT_ID=routeshred-frontend
 ```
 
-4. Restart frontend/backend and open `http://localhost:3000`.
+The Keycloak realm is imported automatically from `docs/keycloak/routeshred-realm.json`. The login page uses the custom RouteShred theme at `docs/keycloak/themes/routeshred/`.
 
-The header now shows login/logout and a profile save action. Saved profile data
-includes rider FTP/weight, selected bike profile and ride type.
+### Custom Map Tiles
 
-The Keycloak login page uses the custom theme in
-`docs/keycloak/themes/routeshred/login/` to match the RouteShred UI style.
-If you change theme files, restart Keycloak to apply updates:
-
-```bash
-docker compose restart keycloak
+```env
+REACT_APP_TILE_URL=https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=YOUR_KEY
+REACT_APP_TILE_ATTRIBUTION=OpenStreetMap contributors
 ```
 
-## Proxmox One-Stack Deployment
+Get a free Thunderforest key at https://www.thunderforest.com
 
-If you want a single deployment (frontend + backend + BRouter + Keycloak + reverse proxy),
-use the dedicated compose file:
+## Production Deployment (Proxmox / Single Stack)
 
 ```bash
 docker compose -f docker-compose.proxmox.yml up -d --build
 ```
 
-### 1. Prepare environment
-
-Copy and edit `.env` from `.env.example` and set at least:
-
+Set at minimum in `.env`:
 ```env
 PUBLIC_HOSTNAME=route.example.com
 PUBLIC_BASE_URL=https://route.example.com
-
-KEYCLOAK_ADMIN=your-admin-user
-KEYCLOAK_ADMIN_PASSWORD=your-admin-password
+KEYCLOAK_ADMIN=admin
+KEYCLOAK_ADMIN_PASSWORD=strong-password
 KC_DB_USER=kc_routeshred
 KC_DB_PASSWORD=strong-db-password
 ```
 
-### 2. DNS / Networking
+The Caddy reverse proxy routes:
+- `/` → frontend
+- `/api/*` → backend (port 5050)
+- `/auth*` → Keycloak (port 8080)
 
-- Point `PUBLIC_HOSTNAME` to your Proxmox host IP.
-- Open inbound `80` and `443` to the VM/LXC running Docker.
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full production guide.
 
-### 3. Reverse Proxy and Paths
+## How to Use
 
-The stack includes Caddy as reverse proxy (`deploy/Caddyfile`) and routes:
+1. Open `http://localhost:3000`
+2. Choose a ride persona (Coffee, Bunch, Endurance, Gravel) or configure manually
+3. Set start and end points — type an address or click the map
+4. Add waypoints as needed
+5. Click **Calculate**
+6. Inspect the elevation profile and weather alerts
+7. Export as TCX or GPX, or use **An Wahoo senden** on mobile to share directly to the Wahoo Companion App
 
-- `/` -> frontend
-- `/api/*` -> backend
-- `/auth*` -> Keycloak
-
-Keycloak runs in the same stack and is served under `/auth`.
-
-### 4. Update / Restart
-
-```bash
-docker compose -f docker-compose.proxmox.yml pull
-docker compose -f docker-compose.proxmox.yml up -d --build
-```
-
-### 5. Stop
-
-```bash
-docker compose -f docker-compose.proxmox.yml down
-```
-
-## 🗺️ How to Use
-
-1. Open your browser to `http://localhost:3000`
-2. Select your bike type (Road, Gravel, MTB)
-3. Choose route preference (Fastest, Scenic, Offroad)
-4. Click on the map to set start point
-5. Click again to set end point
-6. Click "Calculate Route"
-7. View the elevation profile and route statistics
-8. Export to TCX (for Wahoo) or GPX (universal format)
-
-## 📡 API Endpoints
+## API Endpoints
 
 ### Routing
-- `POST /api/routing/route` - Calculate bike route
-- `POST /api/routing/analyze` - Analyze route terrain
+- `POST /api/routing/route` — calculate route
+- `POST /api/routing/analyze` — terrain analysis
 
-### Auth/Profile
-- `GET /api/auth/config` - Keycloak runtime config
-- `GET /api/auth/me` - Authenticated user claims
-- `GET /api/profile` - Load authenticated user profile
-- `PUT /api/profile` - Save authenticated user profile
+### Auth & Profile
+- `GET /api/auth/config` — Keycloak runtime config
+- `GET /api/auth/me` — authenticated user claims
+- `GET /api/profile` — load rider profile
+- `PUT /api/profile` — save rider profile
 
 ### Elevation
-- `POST /api/elevation/profile` - Get elevation profile for coordinates
+- `POST /api/elevation/profile` — elevation for coordinates
 
 ### Export
-- `POST /api/export/tcx` - Export as TCX file
-- `POST /api/export/gpx` - Export as GPX file
+- `POST /api/export/tcx` — export as TCX
+- `POST /api/export/gpx` — export as GPX
 
 ### Saved Routes
-- `GET /api/routes` - List visible saved routes (auth)
-- `GET /api/routes/:id?owner=<sub>` - Load a saved route (auth)
-- `POST /api/routes` - Save a new route (auth)
-- `PUT /api/routes/:id` - Update an existing route (auth)
-- `PATCH /api/routes/:id` - Rename or update sharing (auth)
-- `DELETE /api/routes/:id` - Delete a saved route (auth)
-- `GET /api/routes/public/:owner/:id` - Load a public route (optional auth)
+- `GET /api/routes` — list visible routes (auth)
+- `GET /api/routes/:id?owner=<sub>` — load route (auth)
+- `POST /api/routes` — save new route (auth)
+- `PUT /api/routes/:id` — update route (auth)
+- `PATCH /api/routes/:id` — rename / update sharing (auth)
+- `DELETE /api/routes/:id` — delete route (auth)
+- `GET /api/routes/public/:owner/:id` — load public route (no auth required)
 
 ### Group Rides
-- `GET /api/group-rides` - List visible group rides (auth)
-- `POST /api/group-rides` - Create a group ride (auth)
-- `PATCH /api/group-rides/:id` - Update own group ride (auth)
-- `DELETE /api/group-rides/:id` - Delete own group ride (auth)
-- `POST /api/group-rides/:id/join` - Join a group ride (auth)
-- `POST /api/group-rides/:id/leave` - Leave a group ride (auth)
-- `POST /api/group-rides/:id/comments` - Add a comment to a group ride (auth)
-- `GET /api/group-rides/public/:owner/:id` - Load a public group ride (optional auth)
+- `GET /api/group-rides` — list visible group rides (auth)
+- `POST /api/group-rides` — create group ride (auth)
+- `PATCH /api/group-rides/:id` — update own group ride (auth)
+- `DELETE /api/group-rides/:id` — delete own group ride (auth)
+- `POST /api/group-rides/:id/join` — join (auth)
+- `POST /api/group-rides/:id/leave` — leave (auth)
+- `POST /api/group-rides/:id/comments` — add comment (auth)
+- `GET /api/group-rides/public/:owner/:id` — load public group ride
 
-## 🏗️ Project Structure
+### Geocoding
+- `GET /api/geocode/search` — address / POI search
+
+### Users
+- `GET /api/users` — user lookup (auth)
+
+## Project Structure
 
 ```
-bike-route-planner/
-├── frontend/              # React web application
-│   ├── src/
-│   │   ├── components/   # React components
-│   │   ├── store/        # Zustand store
-│   │   └── styles/       # CSS stylesheets
-│   └── package.json
-├── backend/              # Node.js/Express API
-│   ├── src/
-│   │   ├── routes/       # API endpoints
-│   │   ├── services/     # Business logic
-│   │   └── server.js     # Express app
-│   └── package.json
-└── package.json          # Monorepo config
+routeshred/
+├── frontend/
+│   └── src/
+│       ├── components/       # React components
+│       ├── store/            # Zustand store (routeStore.js)
+│       ├── styles/           # CSS per component
+│       └── i18n.js           # DE / EN translations
+├── backend/
+│   └── src/
+│       ├── routes/           # Express route handlers
+│       ├── services/         # Business logic
+│       ├── utils/            # Shared helpers (diskCache, etc.)
+│       └── server.js         # Entry point
+├── brouter-data/             # BRouter segments + custom profiles
+├── data/                     # Runtime data (cache, routes, profiles)
+├── docs/                     # Documentation + Keycloak realm/theme
+├── deploy/                   # Caddy config for production
+├── docker-compose.yml        # Development stack
+└── docker-compose.proxmox.yml  # Production stack
 ```
 
-## 🔧 Advanced Setup
-
-### Self-Hosted OSRM (Recommended for Production)
-
-For production use, host your own OSRM instance with bike-optimized data:
-
-```bash
-# Using Docker
-docker run -t -v "${PWD}:/data" osrm/osrm-backend osrm-extract -p /opt/osrm/profiles/bike.lua /data/germany-latest.osm.pbf
-docker run -d -p 5000:5000 -v "${PWD}:/data" osrm/osrm-backend osrm-routed --algorithm mld /data/germany-latest.osm.pbf
-```
-
-Update `.env` to point to your instance:
-```env
-OSRM_API=http://localhost:5000
-```
-
-### Using Custom OpenCycleMap Tiles
-
-Add your Thunderforest API key to MapComponent.js:
-```javascript
-url="https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=YOUR_API_KEY"
-```
-
-Get a free API key at https://www.thunderforest.com
-
-## 🤝 Contributing
-
-Contributions welcome! Here's how:
+## Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Commit (`git commit -m 'Add my feature'`)
+4. Push and open a Pull Request
 
-## 📝 License
+## License
 
-This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE)
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
-- **OSRM** - Open Source Routing Machine
-- **OpenStreetMap** - The free wiki world map
-- **OpenCycleMap** - Cycling-specific map layer
-- **Leaflet.js** - Interactive mapping library
-
-## 📞 Support
-
-For issues, questions, or suggestions:
-- Open an [Issue](https://github.com/yourusername/bike-route-planner/issues)
-- Email: your-email@example.com
-
-## 🗺️ Roadmap
-
-### Done
-
-- [x] Route history and saved routes (save/load/rename/delete)
-- [x] User accounts via Keycloak (profile persistence and ownership)
-- [x] Nearby POI and address search (Nominatim + Overpass, category shortcuts)
-- [x] Weather-aware route signals (wind, rain, heat, UV, sidewind alerts)
-- [x] GPX import and FIT import
-- [x] Route sharing basics (public/private + user-based sharing)
-
-### In Progress
-
-- [ ] Community route sharing platform (discoverability, feed, public-route UX, comments)
-- [ ] Real-time traffic integration
-- [ ] Advanced filters (route constraints and presets)
-- [ ] Social features phase 2: public route browse/explore view
-- [ ] Social features phase 2b: group rides organizer (descriptions, challenges, photos)
-
-### Next
-
-- [x] Social features phase 1: shareable public links + deep-link route loading
-- [ ] Social features phase 3: external platform sync (e.g. Strava)
-- [ ] Offline map support
-- [ ] Mobile app (React Native)
+- [BRouter](https://brouter.de) — bike-optimized routing
+- [OSRM](http://project-osrm.org) — fallback routing
+- [Open-Meteo](https://open-meteo.com) — elevation and weather
+- [OpenStreetMap](https://openstreetmap.org) — road network and POI data
+- [Leaflet.js](https://leafletjs.com) — interactive maps
+- [Keycloak](https://keycloak.org) — authentication
 
 ---
 
-Built with ❤️ for cyclists by cyclists
+Built for cyclists, by cyclists.

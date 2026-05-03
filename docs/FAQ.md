@@ -1,235 +1,165 @@
-# Bike Route Planner - FAQ & Troubleshooting
+# RouteShred — FAQ
 
-## ❓ Frequently Asked Questions
+## General
 
-### General Questions
+**Why not just use Komoot or RideWithGPS?**
+RouteShred is fully self-hosted and open-source. You control your data, your routing profiles, and your feature set. There is no subscription fee and no corporate lock-in.
 
-**Q: Why not just use Komoot?**
-A: This is fully open-source, customizable, and you control your data. You can self-host it, modify features, and support bike-specific routing without corporate constraints.
+**What routing engine does RouteShred use?**
+BRouter by default. BRouter uses OpenStreetMap data with bike-specific `.brf` profiles that understand surface type, road quality, and cycling infrastructure. OSRM is used as fallback when BRouter is unavailable.
 
-**Q: What data sources does this use?**
-A: We use OpenStreetMap for road network, OpenCycleMap for the map layer, OSRM for routing, and Open Elevation for elevation data. Everything is open-source and free.
+**What map data does it use?**
+OpenStreetMap for road network and terrain, Thunderforest OpenCycleMap for the default map layer, Open-Meteo for elevation and weather, and Nominatim + Overpass for address and POI search.
 
-**Q: Can I use this offline?**
-A: Currently no, but offline support is on the roadmap. For now, you need internet to calculate routes.
+**Does it work offline?**
+No. Routing, elevation, weather, and address search all require network access. Map tiles are cached by the browser after first load.
 
-**Q: How accurate are the elevation profiles?**
-A: Open Elevation API provides ~40% global coverage with ~10m accuracy in most regions. Self-hosted SRTM/DEM data can improve this.
+**How accurate are elevation profiles?**
+Open-Meteo provides good global coverage with ~10 m resolution. Open-Elevation is used as fallback. For very precise analysis, consider integrating a local SRTM/DEM dataset.
 
 ---
 
-### Setup & Installation
+## Setup & Installation
 
-**Q: I'm getting "npm ERR! code ETARGET"**
-A: This means a package version doesn't exist. Run:
-```bash
-rm -rf node_modules package-lock.json
-npm install
-```
+**What's the backend port?**
+Port `5050`. Not 5000 — check your `.env` and any firewall rules accordingly.
 
-**Q: Port 3000 or 5000 already in use**
-A: Kill the existing process:
+**Do I need Docker?**
+Docker is needed for BRouter and Keycloak. You can run the frontend and backend without Docker (`npm run dev`), using the public OSRM demo server for routing, but BRouter's quality is much better.
+
+**Getting "Port 5050 already in use"**
 ```bash
-# macOS/Linux
-lsof -i :3000
+lsof -i :5050
 kill -9 <PID>
-
-# Windows
-netstat -ano | findstr :3000
-taskkill /PID <PID> /F
 ```
 
-**Q: "Cannot find module 'leaflet/dist/images/marker-icon.png'"**
-A: This is already fixed in MapComponent.js. If you still see it, make sure you're using the latest version from GitHub.
+`npm run dev:brouter` handles this automatically.
 
----
-
-### Running & Debugging
-
-**Q: What if `npm run dev` doesn't start?**
-A: Check for errors:
+**Getting npm install errors / "ETARGET"**
 ```bash
-# Backend only
-cd backend && npm run dev
-
-# Frontend only
-cd frontend && npm run dev
+rm -rf node_modules frontend/node_modules backend/node_modules
+npm install
+npm install --workspace=frontend
+npm install --workspace=backend
 ```
 
-**Q: Backend API calls fail with CORS error**
-A: Make sure:
-1. Backend is running on http://localhost:5000
-2. Frontend .env has `REACT_APP_API_URL=http://localhost:5000`
-3. Backend CORS is configured (it is by default)
-
-**Q: Route doesn't calculate**
-A: 
-1. Check backend is running (`curl http://localhost:5000/api/health`)
-2. Make sure both start and end points are set
-3. Check browser console for errors
-4. Try with major cities first (routing may fail in remote areas)
+**BRouter tiles are missing for my region**
+Set `BROUTER_AUTO_FETCH_SEGMENTS=true` in `.env`. RouteShred will download tiles from `brouter.de` the first time a route is calculated through an area. Tiles are cached in `brouter-data/segments4/`.
 
 ---
 
-### Features & Functionality
+## Running & Debugging
 
-**Q: How do I export to Wahoo?**
-A: Click "Export to TCX (Wahoo)" button - this downloads a .tcx file. Upload to Wahoo app or sync to your device.
-
-**Q: What's the difference between "Fastest", "Scenic", and "Offroad"?**
-A:
-- **Fastest**: Optimized for time - uses main roads
-- **Scenic**: Balanced - avoids highways, prefers nice routes
-- **Offroad**: Prefers unpaved surfaces - best for gravel bikes
-
-**Q: Can I import routes from other apps?**
-A: Not yet, but it's on the roadmap. You can currently export from Komoot/Strava as GPX, then manually recreate them here.
-
-**Q: Why no user accounts/cloud sync?**
-A: To keep it simple and privacy-focused. Routes are stored locally in your browser. Cloud sync is planned for future versions.
-
----
-
-### Map & Navigation
-
-**Q: Map is blank or showing wrong location**
-A: 
-1. Check internet connection (tiles need to download)
-2. Try zooming in/out
-3. Clear browser cache: Settings → Clear browsing data
-
-**Q: OpenCycleMap tile loading is slow**
-A: This is normal with free tiles. For production, get a Thunderforest API key for better performance.
-
-**Q: Can I use a different map layer?**
-A: Yes! Modify `MapComponent.js`:
-```javascript
-// Change the TileLayer URL to any compatible provider
-url="https://tile.opentopomap.org/{z}/{x}/{y}.png"
-```
-
----
-
-### Performance & Optimization
-
-**Q: Routes take too long to calculate**
-A: 
-1. OSRM Demo server can be slow - set up self-hosted for production
-2. Long routes (>100km) take longer anyway
-3. Check your internet speed
-
-**Q: App is slow on mobile**
-A: 
-1. Reduce map tile resolution
-2. Turn off elevation profile for faster loading
-3. Current version optimized for desktop
-
----
-
-### Data & Privacy
-
-**Q: What data is collected?**
-A: None. We don't track users. All calculations happen locally or on your chosen servers.
-
-**Q: Where are my routes stored?**
-A: In your browser's local storage (localStorage). They're never sent anywhere unless you export them.
-
-**Q: Can I self-host everything?**
-A: Yes! That's the plan:
-1. Host backend API yourself
-2. Set up OSRM instance
-3. Use your own elevation data
-4. Host frontend yourself
-
----
-
-### Development
-
-**Q: How do I help contribute?**
-A: See [DEVELOPMENT.md](./DEVELOPMENT.md) - we welcome contributions! Start with issues labeled "good first issue".
-
-**Q: What's the tech stack?**
-A: 
-- **Frontend**: React 18, Leaflet, Zustand, Tailwind CSS
-- **Backend**: Node.js, Express, OSRM, Open Elevation API
-
-**Q: Can I use this for commercial purposes?**
-A: It's MIT licensed, so yes - but give credit and open-source any modifications.
-
----
-
-### Deployment & Production
-
-**Q: How do I deploy to production?**
-A: See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions for Heroku, Docker, AWS, etc.
-
-**Q: Is this production-ready?**
-A: The codebase is well-structured, but should be tested thoroughly before production use. Main considerations:
-1. Set up self-hosted OSRM for reliability
-2. Configure error tracking (Sentry)
-3. Add rate limiting
-4. Set up monitoring
-
-**Q: How much does it cost to run?**
-A: Mostly free:
-- OSRM Demo: Free
-- Open Elevation: Free
-- OpenCycleMap tiles: Free (or ~$50/mo for commercial)
-- Hosting: Depends (free tier options available)
-
----
-
-## 🆘 Still Having Issues?
-
-1. **Check the logs**:
+**How do I check which routing engine is active?**
 ```bash
-# Backend logs
-cd backend && npm run dev
-
-# Frontend console
-Press F12 in browser
+curl http://localhost:5050/api/health
 ```
+The response includes `routingEngine` and the BRouter availability status.
 
-2. **Search existing issues**:
-   - GitHub Issues: https://github.com/yourusername/bike-route-planner/issues
+**Route calculation fails completely**
+1. Confirm the backend is running: `curl http://localhost:5050/api/health`
+2. Check browser console for the exact error message
+3. If using BRouter, confirm it's running: `curl http://localhost:17777/brouter/version`
+4. If both fail, the OSRM demo server fallback may be rate-limited — try again or set up local BRouter
 
-3. **Ask in discussions**:
-   - GitHub Discussions available
+**Weather alerts not appearing**
+Weather alerts require Open-Meteo to return a forecast for the route coordinates. Check that the backend can reach `api.open-meteo.com`. Alerts only appear when significant wind, rain, heat, or UV conditions are detected.
 
-4. **Try the demo** first to isolate issues
+**Elevation profile is flat or missing**
+The backend enriches route coordinates with elevation after routing. Check that `ROUTESHRED_CACHE_DIR` is writable. Elevation is fetched from Open-Meteo; if it fails, Open-Elevation is tried next.
 
 ---
 
-## 📝 Reporting Bugs
+## Features
 
-When reporting bugs, please include:
-1. **Steps to reproduce** the issue
-2. **Expected behavior**
-3. **Actual behavior**
-4. **Browser/OS** you're using
-5. **Error messages** from console
-6. **Screenshots** if applicable
+**What are the ride personas?**
 
-**Example good bug report**:
-```
-Title: Route calculation fails for Berlin to Munich
+| Persona | Ride Type | Route Preference |
+|---------|-----------|-----------------|
+| Coffee Ride | Z2 (endurance pace) | Scenic |
+| Bunch Ride | TT (race pace) | Fastest |
+| Endurance | SST (sweet spot) | Scenic |
+| Gravel | Z2 | Offroad |
 
-Steps:
-1. Set start point to Berlin city center
-2. Set end point to Munich city center  
-3. Click "Calculate Route"
+Selecting a persona sets both `rideType` and `preference` at once. The power zone preview shows target watts based on your FTP.
 
-Expected: Route appears on map
-Actual: Error message "Failed to calculate route"
-Console error: CORS error from OSRM endpoint
+**What are rideTypes vs. preferences?**
+- `rideType` (Z2, SST, TT, Threshold) controls the power zone display — it's about training intensity, not routing.
+- `preference` (Fastest, Scenic, Offroad) controls how BRouter/OSRM selects the route — road type, surface, speed.
 
-Browser: Chrome 120 on macOS 13
-```
+**Can I import routes from other apps?**
+Yes. The import button accepts `.gpx` and `.fit` files. Export from Komoot, Strava, Garmin Connect, etc. as GPX and import here. Start, end, and intermediate waypoints are extracted automatically.
+
+**How do I send a route to my Wahoo ELEMNT?**
+
+On mobile: after calculating a route, open the Export section and tap **An Wahoo senden**. This uses the Web Share API to open your phone's native share sheet, where you select the Wahoo Companion App. The app receives the `.gpx` file and syncs it to the device.
+
+On desktop: use **TCX exportieren** or **GPX exportieren** to download the file, then upload it via the Wahoo Companion App or Wahoo Cloud.
+
+**How do I save a route?**
+You need to be logged in (Keycloak). After calculating a route, type a name in the save bar at the top of the plan panel and click Save. Saved routes appear in the **Meine Routen** tab.
+
+**Can I share a route?**
+Yes. In Meine Routen, switch a route to **Public** or use per-user sharing. Public routes get a shareable link that works without login. Anyone with the link can load the route onto the map.
+
+**What are group rides?**
+Group rides are community events tied to a date, meeting point, and optionally a saved route. You create one in the Community tab. Other logged-in users can join, leave, and comment. Only the creator can edit or delete their rides.
+
+**Is there a map layer switcher?**
+Not as a UI control — tile layers are configured via `REACT_APP_TILE_URL`. The default is OpenStreetMap; you can switch to Thunderforest OpenCycleMap, OpenTopoMap, or any other tile provider that supports the `{z}/{x}/{y}` URL format.
 
 ---
 
-For more detailed information:
-- [Setup Guide](./SETUP.md)
-- [Architecture](./ARCHITECTURE.md)
-- [Development](./DEVELOPMENT.md)
-- [Deployment](./DEPLOYMENT.md)
+## Data & Privacy
+
+**What data is stored server-side?**
+Only data you explicitly save: routes (if you click Save), rider profile (FTP, weight, bike type), and group rides. Calculated routes that are not saved are not persisted.
+
+**Where are saved routes stored?**
+As JSON files in `ROUTESHRED_ROUTES_DIR` on the server (`./data/routes` by default). Nothing is sent to any third party.
+
+**Is Keycloak required?**
+No. Without `KEYCLOAK_ENABLED=true` the app runs without authentication: route planning and export work, but saved routes and community features are unavailable.
+
+**What does Keycloak store?**
+User accounts (username + email) and session data, in its own PostgreSQL database. RouteShred stores your sub (user ID), routes, and profile separately in flat files.
+
+---
+
+## Contributing
+
+**How do I get started contributing?**
+See [DEVELOPMENT.md](./DEVELOPMENT.md). Look for issues labelled `good first issue` on GitHub. Bug reports and feature suggestions via GitHub Issues are also welcome.
+
+**What's the tech stack?**
+Frontend: React 18, Zustand, Leaflet, Recharts, react-icons.
+Backend: Node.js, Express, BRouter, OSRM, Open-Meteo, Keycloak.
+Everything is plain JavaScript (no TypeScript).
+
+**MIT license — can I use this commercially?**
+Yes. Attribution appreciated but not required.
+
+---
+
+## Still having issues?
+
+1. **Check the backend logs**: `docker compose logs backend` or the console where you ran `npm run dev`
+2. **Check the browser console**: F12 → Console tab
+3. **Health check**: `curl http://localhost:5050/api/health`
+4. **File a GitHub issue** with: steps to reproduce, expected vs. actual behaviour, browser/OS, and any error messages from the console.
+
+**Bug report template**:
+```
+Title: [short description]
+
+Steps to reproduce:
+1. …
+2. …
+
+Expected: …
+Actual: …
+
+Browser: Chrome 120 / macOS 14
+Backend logs: (paste relevant lines)
+Console error: (paste)
+```

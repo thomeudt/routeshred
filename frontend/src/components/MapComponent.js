@@ -10,9 +10,9 @@ import GroupRidesPanel from './GroupRidesPanel';
 import '../styles/Map.css';
 
 const TILE_URL = process.env.REACT_APP_TILE_URL
-  || 'https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=007b5abe80db44699c19474ee8d9500b';
+  || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_ATTRIBUTION = process.env.REACT_APP_TILE_ATTRIBUTION
-  || '&copy; <a href="https://www.opencyclemap.org">OpenCycleMap</a>';
+  || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const routeDragPreviewIcon = L.divIcon({
   className: 'route-drag-preview',
   html: '<span></span>',

@@ -1,115 +1,220 @@
-# Bike Route Planner - Deployment Guide
+# RouteShred — Deployment Guide
 
-## 🐳 Docker Deployment
+## Recommended: Proxmox / Single-Host Docker Stack
 
-### Quick Start with Docker Compose
+The production-ready Docker Compose file is `docker-compose.proxmox.yml`. It runs all services in one stack behind a Caddy reverse proxy with automatic HTTPS.
+
+### Services
+
+| Service | Port (internal) | Purpose |
+|---------|----------------|---------|
+| `caddy` | 80, 443 | Reverse proxy + TLS |
+| `frontend` | 3000 | React app (served as static build) |
+| `backend` | 5050 | Express API |
+| `brouter` | 17777 | BRouter routing engine |
+| `keycloak` | 8080 | OIDC authentication |
+| `keycloak-db` | 5432 | PostgreSQL for Keycloak |
+
+### Setup
+
+1. **Prepare environment**
+
+   Copy `.env.example` to `.env` and set at minimum:
+
+   ```env
+   PUBLIC_HOSTNAME=route.example.com
+   PUBLIC_BASE_URL=https://route.example.com
+
+   KEYCLOAK_ADMIN=admin
+   KEYCLOAK_ADMIN_PASSWORD=strong-password
+   KC_DB_USER=kc_routeshred
+   KC_DB_PASSWORD=strong-db-password
+
+   # Optional: Thunderforest API key for OpenCycleMap tiles
+   REACT_APP_TILE_URL=https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=YOUR_KEY
+   ```
+
+2. **DNS**
+
+   Point `PUBLIC_HOSTNAME` to your host IP. Open ports 80 and 443.
+
+3. **Start the stack**
+
+   ```bash
+   docker compose -f docker-compose.proxmox.yml up -d --build
+   ```
+
+4. **Verify**
+
+   ```bash
+   curl https://route.example.com/api/health
+   ```
+
+### Caddy URL Routing
+
+Defined in `deploy/Caddyfile`:
+
+- `https://route.example.com/` → frontend (React build)
+- `https://route.example.com/api/*` → backend (:5050)
+- `https://route.example.com/auth*` → Keycloak (:8080)
+
+TLS certificates are managed automatically by Caddy via Let's Encrypt.
+
+### Updates
 
 ```bash
-# Build and start all services
-docker-compose up --build
-
-# Services will be available at:
-# - Frontend: http://localhost:3000
-# - Backend: http://localhost:5000
+docker compose -f docker-compose.proxmox.yml pull
+docker compose -f docker-compose.proxmox.yml up -d --build
 ```
 
-### Individual Service Deployment
-
-#### Backend
-```bash
-cd backend
-docker build -t bike-route-backend .
-docker run -p 5000:5000 -e NODE_ENV=production bike-route-backend
-```
-
-#### Frontend
-```bash
-cd frontend
-docker build -t bike-route-frontend .
-docker run -p 3000:3000 bike-route-frontend
-```
-
-## ☁️ Cloud Deployment
-
-### Heroku
+### Stop / Teardown
 
 ```bash
-# Login to Heroku
-heroku login
+# Stop (keep volumes)
+docker compose -f docker-compose.proxmox.yml down
 
-# Create app
-heroku create bike-route-planner
-
-# Deploy backend
-git push heroku main
-
-# Set environment variables
-heroku config:set NODE_ENV=production
-heroku config:set OSRM_API=https://your-osrm-instance.com
+# Stop and remove all volumes (destroys routes + Keycloak DB)
+docker compose -f docker-compose.proxmox.yml down -v
 ```
-
-### Vercel (Frontend Only)
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-cd frontend
-vercel
-```
-
-### AWS / DigitalOcean / Linode
-
-All services can be containerized and deployed to:
-- **AWS ECS/EKS** - Container orchestration
-- **DigitalOcean App Platform** - Simple deployment
-- **Heroku** - Simple PaaS
-- **Linode** - VPS hosting
-
-## 🚀 Production Checklist
-
-- [ ] Set `NODE_ENV=production`
-- [ ] Use environment variables for secrets
-- [ ] Configure HTTPS/SSL
-- [ ] Set up error logging (Sentry, LogRocket)
-- [ ] Configure rate limiting
-- [ ] Enable CORS properly (not wildcard)
-- [ ] Set up monitoring and alerts
-- [ ] Configure backups for any persistent data
-- [ ] Use self-hosted OSRM instance for reliability
-- [ ] Configure CDN for static assets
-
-## 📊 Performance Optimization
-
-### Backend
-```javascript
-// Add caching middleware
-const cache = require('express-cache-middleware');
-app.use(cache.route());
-```
-
-### Frontend
-```javascript
-// Lazy loading
-const MapComponent = React.lazy(() => import('./components/MapComponent'));
-```
-
-### Infrastructure
-- Use CDN for static assets
-- Enable gzip compression
-- Use caching headers
-- Load balance multiple backend instances
-
-## 🔐 Security
-
-- Keep dependencies updated: `npm audit fix`
-- Use environment variables for sensitive data
-- Validate all user inputs
-- Rate limit API endpoints
-- Use HTTPS only
-- Set security headers (helmet.js)
 
 ---
 
-For development setup, see [SETUP.md](./SETUP.md)
+## Development Stack
+
+For local development without TLS or Caddy:
+
+```bash
+docker compose up --build
+```
+
+Access:
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:5050`
+- Keycloak: `http://localhost:8080`
+- BRouter: `http://localhost:17777`
+
+---
+
+## BRouter Segment Tiles
+
+BRouter needs `.rd5` segment files for the regions you want to route through. Either:
+
+**Option A — Auto-fetch** (recommended for first boot):
+
+```env
+BROUTER_AUTO_FETCH_SEGMENTS=true
+BROUTER_SEGMENTS_DIR=../brouter-data/segments4
+BROUTER_SEGMENTS_BASE_URL=https://brouter.de/brouter/segments4
+```
+
+The backend downloads tiles on first use for the requested bounding box.
+
+**Option B — Pre-download** (faster cold start):
+
+```bash
+# Download tiles for DACH region
+wget -P brouter-data/segments4 https://brouter.de/brouter/segments4/E10_N45.rd5
+wget -P brouter-data/segments4 https://brouter.de/brouter/segments4/E10_N50.rd5
+# … add tiles as needed
+```
+
+Tile filenames follow `E{lon_tile}_{N|S}{lat_tile}.rd5` naming.
+
+---
+
+## Persistent Data Directories
+
+| Path (host) | Container path | Content |
+|-------------|---------------|---------|
+| `./data/routes` | `/app/data/routes` | Saved routes + group rides (JSON) |
+| `./data/profiles` | `/app/data/profiles` | Rider profiles (JSON) |
+| `./data/cache` | `/app/data/cache` | Elevation + Overpass cache |
+| `./brouter-data/segments4` | `/brouter/segments4` | BRouter routing tiles |
+| `./brouter-data/customprofiles` | `/brouter/customprofiles` | Custom `.brf` profiles |
+| `keycloak-db-data` (volume) | `/var/lib/postgresql/data` | Keycloak DB |
+
+Back up `./data/routes` and the Keycloak DB volume to preserve user data.
+
+---
+
+## Environment Variables Reference
+
+### Backend
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `5050` | HTTP port |
+| `NODE_ENV` | `development` | `production` disables verbose errors |
+| `ROUTING_ENGINE` | `brouter` | `brouter` or `osrm` |
+| `BROUTER_API` | `http://localhost:17777/brouter` | BRouter base URL |
+| `OSRM_API` | `http://router.project-osrm.org` | OSRM base URL |
+| `BROUTER_AUTO_FETCH_SEGMENTS` | `false` | Auto-download missing tiles |
+| `BROUTER_SEGMENTS_DIR` | `../brouter-data/segments4` | Local tile storage |
+| `KEYCLOAK_ENABLED` | `false` | Enable Keycloak auth |
+| `KEYCLOAK_URL` | — | Keycloak base URL |
+| `KEYCLOAK_REALM` | `routeshred` | Realm name |
+| `KEYCLOAK_CLIENT_ID` | `routeshred-frontend` | Client ID |
+| `ROUTESHRED_ROUTES_DIR` | `./data/routes` | Route file storage |
+| `ROUTESHRED_PROFILE_DIR` | `./data/profiles` | Profile file storage |
+| `ROUTESHRED_CACHE_DIR` | `./data/cache` | Disk cache directory |
+| `ELEVATION_CACHE_TTL_MS` | `2592000000` (30 days) | Elevation cache TTL |
+| `OVERPASS_CACHE_TTL_MS` | `604800000` (7 days) | Overpass cache TTL |
+| `ELEVATION_PROVIDER_ORDER` | `open-meteo,open-elevation` | Elevation API priority |
+
+### Frontend
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REACT_APP_API_URL` | `/api` | Backend API base URL |
+| `REACT_APP_KEYCLOAK_ENABLED` | `false` | Enable Keycloak login UI |
+| `REACT_APP_KEYCLOAK_URL` | — | Keycloak URL (shown to browser) |
+| `REACT_APP_KEYCLOAK_REALM` | `routeshred` | Realm name |
+| `REACT_APP_KEYCLOAK_CLIENT_ID` | `routeshred-frontend` | Client ID |
+| `REACT_APP_TILE_URL` | OSM default | Map tile URL template |
+| `REACT_APP_TILE_ATTRIBUTION` | OSM attribution | Attribution string |
+
+---
+
+## Production Checklist
+
+- [ ] `NODE_ENV=production` set
+- [ ] All secrets in `.env`, not committed to git
+- [ ] HTTPS enforced (Caddy handles this automatically)
+- [ ] BRouter tiles downloaded for target region
+- [ ] Keycloak admin password changed from default
+- [ ] Keycloak DB password is strong and unique
+- [ ] `./data/routes` backed up regularly
+- [ ] Thunderforest API key set for production tile quality
+- [ ] Health endpoint responds: `curl https://your-domain/api/health`
+
+---
+
+## Self-Hosted OSRM (Alternative to BRouter)
+
+If you prefer OSRM or need it as a reliable fallback:
+
+```bash
+# Download OSM data for your region
+wget https://download.geofabrik.de/europe/germany-latest.osm.pbf
+
+# Prepare routing data
+docker run -v $(pwd):/data osrm/osrm-backend \
+  osrm-extract -p /opt/osrm/profiles/bike.lua /data/germany-latest.osm.pbf
+docker run -v $(pwd):/data osrm/osrm-backend osrm-partition /data/germany-latest.osrm
+docker run -v $(pwd):/data osrm/osrm-backend osrm-customize /data/germany-latest.osrm
+
+# Run
+docker run -d -p 5000:5000 -v $(pwd):/data osrm/osrm-backend \
+  osrm-routed --algorithm mld /data/germany-latest.osrm
+```
+
+Configure:
+```env
+ROUTING_ENGINE=osrm
+OSRM_API=http://localhost:5000
+```
+
+---
+
+See [DEVELOPMENT.md](./DEVELOPMENT.md) for local development setup.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for system design.
