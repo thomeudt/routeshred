@@ -14,9 +14,10 @@ router.post('/tcx', async (req, res) => {
       return res.status(400).json({ error: 'Route data required' });
     }
 
-    const tcxData = await generateTCXFile(route, { name, description });
+    const safeName = String(name || 'Route').replace(/[^\w\s.-]/g, '_').slice(0, 100);
+    const tcxData = await generateTCXFile(route, { name: safeName, description });
     res.setHeader('Content-Type', 'application/xml');
-    res.setHeader('Content-Disposition', `attachment; filename="${name}.tcx"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.tcx"`);
     res.send(tcxData);
   } catch (error) {
     console.error('TCX export error:', error);
@@ -36,9 +37,10 @@ router.post('/gpx', async (req, res) => {
       return res.status(400).json({ error: 'Route data required' });
     }
 
-    const gpxData = await generateGPXFile(route, { name, description });
+    const safeName = String(name || 'Route').replace(/[^\w\s.-]/g, '_').slice(0, 100);
+    const gpxData = await generateGPXFile(route, { name: safeName, description });
     res.setHeader('Content-Type', 'application/xml');
-    res.setHeader('Content-Disposition', `attachment; filename="${name}.gpx"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.gpx"`);
     res.send(gpxData);
   } catch (error) {
     console.error('GPX export error:', error);

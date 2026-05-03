@@ -2,6 +2,11 @@ function escapeXml(str) {
   return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function safeCoord(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function downsample(coords, maxPoints) {
   if (coords.length <= maxPoints) return coords;
   const result = [coords[0]];
@@ -36,8 +41,8 @@ async function generateTCXFile(route, metadata = {}) {
     return `      <Trackpoint>
         <Time>${time}</Time>
         <Position>
-          <LatitudeDegrees>${coord[1]}</LatitudeDegrees>
-          <LongitudeDegrees>${coord[0]}</LongitudeDegrees>
+          <LatitudeDegrees>${safeCoord(coord[1])}</LatitudeDegrees>
+          <LongitudeDegrees>${safeCoord(coord[0])}</LongitudeDegrees>
         </Position>
         <AltitudeMeters>${ele.toFixed(1)}</AltitudeMeters>
         <DistanceMeters>${dist.toFixed(1)}</DistanceMeters>
@@ -59,12 +64,12 @@ async function generateTCXFile(route, metadata = {}) {
         <TotalTimeSeconds>${Math.round(totalSeconds)}</TotalTimeSeconds>
         <DistanceMeters>${totalDistance.toFixed(1)}</DistanceMeters>
         <BeginPosition>
-          <LatitudeDegrees>${first[1]}</LatitudeDegrees>
-          <LongitudeDegrees>${first[0]}</LongitudeDegrees>
+          <LatitudeDegrees>${safeCoord(first[1])}</LatitudeDegrees>
+          <LongitudeDegrees>${safeCoord(first[0])}</LongitudeDegrees>
         </BeginPosition>
         <EndPosition>
-          <LatitudeDegrees>${last[1]}</LatitudeDegrees>
-          <LongitudeDegrees>${last[0]}</LongitudeDegrees>
+          <LatitudeDegrees>${safeCoord(last[1])}</LatitudeDegrees>
+          <LongitudeDegrees>${safeCoord(last[0])}</LongitudeDegrees>
         </EndPosition>
         <Intensity>Active</Intensity>
       </Lap>
@@ -91,7 +96,7 @@ async function generateGPXFile(route, metadata = {}) {
 
   const trkpts = points.map((coord) => {
     const ele = coord[2] != null && Number.isFinite(Number(coord[2])) ? Number(coord[2]) : 0;
-    return `      <trkpt lat="${coord[1]}" lon="${coord[0]}">
+    return `      <trkpt lat="${safeCoord(coord[1])}" lon="${safeCoord(coord[0])}">
         <ele>${ele.toFixed(1)}</ele>
       </trkpt>`;
   }).join('\n');
