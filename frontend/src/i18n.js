@@ -35,6 +35,13 @@ const translations = {
         setup: 'Setup'
       },
       bike: 'Rad',
+      bikeVisual: {
+        road: 'Road',
+        aero: 'Aero race',
+        gravel: 'Gravel',
+        mtb: 'MTB',
+        endurance: 'Endurance'
+      },
       rideType: 'Training',
       riderProfile: {
         title: 'Fahrerprofil',
@@ -151,7 +158,14 @@ const translations = {
         unnamed: 'Unbenannte Route',
         editName: 'Namen bearbeiten',
         saveName: 'Namen vergeben & speichern',
-        searchPlaceholder: 'Routen suchen',
+        searchLabel: 'Nach Name',
+        searchPlaceholder: 'Name, Start, Radtyp...',
+        openRoute: 'Route öffnen',
+        locationFilter: {
+          label: 'Nach Region',
+          placeholder: 'Startort oder Region suchen',
+          radius: 'Umkreis'
+        },
         errors: {
           loadFailed: 'Gespeicherte Routen konnten nicht geladen werden',
           saveFailed: 'Route konnte nicht gespeichert werden',
@@ -358,6 +372,9 @@ const translations = {
         }
       },
       setupSections: {
+        heroEyebrow: 'Bike Garage',
+        heroTitle: 'Setup für schnelle Beine',
+        heroHint: 'Bike, Beine, los.',
         locations: 'Strecke',
         bike: 'Bike-Profil',
         bikeHint: 'Fahrrad-spezifisches Routingprofil auswählen oder eigene Profile verwalten.',
@@ -500,6 +517,13 @@ const translations = {
         setup: 'Setup'
       },
       bike: 'Bike',
+      bikeVisual: {
+        road: 'Road',
+        aero: 'Aero race',
+        gravel: 'Gravel',
+        mtb: 'MTB',
+        endurance: 'Endurance'
+      },
       rideType: 'Ride Type',
       riderProfile: {
         title: 'Rider Profile',
@@ -616,7 +640,14 @@ const translations = {
         unnamed: 'Unnamed route',
         editName: 'Edit name',
         saveName: 'Name & save route',
-        searchPlaceholder: 'Search routes',
+        searchLabel: 'By name',
+        searchPlaceholder: 'Name, start, bike type...',
+        openRoute: 'Open route',
+        locationFilter: {
+          label: 'By region',
+          placeholder: 'Search start location or region',
+          radius: 'Radius'
+        },
         errors: {
           loadFailed: 'Could not load saved routes',
           saveFailed: 'Could not save route',
@@ -823,6 +854,9 @@ const translations = {
         }
       },
       setupSections: {
+        heroEyebrow: 'Bike Garage',
+        heroTitle: 'Setup for fast legs',
+        heroHint: 'Choose your bike profile and rider numbers like a pre-race check.',
         locations: 'Route',
         bike: 'Bike profile',
         bikeHint: 'Choose bike-specific routing profile or manage custom profiles.',

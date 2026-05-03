@@ -2,12 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   FiActivity,
+  FiArrowRight,
   FiCheck,
   FiClock,
   FiEdit2,
   FiGlobe,
   FiLink,
   FiLock,
+  FiMapPin,
   FiSearch,
   FiShare2,
   FiTrash2,
@@ -16,6 +18,7 @@ import {
 import { useAuth } from '../auth/AuthProvider';
 import { t } from '../i18n';
 import { useRouteStore } from '../store/routeStore';
+import LocationInput from './LocationInput';
 
 const rawApiUrl = (process.env.REACT_APP_API_URL || '').trim().replace(/\/$/, '');
 const API_BASE = rawApiUrl
@@ -43,10 +46,41 @@ function getRouteSourceLabel(savedRoute) {
     : t('route.saved.sharedBy', { owner });
 }
 
+function normalizePoint(point) {
+  if (!Array.isArray(point) || point.length < 2) {
+    return null;
+  }
+
+  const lat = Number(point[0]);
+  const lon = Number(point[1]);
+  return Number.isFinite(lat) && Number.isFinite(lon) ? [lat, lon] : null;
+}
+
+function distanceKm(a, b) {
+  const pointA = normalizePoint(a);
+  const pointB = normalizePoint(b);
+  if (!pointA || !pointB) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const toRad = (value) => (Number(value) * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const dLat = toRad(pointB[0] - pointA[0]);
+  const dLon = toRad(pointB[1] - pointA[1]);
+  const lat1 = toRad(pointA[0]);
+  const lat2 = toRad(pointB[0]);
+  const h = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
 function SavedRoutesPanel({ context = 'mixed' }) {
   const { token } = useAuth();
   const [query, setQuery] = useState('');
   const [accessFilter, setAccessFilter] = useState('all');
+  const [locationFilterPoint, setLocationFilterPoint] = useState(null);
+  const [locationFilterLabel, setLocationFilterLabel] = useState('');
+  const [locationRadiusKm, setLocationRadiusKm] = useState(25);
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
   const [sharingId, setSharingId] = useState(null);
@@ -85,6 +119,8 @@ function SavedRoutesPanel({ context = 'mixed' }) {
 
   const filteredRoutes = useMemo(() => {
     const needle = query.trim().toLowerCase();
+    const center = normalizePoint(locationFilterPoint);
+    const radius = Number(locationRadiusKm) || 0;
     const byText = !needle ? savedRoutes : savedRoutes.filter((savedRoute) => [
       savedRoute.name,
       savedRoute.startLabel,
@@ -95,17 +131,19 @@ function SavedRoutesPanel({ context = 'mixed' }) {
       savedRoute.access
     ].some((value) => String(value || '').toLowerCase().includes(needle)));
 
-    if (accessFilter === 'all') {
-      return byText;
-    }
-
-    return byText.filter((savedRoute) => {
+    const byAccess = accessFilter === 'all' ? byText : byText.filter((savedRoute) => {
       if (accessFilter === 'own') return savedRoute.access === 'own';
       if (accessFilter === 'shared') return savedRoute.access === 'shared';
       if (accessFilter === 'public') return savedRoute.visibility === 'public' || savedRoute.access === 'public';
       return true;
     });
-  }, [query, savedRoutes, accessFilter]);
+
+    if (!center || radius <= 0) {
+      return byAccess;
+    }
+
+    return byAccess.filter((savedRoute) => distanceKm(center, savedRoute.startPoint) <= radius);
+  }, [query, savedRoutes, accessFilter, locationFilterPoint, locationRadiusKm]);
 
   const routeKey = (savedRoute) => `${savedRoute.ownerSub || ''}:${savedRoute.id}`;
 
@@ -343,14 +381,47 @@ function SavedRoutesPanel({ context = 'mixed' }) {
       </div>
 
 
-      <div className="saved-route-search">
-        <FiSearch />
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={t('route.saved.searchPlaceholder')}
+      <div className="saved-route-search-field">
+        <span>{t('route.saved.searchLabel')}</span>
+        <div className="saved-route-search">
+          <FiSearch />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t('route.saved.searchPlaceholder')}
+          />
+        </div>
+      </div>
+
+      <div className="saved-route-location-filter">
+        <LocationInput
+          label={t('route.saved.locationFilter.label')}
+          placeholder={t('route.saved.locationFilter.placeholder')}
+          value={locationFilterLabel}
+          point={locationFilterPoint}
+          onSelect={(point, label) => {
+            setLocationFilterPoint(point);
+            setLocationFilterLabel(label);
+          }}
+          onClear={() => {
+            setLocationFilterPoint(null);
+            setLocationFilterLabel('');
+          }}
         />
+        <label className="saved-route-radius">
+          <FiMapPin size={12} />
+          <span>{t('route.saved.locationFilter.radius')}</span>
+          <select
+            value={locationRadiusKm}
+            onChange={(event) => setLocationRadiusKm(Number(event.target.value))}
+            disabled={!locationFilterPoint}
+          >
+            {[5, 10, 25, 50, 100].map((radius) => (
+              <option key={radius} value={radius}>{radius} km</option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className="saved-route-list">
@@ -359,7 +430,7 @@ function SavedRoutesPanel({ context = 'mixed' }) {
         )}
         {!savedRoutesLoading && !filteredRoutes.length && (
           <div className="saved-route-empty">
-            {query ? t('route.saved.noSearchResults') : t('route.saved.empty')}
+            {query || locationFilterPoint ? t('route.saved.noSearchResults') : t('route.saved.empty')}
           </div>
         )}
         {!savedRoutesLoading && filteredRoutes.map((savedRoute) => {
@@ -399,65 +470,76 @@ function SavedRoutesPanel({ context = 'mixed' }) {
                     window.dispatchEvent(new CustomEvent('routeshred:set-tab', { detail: { tab: 'plan' } }));
                   }}
                 >
-                  <span className="saved-route-name">{savedRoute.name}</span>
-                  <span className="saved-route-stats">
-                    <span><FiActivity size={9} />{formatDistance(savedRoute.distance)}</span>
-                    <span><FiClock size={9} />{formatDuration(savedRoute.duration)}</span>
+                  <span className="saved-route-card-top">
+                    <span className="saved-route-name">{savedRoute.name}</span>
                     {savedRoute.access !== 'own' && (
                       <span className="saved-route-access-badge">{getRouteSourceLabel(savedRoute)}</span>
                     )}
                   </span>
+                  <span className="saved-route-stats">
+                    <span><FiActivity size={11} />{formatDistance(savedRoute.distance)}</span>
+                    <span><FiClock size={11} />{formatDuration(savedRoute.duration)}</span>
+                    {savedRoute.bikeType && <span>{savedRoute.bikeType}</span>}
+                    {savedRoute.rideType && <span>{savedRoute.rideType}</span>}
+                  </span>
+                  <span className="saved-route-points">
+                    <span>{savedRoute.startLabel || t('route.locations.start')}</span>
+                    <FiArrowRight size={12} />
+                    <span>{savedRoute.endLabel || t('route.locations.end')}</span>
+                  </span>
+                  <span className="saved-route-open">
+                    {t('route.saved.openRoute')}
+                    <FiArrowRight size={13} />
+                  </span>
                 </button>
               )}
-              <div className="saved-route-tools">
-                {isEditing ? (
-                  <>
-                    <button type="button" onClick={commitRename} aria-label={t('route.saved.renameSave')}>
-                      <FiCheck />
-                    </button>
-                    <button type="button" onClick={cancelRename} aria-label={t('route.saved.renameCancel')}>
-                      <FiX />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    {canEdit && (
-                      <>
-                        <button type="button" onClick={() => startRename(savedRoute)} aria-label={t('route.saved.rename')}>
-                          <FiEdit2 />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateSavedRouteSharing(token, savedRoute.id, {
-                            visibility: savedRoute.visibility === 'public' ? 'private' : 'public',
-                            sharedWith: savedRoute.sharedWith || []
-                          })}
-                          aria-label={savedRoute.visibility === 'public' ? t('route.saved.makePrivate') : t('route.saved.makePublic')}
-                          title={savedRoute.visibility === 'public' ? t('route.saved.makePrivate') : t('route.saved.makePublic')}
-                        >
-                          {savedRoute.visibility === 'public' ? <FiGlobe /> : <FiLock />}
-                        </button>
-                        <button
-                          type="button"
-                          className={savedRoute.visibility !== 'public' ? 'tool-hidden' : ''}
-                          onClick={() => copyPublicShareLink(savedRoute)}
-                          aria-label={t('route.saved.copyLink')}
-                          title={copiedLinkId === key ? t('route.saved.copyLinkCopied') : t('route.saved.copyLink')}
-                          tabIndex={savedRoute.visibility !== 'public' ? -1 : undefined}
-                        >
-                          {copiedLinkId === key ? <FiCheck /> : <FiLink />}
-                        </button>
-                        <button type="button" onClick={() => startSharing(savedRoute)} aria-label={t('route.saved.share')}>
-                          <FiShare2 />
-                        </button>
-                        <button type="button" onClick={() => deleteSavedRoute(token, savedRoute.id, savedRoute.ownerSub)} aria-label={t('route.saved.delete')}>
-                          <FiTrash2 />
-                        </button>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
+              {(isEditing || canEdit) && (
+                <div className="saved-route-tools">
+                  {isEditing ? (
+                    <>
+                      <button type="button" onClick={commitRename} aria-label={t('route.saved.renameSave')}>
+                        <FiCheck />
+                      </button>
+                      <button type="button" onClick={cancelRename} aria-label={t('route.saved.renameCancel')}>
+                        <FiX />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => startRename(savedRoute)} aria-label={t('route.saved.rename')}>
+                        <FiEdit2 />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateSavedRouteSharing(token, savedRoute.id, {
+                          visibility: savedRoute.visibility === 'public' ? 'private' : 'public',
+                          sharedWith: savedRoute.sharedWith || []
+                        })}
+                        aria-label={savedRoute.visibility === 'public' ? t('route.saved.makePrivate') : t('route.saved.makePublic')}
+                        title={savedRoute.visibility === 'public' ? t('route.saved.makePrivate') : t('route.saved.makePublic')}
+                      >
+                        {savedRoute.visibility === 'public' ? <FiGlobe /> : <FiLock />}
+                      </button>
+                      <button
+                        type="button"
+                        className={savedRoute.visibility !== 'public' ? 'tool-hidden' : ''}
+                        onClick={() => copyPublicShareLink(savedRoute)}
+                        aria-label={t('route.saved.copyLink')}
+                        title={copiedLinkId === key ? t('route.saved.copyLinkCopied') : t('route.saved.copyLink')}
+                        tabIndex={savedRoute.visibility !== 'public' ? -1 : undefined}
+                      >
+                        {copiedLinkId === key ? <FiCheck /> : <FiLink />}
+                      </button>
+                      <button type="button" onClick={() => startSharing(savedRoute)} aria-label={t('route.saved.share')}>
+                        <FiShare2 />
+                      </button>
+                      <button type="button" onClick={() => deleteSavedRoute(token, savedRoute.id, savedRoute.ownerSub)} aria-label={t('route.saved.delete')}>
+                        <FiTrash2 />
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
               {isSharing && canEdit && (
                 <div className="saved-route-share">
                   {Boolean(shareDraftIds.length) && (

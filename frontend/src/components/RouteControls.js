@@ -61,6 +61,67 @@ const RIDE_TYPE_ICONS = {
   threshold: FiAlertTriangle
 };
 
+function getBikeVisualKind(profile, fallbackText = '') {
+  const text = [
+    profile?.id,
+    profile?.label,
+    profile?.name,
+    fallbackText
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  if (/(gravel|allroad|all-road|cx|cross|exploro|grail|crux|diverge|aspero)/.test(text)) return 'gravel';
+  if (/(mtb|mountain|trail|enduro|downcountry|xc)/.test(text)) return 'mtb';
+  if (/(aero|ostro|one|factor|dogma|pinarello|madone|propel|foil|s5|venge|reacto|noah)/.test(text)) return 'aero';
+  if (/(endurance|roubaix|defy|domane|synapse|caledonia)/.test(text)) return 'endurance';
+  return 'road';
+}
+
+function getBikeTeamStyle(profile, fallbackText = '') {
+  const text = [
+    profile?.id,
+    profile?.label,
+    profile?.name,
+    fallbackText
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  if (/(pinarello|dogma|bolide|grevil)/.test(text)) return 'ineos';
+  if (/(cervelo|cervélo|soloist|caledonia|aspero|áspero|r5|s5|p5)/.test(text)) return 'visma';
+  if (/(cannondale|supersix|synapse|topstone|scalpel)/.test(text)) return 'ef';
+  if (/(trek|madone|emonda|émonda|domane|checkpoint|supercaliber)/.test(text)) return 'lidl';
+  if (/(colnago|v4rs|c68|g4-x)/.test(text)) return 'uae';
+  if (/(specialized|tarmac|venge|roubaix|crux|diverge|epic)/.test(text)) return 'quickstep';
+  if (/(canyon|aeroad|ultimate|grail|grizl|lux)/.test(text)) return 'alpecin';
+  if (/(factor|ostro|o2|one|hanzo)/.test(text)) return 'israel';
+  if (/(bmc|teammachine|roadmachine|kaius|fourstroke)/.test(text)) return 'decathlon';
+  if (/(orbea|orca|orcu|terra|alma|oiz|rise)/.test(text)) return 'lotto-intermarche';
+  if (/(3t|strada|racemax|extrema|primo)/.test(text)) return 'tricolore';
+  return getBikeVisualKind(profile, fallbackText);
+}
+
+function BikeProfileVisual({ kind = 'road', label = '' }) {
+  return (
+    <div className={`bike-profile-visual bike-visual-${kind}`} aria-hidden="true">
+      <div className="bike-visual-frame">
+        <span className="bike-pattern pattern-main" />
+        <span className="bike-pattern pattern-cut" />
+        <span className="bike-pattern pattern-flash" />
+        <span className="wheel wheel-front" />
+        <span className="wheel wheel-rear" />
+        <span className="tube tube-top" />
+        <span className="tube tube-down" />
+        <span className="tube tube-seat" />
+        <span className="tube tube-fork" />
+        <span className="tube tube-chainstay" />
+        <span className="tube tube-seatstay" />
+        <span className="saddle" />
+        <span className="crank" />
+        <span className="bar" />
+      </div>
+      {label && <span className="bike-visual-label">{label}</span>}
+    </div>
+  );
+}
+
 function formatSignedDuration(seconds = 0) {
   const totalSeconds = Math.round(Number(seconds || 0));
   const sign = totalSeconds > 0 ? '+' : totalSeconds < 0 ? '-' : '';
@@ -537,6 +598,11 @@ function RouteControls({ socialSurfacesMoved = false }) {
     ? bikeProfiles
     : [{ id: bikeType || 'road', label: t('common.loading'), source: 'fallback' }];
   const selectedProfile = profileOptions.find((profile) => profile.id === bikeType) || profileOptions[0];
+  const selectedBikeVisualKind = getBikeVisualKind(selectedProfile);
+  const selectedBikeTeamStyle = getBikeTeamStyle(selectedProfile);
+  const wattsPerKg = Number(riderProfile.weight) > 0
+    ? (Number(riderProfile.ftp || 0) / Number(riderProfile.weight)).toFixed(1)
+    : '0.0';
   const pz = route && route.powerZone;
   const isDraggingWaypoint = Boolean(dragWaypointId);
   const tempoFactors = route && route.tempoFactors ? route.tempoFactors : null;
@@ -833,7 +899,9 @@ function RouteControls({ socialSurfacesMoved = false }) {
       <div className="route-controls-header">
         <div className="planner-heading">
           <p>{t('route.planner')}</p>
-          {nameEditMode ? (
+          {activeTab === 'setup' ? (
+            <span className="setup-header-title">{t('route.tabs.setup')}</span>
+          ) : nameEditMode ? (
             <input
               ref={nameInputRef}
               className="route-name-input"
@@ -1430,10 +1498,25 @@ function RouteControls({ socialSurfacesMoved = false }) {
 
       {activeTab === 'setup' && (
         <>
-          <section className="setup-section">
-            <h3 className="setup-section-title">{t('route.setupSections.bike')}</h3>
+          <section className={`setup-hero setup-bike-${selectedBikeVisualKind} setup-team-${selectedBikeTeamStyle}`}>
+            <div className="setup-hero-bike" aria-hidden="true">
+              <BikeProfileVisual
+                kind={selectedBikeVisualKind}
+              />
+            </div>
+            <div className="setup-hero-metrics">
+              <span>{selectedProfileLabel || selectedProfileId}</span>
+              <strong>{wattsPerKg} W/kg</strong>
+            </div>
+          </section>
 
-            <div className="control-group">
+          <section className="setup-section">
+            <div className="setup-section-heading">
+              <h3 className="setup-section-title">{t('route.setupSections.bike')}</h3>
+              <p>{t('route.setupSections.bikeHint')}</p>
+            </div>
+
+            <div className="control-group setup-bike-card">
               <label>{t('route.bike')}</label>
               <div className="bike-profile-select">
                 <select
@@ -1576,9 +1659,12 @@ function RouteControls({ socialSurfacesMoved = false }) {
           </section>
 
           <section className="setup-section">
-            <h3 className="setup-section-title">{t('route.setupSections.user')}</h3>
+            <div className="setup-section-heading">
+              <h3 className="setup-section-title">{t('route.setupSections.user')}</h3>
+              <p>{t('route.setupSections.userHint')}</p>
+            </div>
 
-            <div className="control-group">
+            <div className="control-group setup-rider-card">
               <div className="rider-profile-inputs">
                 <label>
                   <span><FiZap size={12} /> {t('route.riderProfile.ftp')}</span>

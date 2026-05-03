@@ -7,7 +7,7 @@ const API_BASE = rawApiUrl
   ? (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`)
   : '/api';
 
-function LocationInput({ label, value, point, onSelect, onClear }) {
+function LocationInput({ label, value, point, placeholder, onSelect, onClear }) {
   const [query, setQuery] = useState(value || '');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -86,7 +86,7 @@ function LocationInput({ label, value, point, onSelect, onClear }) {
         <input
           type="search"
           value={query}
-          placeholder={t('route.locations.searchPlaceholder')}
+          placeholder={placeholder || t('route.locations.searchPlaceholder')}
           onChange={(event) => setQuery(event.target.value)}
           onFocus={() => results.length && setOpen(true)}
         />
