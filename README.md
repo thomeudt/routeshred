@@ -221,6 +221,8 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full production guide.
 
 A full end-user guide covering route planning, personas, export, Wahoo transfer, saved routes, group rides, and profile setup is at [docs/USER_MANUAL.md](docs/USER_MANUAL.md).
 
+A product positioning guide for differentiation vs. Komoot is at [docs/POSITIONING_VS_KOMOOT.md](docs/POSITIONING_VS_KOMOOT.md).
+
 ## How to Use
 
 1. Open `http://localhost:3000`
