@@ -33,14 +33,16 @@
   border: 0;
   border-radius: 0;
   margin: 0;
+  background: #0f172a;
+  height: 100vh;
+  height: 100svh;
+  height: -webkit-fill-available;
 }
 
 .map-wrapper.is-fullscreen .leaflet-container {
-  height: 100%;
+  height: 100% !important;
   width: 100%;
-  min-height: 100vh;
-  min-height: 100svh;
-  min-height: -webkit-fill-available;
+  min-height: 100%;
 }
 
 html.map-pseudo-fullscreen,
@@ -52,6 +54,11 @@ body.map-pseudo-fullscreen {
 body.map-pseudo-fullscreen #root {
   height: 100%;
   overflow: hidden;
+}
+
+body.map-pseudo-fullscreen .map-container {
+  padding: 0;
+  background: #0f172a;
 }
 
 .community-surface {

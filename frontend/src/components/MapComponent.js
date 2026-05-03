@@ -404,6 +404,44 @@ function MapComponent({ isMapVisible = true }) {
     };
   }, [isPseudoFullscreen]);
 
+  useEffect(() => {
+    if (!isFullscreen) {
+      return undefined;
+    }
+
+    const scheduleInvalidate = () => {
+      const map = mapRef.current;
+      if (!map) {
+        return;
+      }
+
+      // Safari on iOS updates visual viewport asynchronously while browser UI animates.
+      setTimeout(() => map.invalidateSize(), 0);
+      setTimeout(() => map.invalidateSize(), 160);
+      setTimeout(() => map.invalidateSize(), 320);
+    };
+
+    const onViewportChange = () => scheduleInvalidate();
+
+    scheduleInvalidate();
+    window.addEventListener('resize', onViewportChange);
+    window.addEventListener('orientationchange', onViewportChange);
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', onViewportChange);
+      window.visualViewport.addEventListener('scroll', onViewportChange);
+    }
+
+    return () => {
+      window.removeEventListener('resize', onViewportChange);
+      window.removeEventListener('orientationchange', onViewportChange);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', onViewportChange);
+        window.visualViewport.removeEventListener('scroll', onViewportChange);
+      }
+    };
+  }, [isFullscreen]);
+
   const showSnapFeedback = (point) => {
     if (snapFeedbackTimeoutRef.current) {
       clearTimeout(snapFeedbackTimeoutRef.current);
