@@ -70,6 +70,16 @@ const authLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' }
 });
 
+// Tiles: generous enough for active map browsing (~10 visible tiles + panning),
+// tight enough to prevent quota exhaustion via bulk enumeration.
+const tileLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' }
+});
+
 // Routes
 app.use('/api/routing', apiLimiter, routingRouter);
 app.use('/api/elevation', apiLimiter, elevationRouter);
@@ -80,7 +90,7 @@ app.use('/api/profile', profileRouter);
 app.use('/api/routes', savedRoutesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/group-rides', groupRidesRouter);
-app.use('/api/tiles', tilesRouter);
+app.use('/api/tiles', tileLimiter, tilesRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
