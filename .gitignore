@@ -86,6 +86,8 @@ data/routes/
 data/tmp/
 data/temp/
 data/uploads/
+data/group-rides/
+backend/data/group-rides/
 
 backend/data/cache/
 backend/data/profiles/
@@ -93,6 +95,7 @@ backend/data/routes/
 backend/data/tmp/
 backend/data/temp/
 backend/data/uploads/
+
 
 
 # BRouter routing data
