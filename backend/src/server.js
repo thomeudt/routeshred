@@ -3,6 +3,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const routingRouter = require('./routes/routing');
 const elevationRouter = require('./routes/elevation');
 const exportRouter = require('./routes/export');
@@ -19,17 +20,47 @@ const { getKeycloakConfig } = require('./services/keycloakService');
 const app = express();
 const PORT = process.env.PORT || 5050;
 const BODY_LIMIT = process.env.BODY_LIMIT || '10mb';
+const IS_PROD = process.env.NODE_ENV === 'production';
 
-// Middleware
-app.use(cors());
+// CORS — restrict to configured origin in production
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
+  : ['http://localhost:3000', 'http://localhost:5050'];
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow same-origin and server-to-server requests (no Origin header)
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true
+}));
+
 app.use(express.json({ limit: BODY_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: BODY_LIMIT }));
 
+// Rate limiting for expensive / externally-proxied endpoints
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' }
+});
+
+const tightLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' }
+});
+
 // Routes
-app.use('/api/routing', routingRouter);
-app.use('/api/elevation', elevationRouter);
-app.use('/api/export', exportRouter);
-app.use('/api/geocode', geocodeRouter);
+app.use('/api/routing', apiLimiter, routingRouter);
+app.use('/api/elevation', apiLimiter, elevationRouter);
+app.use('/api/export', tightLimiter, exportRouter);
+app.use('/api/geocode', tightLimiter, geocodeRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/profile', profileRouter);
 app.use('/api/routes', savedRoutesRouter);
@@ -41,7 +72,6 @@ app.use('/api/tiles', tilesRouter);
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
-    message: 'Bike Route Planner API is running',
     routing: getRoutingEngineInfo(),
     auth: {
       enabled: getKeycloakConfig().enabled,
@@ -61,11 +91,14 @@ app.use((err, req, res, _next) => {
   }
 
   console.error(err.stack);
-  res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  res.status(500).json({
+    error: 'Internal Server Error',
+    message: IS_PROD ? 'An error occurred' : err.message
+  });
 });
 
 app.listen(PORT, () => {
-  console.log(`🚴 Bike Route Planner Backend running on http://localhost:${PORT}`);
+  console.log(`🚴 RouteShred backend running on http://localhost:${PORT}`);
   const routing = getRoutingEngineInfo();
   console.log(`📍 Routing engine: ${routing.configuredEngine.toUpperCase()}`);
   const tileKey = process.env.THUNDERFOREST_API_KEY;

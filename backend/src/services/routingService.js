@@ -369,6 +369,9 @@ async function renameBikeProfile(profileId, nextName, actor = {}) {
   if (!currentId || !newName) {
     throw new Error('Profile id and new name are required');
   }
+  if (!/^[a-z0-9][a-z0-9-]{2,48}$/.test(currentId)) {
+    throw new Error('Invalid profile id');
+  }
 
   const currentPath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${currentId}.brf`);
   const metadata = await readBrouterProfileMetadata(currentPath, currentId);
@@ -412,6 +415,9 @@ async function deleteBikeProfile(profileId, actor = {}) {
   if (!id) {
     throw new Error('Profile id is required');
   }
+  if (!/^[a-z0-9][a-z0-9-]{2,48}$/.test(id)) {
+    throw new Error('Invalid profile id');
+  }
 
   const filePath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${id}.brf`);
   const metadata = await readBrouterProfileMetadata(filePath, id);
@@ -424,6 +430,9 @@ async function getBikeProfileContent(profileId, actor = {}) {
   const id = String(profileId || '').trim();
   if (!id) {
     throw new Error('Profile id is required');
+  }
+  if (!/^[a-z0-9][a-z0-9-]{2,48}$/.test(id)) {
+    throw new Error('Invalid profile id');
   }
 
   const filePath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${id}.brf`);
@@ -441,6 +450,9 @@ async function updateBikeProfileContent(profileId, nextContent, actor = {}) {
   const id = String(profileId || '').trim();
   if (!id) {
     throw new Error('Profile id is required');
+  }
+  if (!/^[a-z0-9][a-z0-9-]{2,48}$/.test(id)) {
+    throw new Error('Invalid profile id');
   }
 
   const content = String(nextContent || '').trim();
@@ -997,10 +1009,10 @@ async function requestRoute(profile, points, options = {}) {
 }
 
 function getRoutingEngineInfo() {
+  const isProd = process.env.NODE_ENV === 'production';
   return {
     configuredEngine: ROUTING_ENGINE,
-    osrmApi: OSRM_API,
-    brouterApi: BROUTER_API,
+    ...(isProd ? {} : { osrmApi: OSRM_API, brouterApi: BROUTER_API }),
     brouterFallbackToOsrm: BROUTER_FALLBACK_TO_OSRM,
     optionalLookups: {
       railwaySafety: RAILWAY_SAFETY_ENABLED,

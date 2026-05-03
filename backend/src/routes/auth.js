@@ -17,7 +17,8 @@ router.get('/config', (req, res) => {
 });
 
 router.get('/me', requireAuth, (req, res) => {
-  res.json({ user: req.auth.user });
+  const { sub, email, preferred_username, name } = req.auth.user || {};
+  res.json({ user: { sub, email, preferred_username, name } });
 });
 
 module.exports = router;

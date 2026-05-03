@@ -483,7 +483,7 @@ function humanizePlaceType(osmClass, osmType) {
 }
 
 function escapeOverpassRegex(value) {
-  return String(value || '').replace(/[\\"]/g, '\\$&');
+  return String(value || '').replace(/[.+*?^${}()|[\]\\]/g, '\\$&').replace(/"/g, '\\"');
 }
 
 function titleCaseToken(value) {

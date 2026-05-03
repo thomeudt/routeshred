@@ -41,6 +41,7 @@ services:
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-routeshred-frontend}
       - THUNDERFOREST_API_KEY=${THUNDERFOREST_API_KEY:-}
       - TILE_CACHE_TTL_MS=${TILE_CACHE_TTL_MS:-7776000000}
+      - CORS_ORIGIN=${PUBLIC_BASE_URL}
     volumes:
       - ./data/cache:/app/data/cache
       - ./data/profiles:/app/data/profiles

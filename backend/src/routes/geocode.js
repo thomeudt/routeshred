@@ -3,8 +3,12 @@ const router = express.Router();
 const { searchPlaces } = require('../services/geocodingService');
 
 router.get('/search', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (q.length < 2 || q.length > 200) {
+    return res.json({ places: [] });
+  }
   try {
-    const places = await searchPlaces(req.query.q, {
+    const places = await searchPlaces(q, {
       limit: req.query.limit,
       language: req.query.lang || req.headers['accept-language']
     });
