@@ -4,6 +4,11 @@ import { FiArrowRight, FiCheck, FiClock, FiEdit2, FiFlag, FiGlobe, FiInstagram, 
 import { useAuth } from '../auth/AuthProvider';
 import { t } from '../i18n';
 import { useRouteStore } from '../store/routeStore';
+import socialRideVisual from '../assets/group-rides/social.svg';
+import tempoRideVisual from '../assets/group-rides/tempo.svg';
+import climbingRideVisual from '../assets/group-rides/climbing.svg';
+import sprintRideVisual from '../assets/group-rides/sprint.svg';
+import enduranceRideVisual from '../assets/group-rides/endurance.svg';
 
 const rawApiUrl = (process.env.REACT_APP_API_URL || '').trim().replace(/\/$/, '');
 const API_BASE = rawApiUrl
@@ -11,6 +16,17 @@ const API_BASE = rawApiUrl
   : '/api';
 
 const CHALLENGES = ['social', 'tempo', 'climbing', 'sprint', 'endurance'];
+const CHALLENGE_VISUALS = {
+  social: socialRideVisual,
+  tempo: tempoRideVisual,
+  climbing: climbingRideVisual,
+  sprint: sprintRideVisual,
+  endurance: enduranceRideVisual,
+};
+
+function normalizeChallenge(challenge) {
+  return CHALLENGES.includes(challenge) ? challenge : 'social';
+}
 
 function resolveApiMessage(error, fallback) {
   const status = Number(error?.response?.status || 0);
@@ -27,6 +43,23 @@ function formatRideDate(isoString) {
   if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })
     + ' · ' + date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatCommentDate(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+}
+
+function getInitials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return parts.slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+}
+
+function getRideKey(ride) {
+  return `${ride?.ownerSub || ''}:${ride?.id || ''}`;
 }
 
 function isPastRide(ride) {
@@ -93,10 +126,10 @@ function GroupRidesPanel() {
   const [editRoutePickerQuery, setEditRoutePickerQuery] = useState('');
   const [commentsOpen, setCommentsOpen] = useState(new Set());
 
-  const toggleComments = (rideId) => {
+  const toggleComments = (rideKey) => {
     setCommentsOpen((prev) => {
       const next = new Set(prev);
-      if (next.has(rideId)) next.delete(rideId); else next.add(rideId);
+      if (next.has(rideKey)) next.delete(rideKey); else next.add(rideKey);
       return next;
     });
   };
@@ -367,7 +400,8 @@ function GroupRidesPanel() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       upsertRide(response.data?.ride);
-      setCommentDrafts((current) => ({ ...current, [`${ride.ownerSub}:${ride.id}`]: '' }));
+      setCommentDrafts((current) => ({ ...current, [getRideKey(ride)]: '' }));
+      setCommentsOpen((current) => new Set(current).add(getRideKey(ride)));
     } catch (commentError) {
       setError(resolveApiMessage(commentError, t('route.groupRides.errors.commentFailed')));
     }
@@ -621,20 +655,40 @@ function GroupRidesPanel() {
           </div>
         )}
         {!loading && filteredSortedRides.map((ride) => {
+          const challenge = normalizeChallenge(ride.challenge);
+          const rideKey = getRideKey(ride);
           const rideDate = formatRideDate(ride.startAt);
+          const participants = Array.isArray(ride.participants) ? ride.participants : [];
           const comments = Array.isArray(ride.comments) ? ride.comments : [];
-          const isCommentsOpen = commentsOpen.has(ride.id);
+          const isCommentsOpen = commentsOpen.has(rideKey);
           const instagramUrl = String(ride.instagramUrl || '').trim();
           const instagramEmbedUrl = getInstagramEmbedUrl(instagramUrl);
           return (
             <article key={ride.id} className="group-ride-card">
               <div
-                className={`group-ride-cover${ride.photoUrl ? '' : ' group-ride-cover-fallback'} ride-challenge-${ride.challenge || 'social'}`}
-                style={ride.photoUrl ? { backgroundImage: `url(${ride.photoUrl})` } : undefined}
+                className={`group-ride-cover ride-challenge-${challenge}`}
+                style={{ '--ride-visual': `url(${CHALLENGE_VISUALS[challenge]})` }}
               >
-                <span className="ride-challenge-badge">
-                  {t(`route.groupRides.challenges.${ride.challenge || 'social'}`)}
-                </span>
+                <div className="ride-cover-top">
+                  <span className="ride-cover-kicker">{t('route.groupRides.coverKicker')}</span>
+                  <div className="ride-cover-badges">
+                    <span className="ride-challenge-badge">
+                      {t(`route.groupRides.challenges.${challenge}`)}
+                    </span>
+                    {ride.visibility === 'private' && (
+                      <span className="group-ride-visibility">{t('route.groupRides.visibility.private')}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="ride-cover-bottom">
+                  <h4>{ride.title}</h4>
+                  {ride.routeId && (
+                    <span className="ride-cover-route">
+                      <FiMap size={11} />
+                      {ride.routeName || t('route.groupRides.linkedRouteFallback')}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {editingRideId === ride.id ? (
@@ -769,8 +823,6 @@ function GroupRidesPanel() {
                 </div>
               ) : (
               <div className="group-ride-body">
-                <h4>{ride.title}</h4>
-
                 {(rideDate || ride.meetingPoint) && (
                   <div className="group-ride-info">
                     {rideDate && <span><FiClock size={10} />{rideDate}</span>}
@@ -778,37 +830,48 @@ function GroupRidesPanel() {
                   </div>
                 )}
 
-                {ride.routeId && (
-                  <button
-                    type="button"
-                    className="ride-route-strip"
-                    onClick={() => {
-                      loadSavedRoute(token, ride.routeId, ride.routeOwnerSub);
-                      window.dispatchEvent(new CustomEvent('routeshred:set-tab', { detail: { tab: 'plan' } }));
-                    }}
-                  >
-                    <FiMap size={12} />
-                    <span>{ride.routeName || t('route.groupRides.loadRoute')}</span>
-                    <FiArrowRight size={12} />
-                  </button>
+                {(ride.routeId || instagramUrl) && (
+                  <div className="group-ride-links">
+                    {ride.routeId && (
+                      <button
+                        type="button"
+                        className="group-ride-link group-ride-link-route"
+                        onClick={() => {
+                          loadSavedRoute(token, ride.routeId, ride.routeOwnerSub);
+                          window.dispatchEvent(new CustomEvent('routeshred:set-tab', { detail: { tab: 'plan' } }));
+                        }}
+                      >
+                        <span className="group-ride-link-icon"><FiMap size={13} /></span>
+                        <span className="group-ride-link-copy">
+                          <span>{t('route.groupRides.openRoute')}</span>
+                          <strong>{ride.routeName || t('route.groupRides.loadRoute')}</strong>
+                        </span>
+                        <FiArrowRight size={13} />
+                      </button>
+                    )}
+                    {instagramUrl && (
+                      <a className="group-ride-link group-ride-link-instagram" href={instagramUrl} target="_blank" rel="noopener noreferrer">
+                        <span className="group-ride-link-icon"><FiInstagram size={13} /></span>
+                        <span className="group-ride-link-copy">
+                          <span>{t('route.groupRides.instagramLabel')}</span>
+                          <strong>{t('route.groupRides.instagramOpen')}</strong>
+                        </span>
+                        <FiArrowRight size={13} />
+                      </a>
+                    )}
+                  </div>
                 )}
 
                 {ride.description && <p className="group-ride-desc">{ride.description}</p>}
 
-                {instagramUrl && (
+                {instagramEmbedUrl && (
                   <div className="group-ride-instagram">
-                    {instagramEmbedUrl && (
-                      <iframe
-                        src={instagramEmbedUrl}
-                        title={`${ride.title || t('route.groupRides.title')} Instagram`}
-                        loading="lazy"
-                        allowTransparency="true"
-                      />
-                    )}
-                    <a href={instagramUrl} target="_blank" rel="noopener noreferrer">
-                      <FiInstagram size={12} />
-                      {t('route.groupRides.instagramOpen')}
-                    </a>
+                    <iframe
+                      src={instagramEmbedUrl}
+                      title={`${ride.title || t('route.groupRides.title')} Instagram`}
+                      loading="lazy"
+                      allowTransparency="true"
+                    />
                   </div>
                 )}
 
@@ -826,7 +889,7 @@ function GroupRidesPanel() {
                   </span>
                   <div className="ride-share-actions">
                     <button type="button" onClick={() => handleShare(ride, 'whatsapp')} title="WhatsApp">
-                      WA
+                      WhatsApp
                     </button>
                     <button type="button" onClick={() => handleShare(ride, 'copy')} title={t('route.groupRides.share.copy')}>
                       <FiShare2 size={12} />
@@ -834,37 +897,65 @@ function GroupRidesPanel() {
                   </div>
                 </div>
 
-                {comments.length > 0 && (
-                  <button type="button" className="ride-comments-toggle" onClick={() => toggleComments(ride.id)}>
-                    <FiMessageSquare size={11} />
-                    {comments.length} {comments.length === 1 ? 'Kommentar' : 'Kommentare'}
-                  </button>
+                {participants.length > 0 && (
+                  <div className="group-ride-participants">
+                    <span className="group-ride-section-label">{t('route.groupRides.joinedLabel')}</span>
+                    <div className="ride-participant-list">
+                      {participants.slice(0, 8).map((participant) => (
+                        <span key={participant.sub || participant.name} className="ride-participant-pill" title={participant.name}>
+                          <span className="ride-participant-avatar">{getInitials(participant.name)}</span>
+                          <span>{participant.name}</span>
+                        </span>
+                      ))}
+                      {Number(ride.participantsCount || 0) > participants.slice(0, 8).length && (
+                        <span className="ride-participant-more">
+                          +{Number(ride.participantsCount || 0) - participants.slice(0, 8).length}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 )}
+
+                <button type="button" className="ride-comments-toggle" onClick={() => toggleComments(rideKey)}>
+                  <FiMessageSquare size={11} />
+                  {comments.length
+                    ? t(comments.length === 1 ? 'route.groupRides.commentOne' : 'route.groupRides.commentsCount', { count: comments.length })
+                    : t('route.groupRides.commentCta')}
+                </button>
 
                 {isCommentsOpen && (
                   <div className="group-ride-comments">
                     {comments.slice(-4).map((comment) => (
                       <div key={comment.id} className="group-ride-comment-item">
-                        <strong>{comment.authorName}</strong>
-                        <p>{comment.text}</p>
+                        <span className="ride-comment-avatar">{getInitials(comment.authorName)}</span>
+                        <div>
+                          <strong>{comment.authorName}</strong>
+                          <p>{comment.text}</p>
+                          {comment.createdAt && <small>{formatCommentDate(comment.createdAt)}</small>}
+                        </div>
                       </div>
                     ))}
-                    <div className="group-ride-comment-form">
+                    <form
+                      className="group-ride-comment-form"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        handleAddComment(ride);
+                      }}
+                    >
                       <input
                         type="text"
-                        value={commentDrafts[`${ride.ownerSub}:${ride.id}`] || ''}
+                        value={commentDrafts[rideKey] || ''}
                         onChange={(event) => {
-                          const key = `${ride.ownerSub}:${ride.id}`;
-                          setCommentDrafts((current) => ({ ...current, [key]: event.target.value }));
+                          setCommentDrafts((current) => ({ ...current, [rideKey]: event.target.value }));
                         }}
                         placeholder={t('route.groupRides.commentPlaceholder')}
                         maxLength={500}
                         disabled={!token}
                       />
-                      <button type="button" onClick={() => handleAddComment(ride)} disabled={!token}>
+                      <button type="submit" disabled={!token}>
                         {t('route.groupRides.commentAction')}
                       </button>
-                    </div>
+                    </form>
                   </div>
                 )}
 

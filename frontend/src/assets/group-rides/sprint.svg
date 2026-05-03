@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" role="img" aria-label="Sprint ride pattern">
+  <rect width="640" height="320" fill="#f7f5ef"/>
+  <g stroke="#0b0d12" stroke-width="14">
+    <path d="M0 88 H640"/>
+    <path d="M0 216 H640"/>
+    <path d="M140 0 V320"/>
+    <path d="M356 0 V320"/>
+    <path d="M512 0 V320"/>
+  </g>
+  <rect x="0" y="0" width="140" height="88" fill="#ee2b2f"/>
+  <rect x="154" y="102" width="202" height="114" fill="#ffffff"/>
+  <rect x="370" y="0" width="142" height="88" fill="#1b55a6"/>
+  <rect x="526" y="102" width="114" height="114" fill="#f5d21f"/>
+  <rect x="154" y="230" width="202" height="90" fill="#ee2b2f"/>
+  <rect x="370" y="230" width="142" height="90" fill="#0b0d12"/>
+  <path d="M-42 268 L246 116 L484 82 L684 54" fill="none" stroke="#0b0d12" stroke-width="24" stroke-linecap="round" opacity=".62"/>
+  <path d="M18 242 L260 136 L486 112 L640 94" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" opacity=".62"/>
+</svg>

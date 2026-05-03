@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" role="img" aria-label="Tempo ride pattern">
+  <defs>
+    <linearGradient id="carbon" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset=".22" stop-color="#dfe7ee"/>
+      <stop offset=".23" stop-color="#161b22"/>
+      <stop offset=".64" stop-color="#070a0f"/>
+      <stop offset="1" stop-color="#2f1203"/>
+    </linearGradient>
+    <pattern id="weave" width="26" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(26)">
+      <path d="M0 7 H26 M0 20 H26" stroke="#ffffff" stroke-width="2" opacity=".1"/>
+    </pattern>
+  </defs>
+  <rect width="640" height="320" fill="url(#carbon)"/>
+  <rect width="640" height="320" fill="url(#weave)" opacity=".5"/>
+  <path d="M-40 262 L198 78 L462 50 L684 112 L684 320 L290 320 Z" fill="#f8fafc" opacity=".92"/>
+  <path d="M88 320 L314 102 L640 36 L640 124 L378 182 L232 320 Z" fill="#070a0f" opacity=".9"/>
+  <path d="M-24 246 L226 96 L484 76 L660 130" fill="none" stroke="#ff6b1a" stroke-width="18" stroke-linecap="round" opacity=".78"/>
+  <path d="M72 182 L326 128 L608 94" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity=".34"/>
+  <path d="M312 246 L560 178" fill="none" stroke="#ffb15f" stroke-width="11" stroke-linecap="round" opacity=".72"/>
+</svg>

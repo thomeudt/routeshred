@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" role="img" aria-label="Endurance ride pattern">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0b1630"/>
+      <stop offset=".52" stop-color="#1f2b5c"/>
+      <stop offset="1" stop-color="#050711"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" x2="1">
+      <stop offset="0" stop-color="#f6e05e"/>
+      <stop offset=".48" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#67e8f9"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="320" fill="url(#bg)"/>
+  <path d="M0 250 C104 176 178 208 264 150 C344 96 438 98 640 38" fill="none" stroke="url(#line)" stroke-width="34" stroke-linecap="round" opacity=".38"/>
+  <path d="M26 292 C116 218 204 244 296 184 C386 126 480 146 628 82" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity=".24"/>
+  <path d="M420 0 L640 0 L640 320 L536 320 Z" fill="#f6e05e" opacity=".16"/>
+  <g fill="#fff" opacity=".18">
+    <circle cx="72" cy="70" r="7"/>
+    <circle cx="160" cy="48" r="4"/>
+    <circle cx="514" cy="64" r="8"/>
+    <circle cx="584" cy="232" r="5"/>
+  </g>
+</svg>
