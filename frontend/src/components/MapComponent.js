@@ -549,7 +549,7 @@ function MapComponent({ isMapVisible = true }) {
 
       <div className={`controls-panel${showSocialSurface ? ' controls-hidden' : ''}`}>
         <RouteControls socialSurfacesMoved={showSocialSurface} />
-        {route && !showSocialSurface && <ElevationProfile route={route} />}
+        {route && !showSocialSurface && activeTab !== 'setup' && <ElevationProfile route={route} />}
       </div>
 
       {loading && <div className="loading">{t('route.calculating')}</div>}
