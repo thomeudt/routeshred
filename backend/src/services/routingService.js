@@ -43,6 +43,8 @@ const WIND_SPEED_ENABLED = String(process.env.WIND_SPEED_ENABLED || 'true') !== 
 const WIND_API = process.env.WIND_API || 'https://api.open-meteo.com/v1/forecast';
 
 const downloadedSegmentTiles = new Set();
+const PROFILE_TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9-]{2,48}$/;
+const SEGMENT_TILE_RE = /^[EW]\d+_[NS]\d+\.rd5$/;
 
 function parseServiceBaseUrl(rawValue, envName) {
   const value = String(rawValue || '').trim();
@@ -62,6 +64,36 @@ function parseServiceBaseUrl(rawValue, envName) {
   parsed.hash = '';
 
   return parsed;
+}
+
+function resolvePathWithinRoot(rootDir, fileName, errorLabel = 'path') {
+  const rootPath = path.resolve(String(rootDir || ''));
+  const targetPath = path.resolve(rootPath, String(fileName || ''));
+  if (targetPath === rootPath || !targetPath.startsWith(`${rootPath}${path.sep}`)) {
+    throw new Error(`Invalid ${errorLabel}`);
+  }
+  return targetPath;
+}
+
+function assertSafeProfileToken(value, label = 'profile id') {
+  const token = String(value || '').trim();
+  if (!PROFILE_TOKEN_RE.test(token)) {
+    throw new Error(`Invalid ${label}`);
+  }
+  return token;
+}
+
+function resolveProfilePath(profileDir, profileId, label = 'profile id') {
+  const token = assertSafeProfileToken(profileId, label);
+  return resolvePathWithinRoot(profileDir, `${token}.brf`, 'profile file path');
+}
+
+function resolveSegmentTilePath(tileName) {
+  const tile = String(tileName || '').trim();
+  if (!SEGMENT_TILE_RE.test(tile)) {
+    throw new Error('Invalid segment tile name');
+  }
+  return resolvePathWithinRoot(BROUTER_SEGMENTS_DIR, tile, 'segment tile path');
 }
 
 function sanitizeOsrmProfile(profile) {
@@ -426,11 +458,14 @@ async function createBikeProfile(input = {}, actor = {}) {
   }
 
   const requestedBaseId = String(input.baseProfileId || '').trim();
+  if (requestedBaseId) {
+    assertSafeProfileToken(requestedBaseId, 'base profile id');
+  }
   const availableProfiles = await getBikeProfiles();
   const fallbackBaseId = availableProfiles[0] ? availableProfiles[0].id : '3t-racemax';
   const baseProfileId = requestedBaseId || fallbackBaseId;
 
-  const baseProfilePath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${baseProfileId}.brf`);
+  const baseProfilePath = resolveProfilePath(BROUTER_CUSTOM_PROFILES_DIR, baseProfileId, 'base profile id');
   let baseContent;
   try {
     baseContent = await fs.readFile(baseProfilePath, 'utf8');
@@ -443,7 +478,7 @@ async function createBikeProfile(input = {}, actor = {}) {
     throw new Error('Profile name must produce a valid id (3-49 chars, a-z, 0-9, -)');
   }
 
-  const targetPath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${profileId}.brf`);
+  const targetPath = resolveProfilePath(BROUTER_CUSTOM_PROFILES_DIR, profileId);
   const actorLabel = profileOwnerToken(actor);
   const header = [
     `# ${profileName}`,
@@ -482,7 +517,7 @@ async function renameBikeProfile(profileId, nextName, actor = {}) {
     throw new Error('Invalid profile id');
   }
 
-  const currentPath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${currentId}.brf`);
+  const currentPath = resolveProfilePath(BROUTER_CUSTOM_PROFILES_DIR, currentId);
   const metadata = await readBrouterProfileMetadata(currentPath, currentId);
   ensureOwnProfile(metadata, actor, currentId);
 
@@ -495,7 +530,7 @@ async function renameBikeProfile(profileId, nextName, actor = {}) {
   const nextContent = rewriteProfileHeaderName(currentContent, newName);
 
   if (nextId !== currentId) {
-    const targetPath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${nextId}.brf`);
+    const targetPath = resolveProfilePath(BROUTER_CUSTOM_PROFILES_DIR, nextId);
     try {
       await fs.access(targetPath);
       throw new Error(`Profile already exists: ${nextId}`);
@@ -528,7 +563,7 @@ async function deleteBikeProfile(profileId, actor = {}) {
     throw new Error('Invalid profile id');
   }
 
-  const filePath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${id}.brf`);
+  const filePath = resolveProfilePath(BROUTER_CUSTOM_PROFILES_DIR, id);
   const metadata = await readBrouterProfileMetadata(filePath, id);
   ensureOwnProfile(metadata, actor, id);
   await fs.unlink(filePath);
@@ -544,7 +579,7 @@ async function getBikeProfileContent(profileId, actor = {}) {
     throw new Error('Invalid profile id');
   }
 
-  const filePath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${id}.brf`);
+  const filePath = resolveProfilePath(BROUTER_CUSTOM_PROFILES_DIR, id);
   const metadata = await readBrouterProfileMetadata(filePath, id);
   ensureOwnProfile(metadata, actor, id);
   return {
@@ -572,7 +607,7 @@ async function updateBikeProfileContent(profileId, nextContent, actor = {}) {
     throw new Error('Profile content is too large');
   }
 
-  const filePath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${id}.brf`);
+  const filePath = resolveProfilePath(BROUTER_CUSTOM_PROFILES_DIR, id);
   const metadata = await readBrouterProfileMetadata(filePath, id);
   ensureOwnProfile(metadata, actor, id);
   await fs.writeFile(filePath, `${content}\n`, 'utf8');
@@ -1278,7 +1313,7 @@ async function ensureBrouterSegments(points) {
       continue;
     }
 
-    const targetPath = path.join(BROUTER_SEGMENTS_DIR, tile);
+    const targetPath = resolveSegmentTilePath(tile);
     const exists = await fileExists(targetPath);
     if (exists) {
       downloadedSegmentTiles.add(tile);
@@ -1380,7 +1415,7 @@ function resolveBrouterProfile(options = {}) {
 }
 
 async function resolveBrouterProfileForRequest(options = {}) {
-  const profile = resolveBrouterProfile(options);
+  const profile = assertSafeProfileToken(resolveBrouterProfile(options), 'profile id');
   const overrides = getBrouterRiderOverrides(options.riderProfile || {});
 
   if (!overrides) {
@@ -1407,7 +1442,7 @@ async function resolveBrouterProfileForRequest(options = {}) {
 
   const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const tempProfile = `${profile}-rt-${requestId}`;
-  const tempPath = path.join(BROUTER_CUSTOM_PROFILES_DIR, `${tempProfile}.brf`);
+  const tempPath = resolveProfilePath(BROUTER_CUSTOM_PROFILES_DIR, tempProfile);
   await fs.writeFile(tempPath, adjusted, { encoding: 'utf8', flag: 'wx' });
 
   return {
@@ -1438,14 +1473,15 @@ function getBrouterRiderOverrides(riderProfile = {}) {
 }
 
 async function findBrouterProfilePath(profileId) {
+  const safeProfileId = assertSafeProfileToken(profileId, 'profile id');
   for (const profileDir of getBrouterProfileDirs()) {
-    const filePath = path.join(profileDir, `${profileId}.brf`);
+    const filePath = resolveProfilePath(profileDir, safeProfileId);
     if (await fileExists(filePath)) {
       return filePath;
     }
   }
 
-  return path.join(BROUTER_CUSTOM_PROFILES_DIR, `${profileId}.brf`);
+  return resolveProfilePath(BROUTER_CUSTOM_PROFILES_DIR, safeProfileId);
 }
 
 function extractAssignedNumber(content, variableName) {

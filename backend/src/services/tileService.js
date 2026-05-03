@@ -10,7 +10,19 @@ const TILE_CACHE_DIR = path.join(
 const TILE_CACHE_TTL_MS = parseInt(process.env.TILE_CACHE_TTL_MS || '7776000000', 10); // 90 days
 const THUNDERFOREST_BASE_URL = parseThunderforestBaseUrl('https://tile.thunderforest.com');
 
-const ALLOWED_STYLES = new Set(['cycle', 'landscape', 'outdoors', 'transport', 'transport-dark', 'spinal-map', 'pioneer', 'mobile-atlas', 'neighbourhood', 'atlas']);
+const STYLE_PATHS = Object.freeze({
+  cycle: 'cycle',
+  landscape: 'landscape',
+  outdoors: 'outdoors',
+  transport: 'transport',
+  'transport-dark': 'transport-dark',
+  'spinal-map': 'spinal-map',
+  pioneer: 'pioneer',
+  'mobile-atlas': 'mobile-atlas',
+  neighbourhood: 'neighbourhood',
+  atlas: 'atlas'
+});
+const ALLOWED_STYLES = new Set(Object.keys(STYLE_PATHS));
 
 function parseThunderforestBaseUrl(rawValue) {
   const value = String(rawValue || '').trim();
@@ -32,19 +44,42 @@ function parseThunderforestBaseUrl(rawValue) {
 
 function isValidTile(style, z, x, y) {
   if (!ALLOWED_STYLES.has(style)) return false;
+  if (!Number.isInteger(z) || !Number.isInteger(x) || !Number.isInteger(y)) return false;
   const max = Math.pow(2, z);
   return z >= 0 && z <= 19 && x >= 0 && x < max && y >= 0 && y < max;
 }
 
-async function fetchTile(style, z, x, y) {
-  const tileStyle = String(style || '');
-  const tileZ = Number(z);
-  const tileX = Number(x);
-  const tileY = Number(y);
+function parseInteger(value) {
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? value : NaN;
+  }
+  if (typeof value === 'string' && /^-?\d+$/u.test(value.trim())) {
+    return Number(value);
+  }
+  return NaN;
+}
 
-  if (!isValidTile(tileStyle, tileZ, tileX, tileY)) {
+function normalizeTileRequest(style, z, x, y) {
+  const requestedStyle = String(style || '').trim();
+  const canonicalStyle = STYLE_PATHS[requestedStyle];
+  const tileZ = parseInteger(z);
+  const tileX = parseInteger(x);
+  const tileY = parseInteger(y);
+
+  if (!canonicalStyle || !isValidTile(canonicalStyle, tileZ, tileX, tileY)) {
     throw new Error('Invalid tile coordinates or style');
   }
+
+  return {
+    tileStyle: canonicalStyle,
+    tileZ,
+    tileX,
+    tileY
+  };
+}
+
+async function fetchTile(style, z, x, y) {
+  const { tileStyle, tileZ, tileX, tileY } = normalizeTileRequest(style, z, x, y);
 
   const tileDir = path.join(TILE_CACHE_DIR, tileStyle, String(tileZ), String(tileX));
   const tilePath = path.join(tileDir, `${tileY}.png`);
@@ -57,7 +92,13 @@ async function fetchTile(style, z, x, y) {
     }
   } catch (err) {
     if (err.code !== 'ENOENT') {
-      console.warn(`Tile cache read error ${tileStyle}/${tileZ}/${tileX}/${tileY}:`, err.message);
+      console.warn('Tile cache read error', {
+        tileStyle,
+        tileZ,
+        tileX,
+        tileY,
+        message: err.message
+      });
     }
   }
 
@@ -80,7 +121,13 @@ async function fetchTile(style, z, x, y) {
 
   fs.mkdir(tileDir, { recursive: true })
     .then(() => fs.writeFile(tilePath, data))
-    .catch((err) => console.warn(`Tile cache write failed ${tileStyle}/${tileZ}/${tileX}/${tileY}:`, err.message));
+    .catch((err) => console.warn('Tile cache write failed', {
+      tileStyle,
+      tileZ,
+      tileX,
+      tileY,
+      message: err.message
+    }));
 
   return { data, fromCache: false };
 }
