@@ -309,10 +309,18 @@ function MapComponent({ isMapVisible = true }) {
       if (document.fullscreenElement === mapWrapperRef.current) {
         document.exitFullscreen().catch(() => {});
       }
+
+      // Defensive cleanup: ensure any stale iOS pseudo-fullscreen locks are removed immediately.
+      document.documentElement.classList.remove('map-pseudo-fullscreen');
+      document.body.classList.remove('map-pseudo-fullscreen');
+
       setIsNativeFullscreen(false);
       setIsPseudoFullscreen(false);
       stopGpsTracking();
       setGpsError('');
+
+      // Keep the controls panel deterministic when map is hidden.
+      window.dispatchEvent(new CustomEvent('routeshred:set-tab', { detail: { tab: 'plan' } }));
     }
   }, [isMapVisible]);
 

@@ -61,6 +61,11 @@ body.map-pseudo-fullscreen .map-container {
   background: #0f172a;
 }
 
+.map-container.map-hidden {
+  padding: 12px !important;
+  background: var(--bg-light) !important;
+}
+
 .community-surface {
   flex: 1;
   display: flex;
