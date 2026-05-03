@@ -1,510 +1,510 @@
-# RouteShred — Benutzerhandbuch
+# RouteShred — User Manual
 
-## Inhalt
+## Contents
 
-1. [Überblick](#1-überblick)
-2. [Die Oberfläche auf einen Blick](#2-die-oberfläche-auf-einen-blick)
-3. [Erste Route planen](#3-erste-route-planen)
-4. [AI Roundtrip planen](#4-ai-roundtrip-planen)
-5. [Ride Personas & Routenparameter](#5-ride-personas--routenparameter)
-6. [Wegpunkte hinzufügen](#6-wegpunkte-hinzufügen)
-7. [GPX / FIT importieren](#7-gpx--fit-importieren)
-8. [Höhenprofil & Analyse](#8-höhenprofil--analyse)
-9. [Wetterwarnungen](#9-wetterwarnungen)
-10. [Export & Übertragung auf das Gerät](#10-export--übertragung-auf-das-gerät)
-11. [Routen speichern & verwalten](#11-routen-speichern--verwalten)
-12. [Routen teilen](#12-routen-teilen)
-13. [Gruppenfahrten](#13-gruppenfahrten)
-14. [Profil einrichten](#14-profil-einrichten)
-15. [Anmeldung & Konto](#15-anmeldung--konto)
-16. [Tipps & Tricks](#16-tipps--tricks)
-17. [Fehlerbehebung](#17-fehlerbehebung)
-
----
-
-## 1. Überblick
-
-RouteShred ist ein selbst gehosteter Fahrradroutenplaner für Rennrad- und Gravel-Fahrer. Er kombiniert BRouter-basiertes Routing, Höhenprofile, Wetterwarnungen und Leistungszonenkalkulation in einer einzigen Webanwendung.
-
-**Was funktioniert ohne Konto:**
-- Routen planen und berechnen lassen
-- Höhenprofil und Geländeanalyse ansehen
-- Wetterwarnungen prüfen
-- Route als GPX oder TCX herunterladen
-- Route direkt an die Wahoo Companion App senden (mobil)
-
-**Was ein Konto zusätzlich ermöglicht:**
-- AI Roundtrips aus Zielgebiet, Zeitbudget, Bike-Profil und Persona planen
-- Routen dauerhaft speichern
-- Gespeicherte Routen laden und teilen
-- Gruppenfahrten erstellen, beitreten und kommentieren
-- Fahrerprofil (FTP, Gewicht, Fahrradtyp) speichern
+1. [Overview](#1-overview)
+2. [The Interface at a Glance](#2-the-interface-at-a-glance)
+3. [Planning Your First Route](#3-planning-your-first-route)
+4. [AI Roundtrip Planning](#4-ai-roundtrip-planning)
+5. [Ride Personas & Route Parameters](#5-ride-personas--route-parameters)
+6. [Adding Waypoints](#6-adding-waypoints)
+7. [Importing GPX / FIT](#7-importing-gpx--fit)
+8. [Elevation Profile & Analysis](#8-elevation-profile--analysis)
+9. [Weather Alerts](#9-weather-alerts)
+10. [Export & Device Transfer](#10-export--device-transfer)
+11. [Saving & Managing Routes](#11-saving--managing-routes)
+12. [Sharing Routes](#12-sharing-routes)
+13. [Group Rides](#13-group-rides)
+14. [Setting Up Your Profile](#14-setting-up-your-profile)
+15. [Login & Account](#15-login--account)
+16. [Tips & Tricks](#16-tips--tricks)
+17. [Troubleshooting](#17-troubleshooting)
 
 ---
 
-## 2. Die Oberfläche auf einen Blick
+## 1. Overview
 
-![RouteShred Übersicht](./screenshots/01-overview.png)
+RouteShred is a self-hosted bike route planner for road and gravel riders. It combines BRouter-based routing, elevation profiles, weather alerts, and power-zone calculations in a single web application.
 
-*Abbildung: Hauptansicht mit Seitenleiste und Karte.*
+**What works without an account:**
+- Plan and calculate routes
+- View elevation profiles and terrain analysis
+- Check weather alerts
+- Download routes as GPX or TCX
+- Send routes directly to the Wahoo Companion App (mobile)
 
-Die App besteht aus zwei Bereichen:
+**What an account additionally enables:**
+- AI Roundtrip planning from a destination area, time budget, bike profile, and persona
+- Save routes permanently
+- Load and share saved routes
+- Create, join, and comment on group rides
+- Save a rider profile (FTP, weight, bike type)
+
+---
+
+## 2. The Interface at a Glance
+
+![RouteShred Overview](./screenshots/01-overview.png)
+
+*The main view with sidebar and map.*
+
+The app consists of two areas:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  [Plan]  [Meine Routen]  [Community]  [Setup]               │  ← Tabs
+│  [Plan]  [My Routes]  [Community]  [Setup]                  │  ← Tabs
 ├──────────────────────┬──────────────────────────────────────┤
 │                      │                                       │
-│  Seitenleiste        │            Karte                      │
-│  (aktiver Tab)       │         (Leaflet)                     │
+│  Sidebar             │            Map                        │
+│  (active tab)        │         (Leaflet)                     │
 │                      │                                       │
 └──────────────────────┴──────────────────────────────────────┘
 ```
 
-- **Plan** — Route planen, Höhenprofil, Export. Immer sichtbar.
-- **Meine Routen** — Gespeicherte Routen. Nur mit Konto sichtbar.
-- **Community** — Gruppenfahrten. Nur mit Konto sichtbar.
-- **Setup** — Fahrradprofil, FTP, Gewicht. Immer sichtbar.
+- **Plan** — Plan a route, elevation profile, export. Always visible.
+- **My Routes** — Saved routes. Only visible when logged in.
+- **Community** — Group rides. Only visible when logged in.
+- **Setup** — Bike profile, FTP, weight. Always visible.
 
-Auf der Karte kannst du jederzeit klicken, um Start oder Ziel zu setzen. Ein Rechtsklick auf einen Marker ermöglicht weiteres Bearbeiten.
-
----
-
-## 3. Erste Route planen
-
-![Start- und Zieleingabe](./screenshots/02-location-input.png)
-
-*Abbildung: Eingabe von Start/Ziel mit Vorschlägen.*
-
-### Schritt 1 — Start und Ziel eingeben
-
-Im **Plan**-Tab gibt es zwei Adressfelder: Start und Ziel.
-
-**Per Texteingabe:**
-Tippe eine Adresse, einen Ortsnamen oder einen POI-Begriff (z. B. „Café", „Bikeshop") ein. Die Vorschlagsliste kombiniert Nominatim-Adressen mit Overpass-POIs.
-
-**Per Klick auf die Karte:**
-Klicke direkt auf die Karte. Ist noch kein Start gesetzt, wird der erste Klick zum Start, der zweite zum Ziel.
-
-**Per GPS:**
-Klicke das GPS-Symbol neben dem Startfeld, um den aktuellen Standort zu verwenden (erfordert Standortfreigabe im Browser).
-
-### Schritt 2 — Ride Persona oder Parameter wählen
-
-Wähle eine der vier Ride Personas (Coffee, Bunch, Endurance, Gravel) oder stelle Fahrradtyp, Routenpräferenz und Ridetyp manuell ein. Details → [Abschnitt 4](#4-ride-personas--routenparameter).
-
-### Schritt 3 — Berechnen
-
-Klicke **Berechnen**. RouteShred sendet die Anfrage an BRouter, holt das Höhenprofil bei Open-Meteo ab und berechnet Wetterwarnungen. Die Route erscheint als blaue Linie auf der Karte, das Höhenprofil darunter.
-
-![Berechnete Route auf der Karte](./screenshots/04-route-calculated.png)
-
-*Abbildung: Ergebnis nach der Routenberechnung.*
-
-### Schritt 4 — Rückroute (optional)
-
-Aktiviere **Rückroute einbeziehen**, um automatisch die Rückfahrt auf demselben oder einem alternativen Weg zu berechnen. Die Gesamtdistanz verdoppelt sich entsprechend.
+You can click anywhere on the map to set the start or destination. Right-clicking a marker provides additional editing options.
 
 ---
 
-## 4. AI Roundtrip planen
+## 3. Planning Your First Route
 
-> AI Roundtrip erfordert ein Konto und muss serverseitig mit `AI_ROUNDTRIP_ENABLED=true` und `OPENAI_API_KEY` aktiviert sein.
+![Start and destination input](./screenshots/02-location-input.png)
 
-Der **AI Roundtrip** im Plan-Tab erstellt eine kompakte Loop-Idee anhand von:
+*Entering start/destination with autocomplete suggestions.*
 
-- **Startpunkt** — muss zuerst gesetzt sein
-- **Zielgebiet** — z. B. „Schönbuch“, „Café“, „Aussichtspunkt“. Das Zielgebiet dient als Orientierung für die Loop, nicht zwingend als erster Wegpunkt.
-- **Zeitbudget** — Minuten, die ungefähr verfügbar sind
-- **Bike-Profil** — aktuelles Routingprofil aus dem Setup
-- **Ride Persona** — Coffee, Bunch, Endurance oder Gravel
+### Step 1 — Enter Start and Destination
 
-OpenAI erzeugt dabei nur strukturierte Loop-Ideen. Die echte Strecke wird anschließend von der Routing-Engine berechnet. Wenn die AI-Planung zu langsam ist, verwendet RouteShred automatisch eine robuste Standard-Loop, damit der Vorgang nicht komplett abbricht.
+The **Plan** tab has two address fields: Start and Destination.
 
-Die berechnete Route wird wie eine normale Route auf der Karte geladen und kann danach bearbeitet, exportiert oder gespeichert werden.
+**By typing:**
+Enter an address, place name, or POI term (e.g. "café", "bike shop"). The suggestion list combines Nominatim addresses with Overpass POIs.
 
-### Zeitbudget-Tuning
+**By clicking the map:**
+Click directly on the map. If no start is set yet, the first click becomes the start, the second the destination.
 
-AI-Zielpunkte liegen nur grob im Raum. Die echte Straßenroute kann dadurch länger werden als geplant. RouteShred versucht deshalb automatisch kompaktere Loops, wenn die berechnete Dauer zu stark über dem Zeitbudget liegt. Die Toleranz wird serverseitig über `AI_ROUNDTRIP_MAX_TIME_FACTOR` gesteuert (Standard: `1.18`). Das Zielgebiet wird dabei als räumlicher Anker genutzt; die tatsächlich gesetzten Wegpunkte liegen meist darum herum.
+**By GPS:**
+Click the GPS icon next to the start field to use your current location (requires location permission in the browser).
+
+### Step 2 — Choose a Ride Persona or Parameters
+
+Select one of the four ride personas (Coffee, Bunch, Endurance, Gravel) or manually configure the bike type, route preference, and ride type. Details → [Section 5](#5-ride-personas--route-parameters).
+
+### Step 3 — Calculate
+
+Click **Calculate**. RouteShred sends the request to BRouter, fetches the elevation profile from Open-Meteo, and calculates weather alerts. The route appears as a blue line on the map with the elevation profile below.
+
+![Calculated route on map](./screenshots/04-route-calculated.png)
+
+*Result after route calculation.*
+
+### Step 4 — Return Route (optional)
+
+Enable **Include return route** to automatically calculate the return trip on the same or an alternative path. The total distance doubles accordingly.
 
 ---
 
-## 5. Ride Personas & Routenparameter
+## 4. AI Roundtrip Planning
+
+> AI Roundtrip requires an account and must be enabled server-side with `AI_ROUNDTRIP_ENABLED=true` and `OPENAI_API_KEY`.
+
+The **AI Roundtrip** in the Plan tab creates a compact loop based on:
+
+- **Start point** — must be set first
+- **Destination area** — e.g. "Black Forest", "café", "viewpoint". The destination area serves as an anchor for the loop, not necessarily as the first waypoint.
+- **Time budget** — approximate time available in minutes
+- **Bike profile** — current routing profile from the Setup tab
+- **Ride persona** — Coffee, Bunch, Endurance, or Gravel
+
+OpenAI only generates structured loop ideas. The actual route is then calculated by the routing engine. If AI planning is too slow, RouteShred automatically falls back to a robust default loop so the process doesn't fail entirely.
+
+The calculated route is loaded onto the map like a normal route and can then be edited, exported, or saved.
+
+### Time Budget Tuning
+
+AI waypoints are only rough spatial anchors. The actual road route may end up longer than planned. RouteShred therefore automatically tries more compact loops when the calculated duration exceeds the time budget by too much. The tolerance is controlled server-side via `AI_ROUNDTRIP_MAX_TIME_FACTOR` (default: `1.18`). The destination area is used as a spatial anchor; the actual waypoints are usually placed around it.
+
+---
+
+## 5. Ride Personas & Route Parameters
 
 ![Ride Personas](./screenshots/03-personas.png)
 
-*Abbildung: Persona-Auswahl und Routenparameter im Plan-Tab.*
+*Persona selection and route parameters in the Plan tab.*
 
 ### Ride Personas
 
-Personas sind Ein-Klick-Voreinstellungen, die `Ridetyp` und `Präferenz` gleichzeitig setzen:
+Personas are one-click presets that set `ride type` and `preference` simultaneously:
 
-| Persona | Ridetyp | Präferenz | Typischer Einsatz |
-|---------|---------|-----------|-------------------|
-| ☕ Coffee Ride | Z2 | Landschaftlich | Ruhige Ausfahrt, niedrige Intensität |
-| 👥 Bunch Ride | TT | Schnellste | Gruppentraining, ebene Strecke |
-| ⚡ Endurance | SST | Landschaftlich | Ausdauereinheit, mittlere Intensität |
-| 🪨 Gravel | Z2 | Offroad | Schotterstraßen, Forstwege |
+| Persona | Ride Type | Preference | Typical Use |
+|---------|-----------|------------|-------------|
+| ☕ Coffee Ride | Z2 | Scenic | Easy ride, low intensity |
+| 👥 Bunch Ride | TT | Fastest | Group training, flat roads |
+| ⚡ Endurance | SST | Scenic | Endurance session, moderate intensity |
+| 🪨 Gravel | Z2 | Offroad | Gravel roads, forest tracks |
 
-### Manuelle Parameter
+### Manual Parameters
 
-**Fahrradtyp** — Wähle aus den verfügbaren BRouter-Profilen (Rennrad, Gravel, MTB, …) oder eigenen Custom Profiles. Das Profil bestimmt, welche Straßentypen BRouter bevorzugt.
+**Bike type** — Choose from available BRouter profiles (road, gravel, MTB, …) or your own custom profiles. The profile determines which road types BRouter prefers.
 
-**Routenpräferenz:**
-- **Schnellste** — kürzeste Zeit, bevorzugt Hauptstraßen
-- **Landschaftlich** — bevorzugt Radwege, Nebenstraßen, Panoramastrecken
-- **Offroad** — bevorzugt Schotter und unbefestigte Wege
+**Route preference:**
+- **Fastest** — shortest time, prefers main roads
+- **Scenic** — prefers cycle paths, minor roads, panoramic routes
+- **Offroad** — prefers gravel and unpaved tracks
 
-**Ridetyp** (Z2 / SST / TT / Schwelle) — bestimmt ausschließlich die Leistungszonenvorschau, nicht die Routenführung. Die angezeigten Wattzahlen basieren auf deiner FTP (einstellbar im Setup-Tab).
+**Ride type** (Z2 / SST / TT / Threshold) — only determines the power zone preview, not the route itself. The displayed wattage is based on your FTP (configurable in the Setup tab).
 
-### Leistungszonenvorschau
+### Power Zone Preview
 
-Unterhalb der Persona-Auswahl wird der Ziel-Wattbereich für die aktuelle Zone angezeigt:
+Below the persona selection, the target watt range for the current zone is displayed:
 
-| Zone | % FTP | Typisch bei 250 W FTP |
-|------|-------|-----------------------|
+| Zone | % FTP | Typical at 250 W FTP |
+|------|-------|----------------------|
 | Z2 | 56–75 % | 140–188 W |
 | SST | 84–97 % | 210–243 W |
 | TT | 105 % | ~263 W |
-| Schwelle | 98–102 % | 245–255 W |
+| Threshold | 98–102 % | 245–255 W |
 
 ---
 
-## 6. Wegpunkte hinzufügen
+## 6. Adding Waypoints
 
-Füge Zwischenstopps hinzu, um die Routenführung zu steuern.
+Add intermediate stops to control the route path.
 
-**Per Klick auf die Karte:** Halte während des Klickens keine Spezial-Taste gedrückt — nach Start und Ziel wird jeder weitere Klick als Wegpunkt hinzugefügt.
+**By clicking the map:** After setting start and destination, every additional click adds a waypoint.
 
-**Per Adresseingabe:** Klicke das **+**-Symbol in der Wegpunkt-Leiste und tippe eine Adresse.
+**By address input:** Click the **+** icon in the waypoint bar and type an address.
 
-**Reihenfolge ändern:** Ziehe die Wegpunkte per Drag & Drop in der Seitenleiste in die gewünschte Reihenfolge.
+**Reordering:** Drag waypoints by their handle in the sidebar to reorder them.
 
-**Wegpunkt entfernen:** Klicke das **×** neben dem Wegpunkt oder ziehe den Marker von der Karte.
+**Removing a waypoint:** Click the **×** next to the waypoint or drag the marker off the map.
 
-> Nach jeder Änderung an Wegpunkten musst du **Berechnen** erneut klicken.
-
----
-
-## 7. GPX / FIT importieren
-
-Du kannst eine bestehende Route aus Komoot, Strava, Garmin Connect oder einer anderen App importieren.
-
-**Unterstützte Formate:** `.gpx`, `.fit`
-
-**So geht's:**
-1. Klicke das Import-Symbol (Pfeil nach oben) im Plan-Tab
-2. Wähle eine `.gpx`- oder `.fit`-Datei
-3. RouteShred extrahiert Start, Ziel und Wegpunkte automatisch
-4. Die importierten Punkte werden in die Eingabefelder eingetragen — du kannst sie anpassen
-5. Klicke **Berechnen**, um die Route mit den aktuellen Profil-Einstellungen neu zu berechnen
-
-> **Hinweis:** Die importierte Datei bestimmt nur die Wegpunkte, nicht die eigentliche Routenführung. BRouter berechnet die optimale Route zwischen diesen Punkten entsprechend deinem Fahrrad- und Präferenzprofil neu.
+> After any change to waypoints, click **Calculate** again to update the route.
 
 ---
 
-## 8. Höhenprofil & Analyse
+## 7. Importing GPX / FIT
 
-![Höhenprofil](./screenshots/05-elevation-profile.png)
+You can import an existing route from Komoot, Strava, Garmin Connect, or any other app.
 
-*Abbildung: Höhenprofil mit Kennzahlen und Verlauf.*
+**Supported formats:** `.gpx`, `.fit`
 
-Nach der Routenberechnung erscheint das Höhenprofil als interaktives Diagramm unterhalb der Karte.
+**How to:**
+1. Click the import icon (upward arrow) in the Plan tab
+2. Select a `.gpx` or `.fit` file
+3. RouteShred automatically extracts start, destination, and waypoints
+4. The imported points are loaded into the input fields — you can adjust them
+5. Click **Calculate** to recalculate the route with your current profile settings
 
-### Höhenprofil lesen
-
-- **X-Achse** — Distanz in Kilometern
-- **Y-Achse** — Höhe in Metern über NN
-- **Hover** — zeigt genaue Höhe und Distanz am Cursor-Punkt
-- Der entsprechende Punkt wird gleichzeitig auf der Karte hervorgehoben
-
-### Kennzahlen
-
-Über dem Diagramm werden angezeigt:
-- **Distanz** — Gesamtlänge in km
-- **Anstieg / Abstieg** — kumulierte Höhenmeter
-- **Geschätzte Zeit** — basierend auf dem Routingprofil
-- **Höchster Punkt / Tiefster Punkt**
-
-### Geländeanalyse
-
-Unterhalb des Höhenprofils zeigt die **Geländeanalyse** die Oberflächenverteilung der Route:
-- Asphalt, Schotter, Wald- und Feldwege, Trails
-- Anteil in Prozent und Kilometer
-- Farbkodiertes Balkendiagramm
+> **Note:** The imported file only determines the waypoints, not the actual routing. BRouter recalculates the optimal route between these points according to your bike and preference profile.
 
 ---
 
-## 9. Wetterwarnungen
+## 8. Elevation Profile & Analysis
 
-RouteShred prüft beim Berechnen die Open-Meteo-Wettervorhersage entlang der Route und zeigt Warnungen, wenn relevante Bedingungen vorhergesagt werden:
+![Elevation Profile](./screenshots/05-elevation-profile.png)
 
-| Warnung | Auslöser |
-|---------|----------|
-| 💨 Gegenwind / Rückenwind | Windstärke > Schwellenwert, Richtung relativ zur Fahrtrichtung |
-| 🌧 Regen | Niederschlagswahrscheinlichkeit hoch |
-| 🌡 Hitze | Temperatur > Schwellenwert |
-| ☀️ UV | UV-Index hoch |
-| ↔️ Seitenwind | Starker Querwind |
+*Elevation profile with key metrics and chart.*
 
-Warnungen erscheinen direkt unter der Persona-Auswahl. Klicke auf eine Warnung, um Details zur betroffenen Streckenposition zu sehen.
+After calculating a route, the elevation profile appears as an interactive chart below the map.
 
-> Keine Warnungen = keine besonderen Bedingungen vorhergesagt. Wetterdaten beziehen sich auf die aktuelle Tageszeit, nicht auf einen geplanten Starttermin.
+### Reading the Elevation Profile
 
----
+- **X-axis** — distance in kilometres
+- **Y-axis** — elevation in metres above sea level
+- **Hover** — shows exact elevation and distance at the cursor position
+- The corresponding point is simultaneously highlighted on the map
 
-## 10. Export & Übertragung auf das Gerät
+### Key Metrics
 
-![Export-Bereich](./screenshots/06-export.png)
+Above the chart the following are displayed:
+- **Distance** — total length in km
+- **Ascent / Descent** — cumulative elevation gain/loss
+- **Estimated time** — based on the routing profile
+- **Highest point / Lowest point**
 
-*Abbildung: TCX/GPX-Export und Geräte-Übergabe.*
+### Terrain Analysis
 
-### TCX herunterladen
-
-Für Wahoo ELEMNT, Garmin, und andere Geräte. Klicke **TCX exportieren** — der Browser lädt die Datei herunter. Übertrage sie anschließend über die Geräte-App oder Garmin Connect / Wahoo Cloud.
-
-### GPX herunterladen
-
-Universalformat, kompatibel mit nahezu allen Apps und Geräten. Klicke **GPX exportieren**.
-
-### Direkt an Wahoo ELEMNT senden (mobil, empfohlen)
-
-Der schnellste Weg auf mobilen Geräten:
-
-1. Route berechnen
-2. Auf **An Wahoo senden** tippen
-3. Das native Share-Sheet deines Betriebssystems öffnet sich
-4. **Wahoo Companion App** auswählen
-5. Die App empfängt die GPX-Datei und synchronisiert sie mit dem Gerät
-
-> **Voraussetzungen:**
-> - Mobiler Browser (iOS Safari, Chrome auf Android)
-> - Wahoo Companion App installiert und mit dem ELEMNT verbunden
-> - Der Button erscheint nur, wenn der Browser die Web Share API unterstützt
-
-> **Falls Wahoo nicht in der Auswahl erscheint:** Stelle sicher, dass die Wahoo Companion App für Dateiimport registriert ist. Öffne die App einmalig und importiere eine GPX-Datei manuell — danach erkennt iOS/Android die App als Handler.
-
-![Mobile Ansicht](./screenshots/11-mobile.png)
-
-*Abbildung: Mobile Nutzung inkl. Share-Flow zu Wahoo.*
+Below the elevation profile, the **terrain analysis** shows the surface breakdown of the route:
+- Asphalt, gravel, forest and field tracks, trails
+- Share as percentage and kilometres
+- Colour-coded bar chart
 
 ---
 
-## 11. Routen speichern & verwalten
+## 9. Weather Alerts
 
-![Meine Routen](./screenshots/08-saved-routes.png)
+RouteShred checks the Open-Meteo weather forecast along the route during calculation and shows alerts when relevant conditions are predicted:
 
-*Abbildung: Bereich „Meine Routen" mit gespeicherten Touren.*
+| Alert | Trigger |
+|-------|---------|
+| 💨 Headwind / Tailwind | Wind speed above threshold, direction relative to riding direction |
+| 🌧 Rain | High precipitation probability |
+| 🌡 Heat | Temperature above threshold |
+| ☀️ UV | High UV index |
+| ↔️ Crosswind | Strong lateral wind |
 
-> Speichern erfordert ein Konto (Login).
+Alerts appear directly below the persona selection. Click an alert to see details about the affected route position.
 
-### Route speichern
-
-1. Route berechnen
-2. Namen in das Feld oben im Plan-Tab eingeben
-3. **Speichern** klicken
-4. Die Route erscheint sofort im Tab **Meine Routen**
-
-### Meine Routen
-
-Im Tab **Meine Routen** siehst du alle deine gespeicherten Routen sowie Routen, die andere mit dir geteilt haben.
-
-**Route laden:** Klicke auf eine Route in der Liste. Sie wird auf die Karte geladen und kann direkt weiterbearbeitet oder exportiert werden.
-
-**Umbenennen:** Klicke das Bleistift-Symbol neben dem Routennamen, gib den neuen Namen ein, bestätige mit Enter.
-
-**Löschen:** Klicke das Papierkorb-Symbol. Die Aktion ist nicht rückgängig zu machen.
-
-**Sichtbarkeit:**
-- 🔒 **Privat** — nur du kannst die Route sehen (Standard)
-- 🌍 **Öffentlich** — jeder mit dem Link kann die Route laden (kein Login nötig)
-- 👤 **Geteilt** — nur bestimmte Nutzer haben Zugriff
+> No alerts = no significant conditions predicted. Weather data refers to the current time of day, not a planned departure time.
 
 ---
 
-## 12. Routen teilen
+## 10. Export & Device Transfer
 
-### Öffentlicher Link
+![Export area](./screenshots/06-export.png)
 
-1. Route in **Meine Routen** auf **Öffentlich** schalten
-2. **Link kopieren** klicken
-3. Link per Nachricht, E-Mail oder in Strava-Kommentaren teilen
-4. Empfänger öffnen den Link — die Route lädt ohne Login
+*TCX/GPX export and device transfer.*
 
-### Mit einzelnen Nutzern teilen
+### Download TCX
 
-1. In der Routendetailansicht auf **Teilen** klicken
-2. E-Mail-Adresse oder Nutzername des Empfängers eingeben
-3. **Hinzufügen** klicken — der Nutzer sieht die Route in seinem **Meine Routen**-Tab
+For Wahoo ELEMNT, Garmin, and other devices. Click **Export TCX** — the browser downloads the file. Transfer it via the device app or Garmin Connect / Wahoo Cloud.
 
-Die Route bleibt unter deiner Kontrolle. Der Empfänger kann sie ansehen und laden, aber nicht bearbeiten oder löschen.
+### Download GPX
 
----
+Universal format, compatible with virtually all apps and devices. Click **Export GPX**.
 
-## 13. Gruppenfahrten
+### Send Directly to Wahoo ELEMNT (mobile, recommended)
 
-![Community und Gruppenfahrten](./screenshots/09-community.png)
+The fastest way on mobile devices:
 
-*Abbildung: Community-Tab mit öffentlichen Gruppenfahrten.*
+1. Calculate a route
+2. Tap **Send to Wahoo**
+3. Your operating system's native share sheet opens
+4. Select the **Wahoo Companion App**
+5. The app receives the GPX file and syncs it to the device
 
-Der **Community**-Tab zeigt alle öffentlichen Gruppenfahrten und die Fahrten, an denen du teilnimmst.
+> **Requirements:**
+> - Mobile browser (iOS Safari, Chrome on Android)
+> - Wahoo Companion App installed and connected to your ELEMNT
+> - The button only appears when the browser supports the Web Share API with file support
 
-### Gruppenfahrt erstellen
+> **If Wahoo doesn't appear in the share sheet:** Make sure the Wahoo Companion App is registered for file imports. Open the app once and manually import a GPX file — iOS/Android will then recognise the app as a handler.
 
-1. Im Community-Tab auf **+ Neue Gruppenfahrt** klicken
-2. Folgende Felder ausfüllen:
-   - **Titel** — z. B. „Sonntags-Ausfahrt Rennrad"
-   - **Beschreibung** — Details zum Ablauf, Tempo, Verpflegung
-   - **Datum & Uhrzeit** — Starttermin
-   - **Treffpunkt** — Adresse oder Beschreibung
-   - **Route** (optional) — wähle eine deiner gespeicherten Routen aus
-   - **Sichtbarkeit** — Öffentlich oder Privat
-3. **Erstellen** klicken
+![Mobile view](./screenshots/11-mobile.png)
 
-### Teilnehmen / Absagen
-
-Klicke auf eine öffentliche Gruppenfahrt und dann auf **Teilnehmen**. Dein Name erscheint in der Teilnehmerliste. Mit **Absagen** trägst du dich wieder aus.
-
-### Kommentieren
-
-Unter jeder Gruppenfahrt gibt es einen Kommentarbereich für organisatorische Absprachen (max. 500 Zeichen pro Kommentar). Nur angemeldete Nutzer können kommentieren.
-
-### Gruppenfahrt bearbeiten / löschen
-
-Nur der Ersteller kann eine Gruppenfahrt bearbeiten oder löschen. Klicke auf das Stift-Symbol neben dem Titel.
+*Mobile use including share flow to Wahoo.*
 
 ---
 
-## 14. Profil einrichten
+## 11. Saving & Managing Routes
 
-![Setup und Profil](./screenshots/07-setup.png)
+![My Routes](./screenshots/08-saved-routes.png)
 
-*Abbildung: Setup-Tab mit Profil- und Fahrrad-Einstellungen.*
+*The "My Routes" tab with saved rides.*
 
-Im **Setup**-Tab konfigurierst du dein Fahrerprofil. Die Werte werden für die Leistungszonenvorschau und beim Speichern von Routen verwendet.
+> Saving requires an account (login).
+
+### Saving a Route
+
+1. Calculate a route
+2. Enter a name in the field at the top of the Plan tab
+3. Click **Save**
+4. The route immediately appears in the **My Routes** tab
+
+### My Routes
+
+The **My Routes** tab shows all your saved routes as well as routes others have shared with you.
+
+**Load a route:** Click on a route in the list. It loads onto the map and can be edited or exported straight away.
+
+**Rename:** Click the pencil icon next to the route name, enter the new name, confirm with Enter.
+
+**Delete:** Click the bin icon. This action cannot be undone.
+
+**Visibility:**
+- 🔒 **Private** — only you can see the route (default)
+- 🌍 **Public** — anyone with the link can load the route (no login required)
+- 👤 **Shared** — only specific users have access
+
+---
+
+## 12. Sharing Routes
+
+### Public Link
+
+1. Set the route to **Public** in **My Routes**
+2. Click **Copy link**
+3. Share the link via message, email, or in Strava comments
+4. Recipients open the link — the route loads without login
+
+### Sharing with Individual Users
+
+1. Click **Share** in the route detail view
+2. Enter the recipient's email address or username
+3. Click **Add** — the user sees the route in their **My Routes** tab
+
+The route stays under your control. The recipient can view and load it, but cannot edit or delete it.
+
+---
+
+## 13. Group Rides
+
+![Community and Group Rides](./screenshots/09-community.png)
+
+*Community tab with public group rides.*
+
+The **Community** tab shows all public group rides and the rides you are participating in.
+
+### Creating a Group Ride
+
+1. Click **+ New Group Ride** in the Community tab
+2. Fill in the following fields:
+   - **Title** — e.g. "Sunday Road Ride"
+   - **Description** — details about pace, format, refreshments
+   - **Date & Time** — start time
+   - **Meeting point** — address or description
+   - **Route** (optional) — select one of your saved routes
+   - **Visibility** — Public or Private
+3. Click **Create**
+
+### Joining / Leaving
+
+Click on a public group ride and then click **Join**. Your name appears in the participants list. Click **Leave** to remove yourself.
+
+### Commenting
+
+Each group ride has a comment section for organisational notes (max. 500 characters per comment). Only logged-in users can comment.
+
+### Editing / Deleting a Group Ride
+
+Only the creator can edit or delete a group ride. Click the pencil icon next to the title.
+
+---
+
+## 14. Setting Up Your Profile
+
+![Setup and Profile](./screenshots/07-setup.png)
+
+*Setup tab with profile and bike settings.*
+
+The **Setup** tab is where you configure your rider profile. The values are used for the power zone preview and when saving routes.
 
 ### FTP (Functional Threshold Power)
 
-Deine Schwellenleistung in Watt — die Leistung, die du theoretisch eine Stunde lang halten kannst.
+Your threshold power in watts — the power you can theoretically sustain for one hour.
 
-- **Nicht bekannt?** Starte mit 200–250 W und passe den Wert nach einem FTP-Test an.
-- **FTP-Test-Protokoll:** 5 min locker → 5 min Vollgas (als Aufwärmtest) → 10 min locker → 20 min so hart wie möglich → 5 min locker. 95 % der 20-Minuten-Durchschnittsleistung = FTP.
+- **Don't know yours?** Start with 200–250 W and adjust after an FTP test.
+- **FTP test protocol:** 5 min easy → 5 min all-out (warm-up effort) → 10 min easy → 20 min as hard as possible → 5 min easy. 95 % of the 20-minute average power = FTP.
 
-### Gewicht
+### Weight
 
-Dein Körpergewicht in kg. Wird aktuell für zukünftige W/kg-Berechnungen vorgehalten.
+Your body weight in kg. Currently stored for future W/kg calculations.
 
-### Fahrradtyp
+### Bike Type
 
-Standard-Fahrradtyp für neue Routen (Rennrad, Gravel, MTB, …).
+Default bike type for new routes (road, gravel, MTB, …).
 
-### Anzeigename
+### Display Name
 
-Wie du in Gruppenfahrten und geteilten Routen erscheinst. Kann von deinem Konto-Namen abweichen.
+How you appear in group rides and shared routes. Can differ from your account name.
 
-### Änderungen speichern
+### Saving Changes
 
-Klicke **Profil speichern**. Die Werte werden sofort für die Leistungszonenvorschau übernommen.
-
----
-
-## 15. Anmeldung & Konto
-
-RouteShred verwendet Keycloak für die Authentifizierung. Klicke auf **Anmelden** oben rechts.
-
-### Neues Konto anlegen
-
-Auf der Keycloak-Anmeldeseite **Registrieren** auswählen. Benötigt werden:
-- Benutzername
-- E-Mail-Adresse
-- Passwort (min. 8 Zeichen)
-
-Nach der Registrierung bist du sofort angemeldet.
-
-### Angemeldet bleiben
-
-Der Keycloak-Token ist zeitlich begrenzt. Bei längerer Inaktivität wirst du automatisch abgemeldet. Klicke erneut auf **Anmelden**, um die Session zu erneuern — deine Routen und Daten bleiben erhalten.
-
-### Abmelden
-
-Klicke oben rechts auf deinen Benutzernamen → **Abmelden**.
-
-### Ohne Konto nutzen
-
-Du kannst RouteShred vollständig ohne Konto verwenden: Routenplanung, Analyse, Export und Wahoo-Übertragung funktionieren anonym. Lediglich Speichern, Meine Routen und Community sind nicht verfügbar.
+Click **Save Profile**. The values are immediately applied to the power zone preview.
 
 ---
 
-## 16. Tipps & Tricks
+## 15. Login & Account
 
-**Schneller Start per Karten-Klick:**
-Klicke direkt auf die Karte, ohne Adressen einzutippen. Der erste Klick setzt den Start, der zweite das Ziel.
+RouteShred uses Keycloak for authentication. Click **Login** in the top right.
 
-**Alternativroute testen:**
-Ändere nach dem Berechnen die Präferenz (z. B. von Landschaftlich auf Schnellste) und klicke erneut auf Berechnen — sofortiger Vergleich.
+### Creating a New Account
 
-**Custom BRouter-Profile:**
-Lege eigene `.brf`-Dateien in `brouter-data/customprofiles/` ab. Sie erscheinen automatisch in der Fahrradtyp-Auswahl unter dem Namen der Datei (ohne `.brf`-Endung).
+Select **Register** on the Keycloak login page. You will need:
+- Username
+- Email address
+- Password (min. 8 characters)
 
-**Rückroute als separater Export:**
-Wenn du die Rückroute aktiviert hast, exportiert RouteShred die Hin- und Rückroute als kombinierte GPX/TCX-Datei.
+After registration you are logged in immediately.
 
-**Tile-Cache aufwärmen:**
-Zoome vor dem Ausritt einmal durch das gesamte Routengebiet — die Kartenkacheln werden serverseitig gecacht und laden danach deutlich schneller.
+### Staying Logged In
 
-**Browser-Tab offen lassen:**
-Der Zustand der Planung (Start, Ziel, Wegpunkte) bleibt im Browser-Tab erhalten, solange du die Seite nicht schließt. Kein implizites Auto-Save.
+The Keycloak token is time-limited. After extended inactivity you will be logged out automatically. Click **Login** again to renew the session — your routes and data are preserved.
 
----
+### Logging Out
 
-## 17. Fehlerbehebung
+Click your username in the top right → **Logout**.
 
-![Hilfe-Seite](./screenshots/10-help-page.png)
+### Using Without an Account
 
-*Abbildung: Hilfe-/Support-Bereich für typische Probleme.*
-
-### Route lässt sich nicht berechnen
-
-1. **Health-Check:** `curl http://localhost:5050/api/health` — ist der Backend-Status `OK`?
-2. **BRouter prüfen:** `curl http://localhost:17777/brouter/version` — läuft BRouter?
-3. **Segmente fehlen:** Ist `BROUTER_AUTO_FETCH_SEGMENTS=true` gesetzt? Beim ersten Berechnen durch ein neues Gebiet lädt BRouter das `.rd5`-Tile nach — das kann beim ersten Mal 5–30 Sekunden dauern.
-4. **OSRM-Fallback:** Wenn BRouter ausfällt und `BROUTER_FALLBACK_TO_OSRM=true` gesetzt ist, wird OSRM verwendet. Die Route kann sich leicht unterscheiden.
-
-### Höhenprofil ist flach / leer
-
-- Open-Meteo nicht erreichbar? → Prüfe Internetzugang des Backends
-- `ROUTESHRED_CACHE_DIR` nicht beschreibbar? → Verzeichnis-Berechtigungen prüfen
-- Open-Elevation wird als Fallback versucht; falls beide scheitern, bleibt das Profil leer
-
-### Wahoo-Button erscheint nicht
-
-Der Button ist nur auf Geräten sichtbar, bei denen der Browser die Web Share API mit Dateiunterstützung meldet (`navigator.canShare({ files: [...] })`). Das funktioniert in:
-- Safari auf iOS 15+
-- Chrome auf Android 86+
-
-Nicht unterstützt: Desktop-Browser, Firefox auf iOS.
-
-### Karte zeigt nur OpenStreetMap, nicht OpenCycleMap
-
-Der Backend-Tile-Proxy benötigt einen Thunderforest API-Key. Überprüfe:
-1. `THUNDERFOREST_API_KEY` in `.env` gesetzt?
-2. Backend neu gestartet nach Änderung?
-3. Browser-Entwicklertools → Network → Anfragen auf `/api/tiles/...` — gibt der Server 503 zurück?
-
-### Anmeldung schlägt fehl / "Authentication error"
-
-1. Keycloak läuft? → `docker compose ps keycloak`
-2. `REACT_APP_KEYCLOAK_URL` im Frontend stimmt mit der Keycloak-Adresse überein?
-3. Browser-Konsole → Netzwerkfehler auf `/auth/realms/routeshred/...`?
-4. Cookie-Blocker oder Privacy-Modus können Keycloak-Redirects blockieren
-
-### Gespeicherte Route ist weg
-
-Routen werden als JSON-Dateien unter `ROUTESHRED_ROUTES_DIR` gespeichert. Überprüfe:
-- Wurde das `data/`-Verzeichnis versehentlich gelöscht?
-- Wurde Docker mit `docker compose down -v` gestoppt (löscht Volumes)?
-- In der Proxmox-Produktion: sind die Volume-Mounts in `docker-compose.proxmox.yml` korrekt?
+You can use RouteShred fully without an account: route planning, analysis, export, and Wahoo transfer all work anonymously. Only saving, My Routes, and Community are unavailable.
 
 ---
 
-*Weitere Informationen für Administratoren und Entwickler: [SETUP.md](./SETUP.md), [DEPLOYMENT.md](./DEPLOYMENT.md), [DEVELOPMENT.md](./DEVELOPMENT.md)*
+## 16. Tips & Tricks
+
+**Quick start by clicking the map:**
+Click directly on the map without typing any address. The first click sets the start, the second the destination.
+
+**Testing an alternative route:**
+After calculating, change the preference (e.g. from Scenic to Fastest) and click Calculate again — instant comparison.
+
+**Custom BRouter profiles:**
+Place your own `.brf` files in `brouter-data/customprofiles/`. They automatically appear in the bike type selection under the filename (without the `.brf` extension).
+
+**Return route as a separate export:**
+When the return route is enabled, RouteShred exports the outbound and return legs as a combined GPX/TCX file.
+
+**Warming up the tile cache:**
+Before heading out, zoom through the entire route area once — map tiles are cached server-side and load much faster afterwards.
+
+**Keep the browser tab open:**
+The planning state (start, destination, waypoints) is preserved in the browser tab as long as you don't close the page. There is no implicit auto-save.
+
+---
+
+## 17. Troubleshooting
+
+![Help page](./screenshots/10-help-page.png)
+
+*Help/support section for common issues.*
+
+### Route Cannot Be Calculated
+
+1. **Health check:** `curl http://localhost:5050/api/health` — is the backend status `OK`?
+2. **Check BRouter:** `curl http://localhost:17777/brouter/version` — is BRouter running?
+3. **Missing segments:** Is `BROUTER_AUTO_FETCH_SEGMENTS=true` set? On the first calculation through a new area, BRouter downloads the `.rd5` tile — this can take 5–30 seconds the first time.
+4. **OSRM fallback:** If BRouter is unavailable and `BROUTER_FALLBACK_TO_OSRM=true` is set, OSRM is used. The route may differ slightly.
+
+### Elevation Profile Is Flat / Empty
+
+- Open-Meteo not reachable? → Check backend internet access
+- `ROUTESHRED_CACHE_DIR` not writable? → Check directory permissions
+- Open-Elevation is attempted as a fallback; if both fail, the profile remains empty
+
+### Wahoo Button Does Not Appear
+
+The button is only visible on devices where the browser reports Web Share API support with file sharing (`navigator.canShare({ files: [...] })`). This works in:
+- Safari on iOS 15+
+- Chrome on Android 86+
+
+Not supported: desktop browsers, Firefox on iOS.
+
+### Map Shows Only OpenStreetMap, Not OpenCycleMap
+
+The backend tile proxy requires a Thunderforest API key. Check:
+1. Is `THUNDERFOREST_API_KEY` set in `.env`?
+2. Has the backend been restarted after the change?
+3. Browser developer tools → Network → requests to `/api/tiles/...` — is the server returning 503?
+
+### Login Fails / "Authentication error"
+
+1. Is Keycloak running? → `docker compose ps keycloak`
+2. Does `REACT_APP_KEYCLOAK_URL` in the frontend match the Keycloak address?
+3. Browser console → network errors on `/auth/realms/routeshred/...`?
+4. Cookie blockers or private browsing mode can block Keycloak redirects
+
+### Saved Route Is Gone
+
+Routes are stored as JSON files under `ROUTESHRED_ROUTES_DIR`. Check:
+- Was the `data/` directory accidentally deleted?
+- Was Docker stopped with `docker compose down -v` (which deletes volumes)?
+- In Proxmox production: are the volume mounts in `docker-compose.proxmox.yml` correct?
+
+---
+
+*Further information for administrators and developers: [SETUP.md](./SETUP.md), [DEPLOYMENT.md](./DEPLOYMENT.md), [DEVELOPMENT.md](./DEVELOPMENT.md)*
