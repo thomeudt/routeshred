@@ -467,20 +467,8 @@ function MapComponent({ isMapVisible = true }) {
   const showRoutesSurface = isMapVisible && !isFullscreen && activeTab === 'routes';
   const showCommunitySurface = isMapVisible && !isFullscreen && activeTab === 'community';
 
-  if (!isMapVisible) {
-    return (
-      <div className="map-container map-hidden controls-only-mode">
-        <div className="controls-panel">
-          <RouteControls socialSurfacesMoved={false} />
-          {route && activeTab !== 'setup' && <ElevationProfile route={route} />}
-        </div>
-        {loading && <div className="loading">{t('route.calculating')}</div>}
-      </div>
-    );
-  }
-
   return (
-    <div className={`map-container${isMapVisible ? '' : ' map-hidden'}${showSocialSurface ? ' social-mode' : ''}`}>
+    <div className={`map-container${!isMapVisible ? ' map-hidden controls-only-mode' : ''}${showSocialSurface ? ' social-mode' : ''}`}>
       {isMapVisible && (
         <div
           ref={mapWrapperRef}

@@ -34,6 +34,7 @@
   border-radius: 0;
   margin: 0;
   background: #0f172a;
+  height: 100dvh;
 }
 
 .map-wrapper.is-fullscreen .leaflet-container {
