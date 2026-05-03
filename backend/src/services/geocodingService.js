@@ -2,6 +2,7 @@ const axios = require('axios');
 const { getCachedJson, setCachedJson } = require('../utils/diskCache');
 
 const NOMINATIM_API = process.env.NOMINATIM_API || 'https://nominatim.openstreetmap.org/search';
+const NOMINATIM_USER_AGENT = process.env.NOMINATIM_USER_AGENT || 'RouteShred/0.1 (+https://github.com/routeshred/routeshred)';
 const OVERPASS_API = process.env.OVERPASS_API || 'https://overpass-api.de/api/interpreter';
 const GEOAPIFY_PLACES_API = process.env.GEOAPIFY_PLACES_API || 'https://api.geoapify.com/v2/places';
 const GEOAPIFY_API_KEY = String(process.env.GEOAPIFY_API_KEY || '').trim();
@@ -70,7 +71,7 @@ async function searchNominatimPlaces(query, options = {}) {
     headers: {
       Accept: 'application/json',
       'Accept-Language': String(options.language || 'de').slice(0, 8),
-      'User-Agent': 'RouteShred/0.1 (+local-dev)'
+      'User-Agent': NOMINATIM_USER_AGENT
     },
     timeout: GEOCODING_TIMEOUT_MS
   });
@@ -124,7 +125,7 @@ async function searchPoiPlacesGeoapify(query, options = {}) {
       params,
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'RouteShred/0.1 (+local-dev)'
+        'User-Agent': NOMINATIM_USER_AGENT
       },
       timeout: GEOCODING_TIMEOUT_MS
     });
@@ -179,7 +180,7 @@ async function searchPoiPlacesOverpass(query, options = {}) {
         'Content-Type': 'text/plain; charset=utf-8',
         Accept: 'application/json',
         'Accept-Language': String(options.language || 'de').slice(0, 8),
-        'User-Agent': 'RouteShred/0.1 (+local-dev)'
+        'User-Agent': NOMINATIM_USER_AGENT
       },
       timeout: GEOCODING_TIMEOUT_MS
     });
