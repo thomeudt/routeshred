@@ -1,5 +1,8 @@
 # RouteShred
 
+[![Backend](https://github.com/thomeudt/routeshred/actions/workflows/node.js.yml/badge.svg?job=backend)](https://github.com/thomeudt/routeshred/actions/workflows/node.js.yml)
+[![Frontend](https://github.com/thomeudt/routeshred/actions/workflows/node.js.yml/badge.svg?job=frontend)](https://github.com/thomeudt/routeshred/actions/workflows/node.js.yml)
+
 **The open-source bike route planner for road and gravel riders.**
 
 A modern self-hosted web application for planning cycling routes with terrain-aware routing, elevation profiles, weather alerts, and community features.
