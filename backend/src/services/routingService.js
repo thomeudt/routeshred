@@ -449,6 +449,11 @@ async function readBikeProfilesFromDir(profileDir, actor = {}) {
       if (!entry.isFile() || !entry.name.endsWith('.brf')) {
         continue;
       }
+      // Skip temp profiles created during routing (cleaned up after request, but
+      // may survive if the server is killed mid-request).
+      if (/-rt-\d+/.test(entry.name)) {
+        continue;
+      }
 
       const id = entry.name.replace(/\.brf$/i, '');
       const filePath = path.join(profileDir, entry.name);
