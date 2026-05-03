@@ -32,7 +32,12 @@ const allowedOrigins = process.env.CORS_ORIGIN
 
 app.use(helmet({
   crossOriginEmbedderPolicy: false, // Leaflet map tiles need cross-origin resources
-  contentSecurityPolicy: false      // Served behind Caddy which handles CSP in production
+  contentSecurityPolicy: false,     // Served behind Caddy which handles CSP in production
+  permissionsPolicy: {
+    features: {
+      geolocation: ['self']         // Allow geolocation from same origin (needed for GPS tracking)
+    }
+  }
 }));
 
 app.use(cors({
