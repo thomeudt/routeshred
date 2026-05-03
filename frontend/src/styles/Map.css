@@ -34,9 +34,6 @@
   border-radius: 0;
   margin: 0;
   background: #0f172a;
-  height: 100vh;
-  height: 100svh;
-  height: -webkit-fill-available;
 }
 
 .map-wrapper.is-fullscreen .leaflet-container {
@@ -392,7 +389,7 @@ body.map-pseudo-fullscreen .map-container {
   }
 
   .map-container.map-hidden .controls-panel {
-    min-height: calc(100dvh - 160px);
+    min-height: calc(100svh - 120px);
     max-height: none;
   }
 

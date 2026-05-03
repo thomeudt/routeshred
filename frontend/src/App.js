@@ -100,7 +100,17 @@ function App() {
   const showAuthGate = enabled && !initialized && !hasPublicDeepLink;
   const showLoginScreen = enabled && initialized && !authenticated && !hasPublicDeepLink;
   const handleToggleMapVisibility = () => {
-    setIsMapVisible((visible) => !visible);
+    setIsMapVisible((visible) => {
+      if (visible) {
+        // Synchronously remove any fullscreen/overflow locks before React re-renders,
+        // otherwise iOS Safari sees overflow:hidden during the initial paint of the
+        // controls-only view and renders a blank screen.
+        document.documentElement.classList.remove('map-pseudo-fullscreen');
+        document.body.classList.remove('map-pseudo-fullscreen');
+        window.scrollTo(0, 0);
+      }
+      return !visible;
+    });
   };
 
   const handleSelectTab = (tab) => {
