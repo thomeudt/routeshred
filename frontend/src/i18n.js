@@ -147,6 +147,10 @@ const translations = {
           public: 'Öffentlich'
         },
         namePlaceholder: 'Name der Route',
+        newRoute: 'Neue Route',
+        unnamed: 'Unbenannte Route',
+        editName: 'Namen bearbeiten',
+        saveName: 'Namen vergeben & speichern',
         searchPlaceholder: 'Routen suchen',
         errors: {
           loadFailed: 'Gespeicherte Routen konnten nicht geladen werden',
@@ -297,6 +301,8 @@ const translations = {
       fallback: 'Fallback',
       importGpx: 'GPX importieren',
       importRouteFile: 'GPX/FIT importieren',
+      integrations: 'Integrationen',
+      integrationsHint: 'Import · Export',
       exportTcx: 'TCX exportieren (Wahoo/Garmin)',
       exportGpx: 'GPX exportieren',
       shareToWahoo: 'An Wahoo senden',
@@ -598,6 +604,10 @@ const translations = {
           public: 'Public'
         },
         namePlaceholder: 'Route name',
+        newRoute: 'New route',
+        unnamed: 'Unnamed route',
+        editName: 'Edit name',
+        saveName: 'Name & save route',
         searchPlaceholder: 'Search routes',
         errors: {
           loadFailed: 'Could not load saved routes',
@@ -748,6 +758,8 @@ const translations = {
       fallback: 'Fallback',
       importGpx: 'Import GPX',
       importRouteFile: 'Import GPX/FIT',
+      integrations: 'Integrations',
+      integrationsHint: 'Import · Export',
       exportTcx: 'Export TCX (Wahoo/Garmin)',
       exportGpx: 'Export GPX',
       shareToWahoo: 'Send to Wahoo',

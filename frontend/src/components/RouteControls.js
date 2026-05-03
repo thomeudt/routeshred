@@ -9,6 +9,7 @@ import {
   FiCheckCircle,
   FiCoffee,
   FiCompass,
+  FiEdit2,
   FiFolder,
   FiRepeat,
   FiDownload,
@@ -283,7 +284,9 @@ function RouteControls({ socialSurfacesMoved = false }) {
   const [locationsOpen, setLocationsOpen] = useState(true);
   const [trainingOpen, setTrainingOpen] = useState(true);
   const [aiRoundtripOpen, setAiRoundtripOpen] = useState(false);
+  const [nameEditMode, setNameEditMode] = useState(false);
   const prevRouteRef = useRef(null);
+  const nameInputRef = useRef(null);
   const [roundtripTarget, setRoundtripTarget] = useState('');
   const [roundtripTime, setRoundtripTime] = useState(120);
   const [roundtripPersona, setRoundtripPersona] = useState('endurance');
@@ -829,7 +832,31 @@ function RouteControls({ socialSurfacesMoved = false }) {
     <div className="route-controls">
       <div className="route-controls-header">
         <div className="planner-heading">
-          <h2>{t('route.planner')}</h2>
+          <p>{t('route.planner')}</p>
+          {nameEditMode ? (
+            <input
+              ref={nameInputRef}
+              className="route-name-input"
+              type="text"
+              value={routeName}
+              onChange={(e) => setRouteName(e.target.value)}
+              onBlur={() => setNameEditMode(false)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setNameEditMode(false); }}
+              placeholder={t('route.saved.namePlaceholder')}
+              maxLength="120"
+              autoFocus
+            />
+          ) : (
+            <button
+              className="route-name-display"
+              type="button"
+              onClick={() => setNameEditMode(true)}
+              title={t('route.saved.editName')}
+            >
+              <span className="route-name-text">{routeName || t('route.saved.newRoute')}</span>
+              <FiEdit2 className="route-name-edit-icon" size={11} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -1150,6 +1177,33 @@ function RouteControls({ socialSurfacesMoved = false }) {
               </div>
             </details>
 
+          <details className="panel-collapsible export-collapsible">
+            <summary>
+              <span>{t('route.integrations')}</span>
+              <small>{t('route.integrationsHint')}</small>
+            </summary>
+            <div className="export-buttons">
+              <button className="btn-secondary" onClick={handleOpenGpxPicker} type="button">
+                <FiUpload /> {t('route.importRouteFile')}
+              </button>
+              {route && (
+                <>
+                  <button className="btn-secondary" onClick={handleExportTCX}>
+                    <FiDownload /> {t('route.exportTcx')}
+                  </button>
+                  <button className="btn-secondary" onClick={handleExportGPX}>
+                    <FiDownload /> {t('route.exportGpx')}
+                  </button>
+                  {typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [new File([], 'x.tcx')] }) && (
+                    <button className="btn-secondary btn-wahoo" onClick={handleShareWahoo}>
+                      <FiShare2 /> {t('route.shareToWahoo')}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </details>
+
           <div className="plan-action-bar">
             <input
               ref={gpxInputRef}
@@ -1167,14 +1221,28 @@ function RouteControls({ socialSurfacesMoved = false }) {
                 <FiNavigation /> {t('route.calculate')}
               </button>
               <div className="plan-secondary-actions">
-                <button
-                  className="btn-secondary"
-                  onClick={handleOpenGpxPicker}
-                  disabled={loading}
-                  type="button"
-                >
-                  <FiUpload /> {t('route.importRouteFile')}
-                </button>
+                {route && authEnabled && authenticated && (
+                  <button
+                    className="btn-secondary"
+                    type="button"
+                    onClick={async () => {
+                      if (!routeName.trim()) {
+                        setNameEditMode(true);
+                        setTimeout(() => nameInputRef.current?.focus(), 50);
+                        return;
+                      }
+                      await saveCurrentRoute(token, routeName.trim());
+                    }}
+                    disabled={routeSaveState === 'saving'}
+                  >
+                    {routeSaveState === 'saving' ? <FiFolder /> : <FiSave />}
+                    {routeSaveState === 'saved'
+                      ? t('route.saved.saved')
+                      : routeName.trim()
+                        ? t('route.saved.save')
+                        : t('route.saved.saveName')}
+                  </button>
+                )}
                 {(startPoint || endPoint || route) && (
                   <button
                     className="btn-secondary btn-danger"
@@ -1186,30 +1254,6 @@ function RouteControls({ socialSurfacesMoved = false }) {
                 )}
               </div>
             </div>
-
-            {route && authEnabled && authenticated && (
-              <div className="saved-route-savebar">
-                <input
-                  type="text"
-                  value={routeName}
-                  onChange={(event) => setRouteName(event.target.value)}
-                  placeholder={t('route.saved.namePlaceholder')}
-                  maxLength="120"
-                />
-                <button
-                  className="btn-secondary"
-                  type="button"
-                  onClick={async () => {
-                    await saveCurrentRoute(token, routeName.trim());
-                    setRouteName('');
-                  }}
-                  disabled={routeSaveState === 'saving'}
-                >
-                  {routeSaveState === 'saving' ? <FiFolder /> : <FiSave />}
-                  {routeSaveState === 'saved' ? t('route.saved.saved') : t('route.saved.save')}
-                </button>
-              </div>
-            )}
 
             {gpxImportSuccess && <small className="gpx-import-success">{gpxImportSuccess}</small>}
             {gpxImportError && <small className="gpx-import-error">{gpxImportError}</small>}
@@ -1381,27 +1425,6 @@ function RouteControls({ socialSurfacesMoved = false }) {
             </details>
           )}
 
-          {route && (
-            <details className="panel-collapsible export-collapsible">
-              <summary>
-                <span>{t('route.exportGpx')}</span>
-                <small>TCX / GPX</small>
-              </summary>
-              <div className="export-buttons">
-                <button className="btn-secondary" onClick={handleExportTCX}>
-                  <FiDownload /> {t('route.exportTcx')}
-                </button>
-                <button className="btn-secondary" onClick={handleExportGPX}>
-                  <FiDownload /> {t('route.exportGpx')}
-                </button>
-                {typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [new File([], 'x.tcx')] }) && (
-                  <button className="btn-secondary btn-wahoo" onClick={handleShareWahoo}>
-                    <FiShare2 /> {t('route.shareToWahoo')}
-                  </button>
-                )}
-              </div>
-            </details>
-          )}
         </>
       )}
 
