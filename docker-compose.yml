@@ -31,6 +31,8 @@ services:
       - TILE_CACHE_TTL_MS=${TILE_CACHE_TTL_MS:-7776000000}
     volumes:
       - ./backend/src:/app/src
+      - ./docs/USER_MANUAL.md:/app/docs/USER_MANUAL.md:ro
+      - ./docs/screenshots:/app/docs/screenshots:ro
       - ./data/cache:/app/data/cache
       - ./data/profiles:/app/data/profiles
       - ./data/routes:/app/data/routes

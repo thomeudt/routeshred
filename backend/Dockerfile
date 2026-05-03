@@ -13,8 +13,6 @@ RUN npm ci --workspace=backend --omit=dev
 
 # Copy application code
 COPY backend/src ./backend/src
-COPY docs/USER_MANUAL.md ./docs/USER_MANUAL.md
-COPY docs/screenshots ./docs/screenshots
 COPY brouter-data/customprofiles ./default-brouter-data/customprofiles
 
 # Expose port

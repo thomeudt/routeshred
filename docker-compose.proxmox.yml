@@ -56,6 +56,8 @@ services:
       - ./data/profiles:/app/data/profiles
       - ./data/routes:/app/data/routes
       - ./data/group-rides:/app/data/group-rides
+      - ./docs/USER_MANUAL.md:/app/docs/USER_MANUAL.md:ro
+      - ./docs/screenshots:/app/docs/screenshots:ro
       - ./brouter-data/segments4:/app/brouter-data/segments4
       - ./brouter-data/customprofiles:/app/brouter-data/customprofiles
     depends_on:
