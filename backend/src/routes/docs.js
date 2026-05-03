@@ -1,13 +1,29 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const fsSync = require('fs');
 const fs = require('fs/promises');
 const path = require('path');
 const { marked } = require('marked');
 
 const router = express.Router();
 
-const MANUAL_PATH = path.resolve(__dirname, '../../../docs/USER_MANUAL.md');
-const SCREENSHOTS_DIR = path.resolve(__dirname, '../../../docs/screenshots');
+const DOCS_DIR_CANDIDATES = [
+  path.resolve(__dirname, '../../../docs'),
+  path.resolve(process.cwd(), 'docs'),
+  path.resolve(process.cwd(), '../docs'),
+  path.resolve(__dirname, '../../docs')
+];
+
+const DOCS_DIR = DOCS_DIR_CANDIDATES.find((candidate) => {
+  try {
+    return fsSync.existsSync(candidate) && fsSync.statSync(candidate).isDirectory();
+  } catch (_) {
+    return false;
+  }
+}) || null;
+
+const MANUAL_PATH = DOCS_DIR ? path.join(DOCS_DIR, 'USER_MANUAL.md') : null;
+const SCREENSHOTS_DIR = DOCS_DIR ? path.join(DOCS_DIR, 'screenshots') : null;
 
 const manualLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -17,7 +33,9 @@ const manualLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' }
 });
 
-router.use('/screenshots', express.static(SCREENSHOTS_DIR));
+if (SCREENSHOTS_DIR && fsSync.existsSync(SCREENSHOTS_DIR)) {
+  router.use('/screenshots', express.static(SCREENSHOTS_DIR));
+}
 
 const HTML_TEMPLATE = (title, body) => `<!DOCTYPE html>
 <html lang="en">
@@ -189,13 +207,17 @@ const HTML_TEMPLATE = (title, body) => `<!DOCTYPE html>
 
 router.get('/manual', manualLimiter, async (req, res) => {
   try {
+    if (!MANUAL_PATH || !fsSync.existsSync(MANUAL_PATH)) {
+      return res.status(404).send('User manual not found.');
+    }
+
     const markdown = await fs.readFile(MANUAL_PATH, 'utf8');
     const body = marked.parse(markdown);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.send(HTML_TEMPLATE('RouteShred — User Manual', body));
   } catch (err) {
-    res.status(404).send('Handbuch nicht gefunden.');
+    res.status(404).send('User manual not found.');
   }
 });
 

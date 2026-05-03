@@ -309,6 +309,7 @@ function MapComponent({ isMapVisible = true }) {
       if (document.fullscreenElement === mapWrapperRef.current) {
         document.exitFullscreen().catch(() => {});
       }
+      setIsNativeFullscreen(false);
       setIsPseudoFullscreen(false);
       stopGpsTracking();
       setGpsError('');
@@ -663,7 +664,7 @@ function MapComponent({ isMapVisible = true }) {
         </section>
       )}
 
-      {!isFullscreen && (
+      {(!isFullscreen || !isMapVisible) && (
         <div className={`controls-panel${showSocialSurface ? ' controls-hidden' : ''}`}>
           <RouteControls socialSurfacesMoved={showSocialSurface} />
           {route && !showSocialSurface && activeTab !== 'setup' && <ElevationProfile route={route} />}
