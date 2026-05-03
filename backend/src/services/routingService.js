@@ -18,6 +18,7 @@ const PREFERENCE_PROFILES = {
 
 // OSRM Demo Server (for development - replace with self-hosted for production)
 const OSRM_API = process.env.OSRM_API || 'http://router.project-osrm.org';
+const OSRM_BASE_URL = parseServiceBaseUrl(OSRM_API, 'OSRM_API');
 const OVERPASS_API = process.env.OVERPASS_API || 'https://overpass-api.de/api/interpreter';
 const OVERPASS_API_LIST = buildOverpassApiList();
 const ROUTING_ENGINE = (process.env.ROUTING_ENGINE || 'brouter').toLowerCase();
@@ -42,6 +43,69 @@ const WIND_SPEED_ENABLED = String(process.env.WIND_SPEED_ENABLED || 'true') !== 
 const WIND_API = process.env.WIND_API || 'https://api.open-meteo.com/v1/forecast';
 
 const downloadedSegmentTiles = new Set();
+
+function parseServiceBaseUrl(rawValue, envName) {
+  const value = String(rawValue || '').trim();
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch (_) {
+    throw new Error(`${envName} must be a valid absolute URL`);
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error(`${envName} must use http or https`);
+  }
+
+  // Remove query/hash to prevent hidden path or host redirection behavior.
+  parsed.search = '';
+  parsed.hash = '';
+
+  return parsed;
+}
+
+function sanitizeOsrmProfile(profile) {
+  const value = String(profile || '').trim();
+  if (!Object.values(PROFILES).includes(value)) {
+    throw new Error('Invalid routing profile');
+  }
+  return value;
+}
+
+function normalizeCoordinateValue(value, min, max, name) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < min || numeric > max) {
+    throw new Error(`Invalid ${name} coordinate`);
+  }
+  return numeric;
+}
+
+function toOsrmCoordinatePair(point) {
+  if (!Array.isArray(point) || point.length < 2) {
+    throw new Error('Invalid coordinate point');
+  }
+
+  const lat = normalizeCoordinateValue(point[0], -90, 90, 'latitude');
+  const lon = normalizeCoordinateValue(point[1], -180, 180, 'longitude');
+  return `${lon},${lat}`;
+}
+
+function buildOsrmRequestUrl(servicePath, coordinatePoints) {
+  const safePath = String(servicePath || '').replace(/^\/+/u, '').replace(/\/+$/u, '');
+  if (!safePath) {
+    throw new Error('Invalid OSRM service path');
+  }
+
+  const coords = Array.isArray(coordinatePoints) ? coordinatePoints : [];
+  if (!coords.length) {
+    throw new Error('At least one coordinate pair is required');
+  }
+
+  const coordinateString = coords.map(toOsrmCoordinatePair).join(';');
+  const basePath = OSRM_BASE_URL.pathname.replace(/\/+$/u, '');
+  const url = new URL(`${basePath}/${safePath}/${coordinateString}`, OSRM_BASE_URL);
+  return url.toString();
+}
 
 function buildOverpassApiList() {
   const fallbackApis = [
@@ -1032,8 +1096,9 @@ async function requestRoute(profile, points, options = {}) {
     }
   }
 
-  const coordinates = points.map((p) => `${p[1]},${p[0]}`).join(';');
-  const response = await axios.get(`${OSRM_API}/route/v1/${profile}/${coordinates}`, {
+  const safeProfile = sanitizeOsrmProfile(profile);
+  const url = buildOsrmRequestUrl(`route/v1/${safeProfile}`, points);
+  const response = await axios.get(url, {
     params: {
       overview: 'full',
       steps: true,
@@ -2866,13 +2931,10 @@ function getDistanceFromLatLon(lat1, lon1, lat2, lon2) {
  */
 async function analyzeRoute(coordinates) {
   try {
-    // Call OSRM match service to snap to road network and get data
-    const coordinateString = coordinates
-      .map(coord => `${coord[1]},${coord[0]}`)
-      .join(';');
+    const url = buildOsrmRequestUrl('match/v1/cycling', coordinates);
 
     const response = await axios.get(
-      `${OSRM_API}/match/v1/cycling/${coordinateString}`,
+      url,
       {
         params: {
           overview: 'full',
