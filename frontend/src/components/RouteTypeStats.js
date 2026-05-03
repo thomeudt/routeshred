@@ -1,57 +1,6 @@
 import React, { useState } from 'react';
 import '../styles/RouteTypeStats.css';
-
-// ── Label mappings ────────────────────────────────────────────────────────────
-
-const HIGHWAY_LABELS = {
-  motorway: 'Autobahn',
-  motorway_link: 'Autobahnauffahrt',
-  trunk: 'Schnellstraße',
-  trunk_link: 'Schnellstraße (Auf-/Abfahrt)',
-  primary: 'Bundesstraße',
-  primary_link: 'Bundesstraße (Auf-/Abfahrt)',
-  secondary: 'Staatsstraße',
-  secondary_link: 'Staatsstraße (Auf-/Abfahrt)',
-  tertiary: 'Gemeindestraße',
-  tertiary_link: 'Gemeindestraße (Auf-/Abfahrt)',
-  unclassified: 'Ländlicher Weg',
-  residential: 'Wohnstraße',
-  service: 'Zufahrtsstraße',
-  living_street: 'Spielstraße',
-  cycleway: 'Radweg',
-  path: 'Weg / Pfad',
-  track: 'Feld- / Forstweg',
-  footway: 'Fußweg',
-  bridleway: 'Reitweg',
-  steps: 'Treppe',
-  unknown: 'Unbekannt',
-};
-
-const SURFACE_LABELS = {
-  asphalt: 'Asphalt',
-  paved: 'Asphalt / Beton',
-  concrete: 'Beton',
-  'concrete:plates': 'Betonplatten',
-  compacted: 'Verdichtet',
-  fine_gravel: 'Feinkies',
-  gravel: 'Schotter / Kies',
-  pebblestone: 'Kopfsteinpflaster',
-  cobblestone: 'Kopfsteinpflaster',
-  'cobblestone:flattened': 'Flachsteinpflaster',
-  paving_stones: 'Pflastersteine',
-  sett: 'Großsteinpflaster',
-  unpaved: 'Unbefestigt',
-  dirt: 'Erde',
-  earth: 'Erde',
-  ground: 'Naturweg',
-  grass: 'Gras',
-  grass_paver: 'Rasengitter',
-  sand: 'Sand',
-  mud: 'Schlamm',
-  wood: 'Holz',
-  metal: 'Metall',
-  unknown: 'Unbekannt',
-};
+import { t } from '../i18n';
 
 // ── Colour palette ────────────────────────────────────────────────────────────
 // Highway: road quality descending (blue = fast, orange/red = rough)
@@ -117,11 +66,18 @@ function formatDistance(meters) {
   return `${meters} m`;
 }
 
-function labelFor(type, map) {
-  return map[type] || type.replace(/_/g, ' ');
+function highwayLabel(type) {
+  const key = `route.terrain.highway.${type}`;
+  const val = t(key);
+  return val !== key ? val : type.replace(/_/g, ' ');
 }
 
-// Merge small slices (< minPct) into 'Sonstige'
+function surfaceLabel(type) {
+  const key = `route.terrain.surface.${type}`;
+  const val = t(key);
+  return val !== key ? val : type.replace(/_/g, ' ');
+}
+
 function mergeSmall(entries, minPct = 2) {
   const big = entries.filter((e) => e.pct >= minPct);
   const small = entries.filter((e) => e.pct < minPct);
@@ -133,18 +89,16 @@ function mergeSmall(entries, minPct = 2) {
 
 // ── Bar chart ─────────────────────────────────────────────────────────────────
 
-function StackedBar({ entries, colorPalette, labelMap }) {
+function StackedBar({ entries, colorPalette, labelFn }) {
   const [tooltip, setTooltip] = useState(null);
   const merged = mergeSmall(entries);
 
   return (
     <div className="rts-bar-wrap">
-      <div className="rts-bar"
-        onMouseLeave={() => setTooltip(null)}
-      >
+      <div className="rts-bar" onMouseLeave={() => setTooltip(null)}>
         {merged.map((entry) => {
           const color = entry.type === '_other' ? '#999' : fallbackColor(entry.type, colorPalette);
-          const label = entry.type === '_other' ? 'Sonstige' : labelFor(entry.type, labelMap);
+          const label = entry.type === '_other' ? t('route.terrain.other') : labelFn(entry.type);
           return (
             <div
               key={entry.type}
@@ -164,13 +118,13 @@ function StackedBar({ entries, colorPalette, labelMap }) {
   );
 }
 
-function Legend({ entries, colorPalette, labelMap }) {
+function Legend({ entries, colorPalette, labelFn }) {
   const merged = mergeSmall(entries);
   return (
     <div className="rts-legend">
       {merged.map((entry) => {
         const color = entry.type === '_other' ? '#999' : fallbackColor(entry.type, colorPalette);
-        const label = entry.type === '_other' ? 'Sonstige' : labelFor(entry.type, labelMap);
+        const label = entry.type === '_other' ? t('route.terrain.other') : labelFn(entry.type);
         return (
           <span key={entry.type} className="rts-legend-item">
             <span className="rts-legend-dot" style={{ background: color }} />
@@ -193,14 +147,14 @@ function RouteTypeStats({ routeStats }) {
   return (
     <div className="rts-root">
       <div className="rts-section">
-        <div className="rts-section-title">Wegtypen</div>
-        <StackedBar entries={highwayTypes} colorPalette={HIGHWAY_COLORS} labelMap={HIGHWAY_LABELS} />
-        <Legend entries={highwayTypes} colorPalette={HIGHWAY_COLORS} labelMap={HIGHWAY_LABELS} />
+        <div className="rts-section-title">{t('route.terrain.highwayTitle')}</div>
+        <StackedBar entries={highwayTypes} colorPalette={HIGHWAY_COLORS} labelFn={highwayLabel} />
+        <Legend entries={highwayTypes} colorPalette={HIGHWAY_COLORS} labelFn={highwayLabel} />
       </div>
       <div className="rts-section">
-        <div className="rts-section-title">Oberfläche</div>
-        <StackedBar entries={surfaceTypes} colorPalette={SURFACE_COLORS} labelMap={SURFACE_LABELS} />
-        <Legend entries={surfaceTypes} colorPalette={SURFACE_COLORS} labelMap={SURFACE_LABELS} />
+        <div className="rts-section-title">{t('route.terrain.surfaceTitle')}</div>
+        <StackedBar entries={surfaceTypes} colorPalette={SURFACE_COLORS} labelFn={surfaceLabel} />
+        <Legend entries={surfaceTypes} colorPalette={SURFACE_COLORS} labelFn={surfaceLabel} />
       </div>
     </div>
   );
