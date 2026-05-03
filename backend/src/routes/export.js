@@ -14,6 +14,7 @@ router.post('/tcx', async (req, res) => {
       return res.status(400).json({ error: 'Route data required' });
     }
 
+    // eslint-disable-next-line no-control-regex
     const safeName = String(name || 'Route').replace(/[\x00-\x1f\x7f]/g, '').replace(/[^\w .-]/g, '_').trim().slice(0, 100) || 'Route';
     const tcxData = await generateTCXFile(route, { name: safeName, description });
     res.setHeader('Content-Type', 'application/xml');
@@ -37,6 +38,7 @@ router.post('/gpx', async (req, res) => {
       return res.status(400).json({ error: 'Route data required' });
     }
 
+    // eslint-disable-next-line no-control-regex
     const safeName = String(name || 'Route').replace(/[\x00-\x1f\x7f]/g, '').replace(/[^\w .-]/g, '_').trim().slice(0, 100) || 'Route';
     const gpxData = await generateGPXFile(route, { name: safeName, description });
     res.setHeader('Content-Type', 'application/xml');

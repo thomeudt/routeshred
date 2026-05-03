@@ -49,7 +49,7 @@ describe('POST /tcx', () => {
       .post('/tcx')
       .send({ route: MINIMAL_ROUTE, name: 'My/Evil<Route>&Name' });
     const disposition = res.headers['content-disposition'];
-    expect(disposition).not.toMatch(/[<>&\/]/);
+    expect(disposition).not.toMatch(/[<>&/]/);
     expect(disposition).toContain('.tcx');
   });
 
