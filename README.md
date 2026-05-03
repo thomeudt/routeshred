@@ -7,7 +7,7 @@
 
 **Self-hosted, open-source route planner for cyclists who want control.**
 
-RouteShred gives you BRouter's bike-optimised profiles, terrain-aware surface breakdowns, weather alerts, power-zone previews, and one-tap device export — running entirely on your own server, with no subscription and no data sent to third parties.
+RouteShred gives you BRouter's bike-optimised profiles, AI-assisted roundtrip planning, terrain-aware surface breakdowns, weather alerts, power-zone previews, and one-tap device export — running entirely on your own server, with no subscription and no data sent to third parties.
 
 > Works fully without login. Keycloak auth is optional and unlocks saved routes, group rides, and community features.
 
@@ -21,6 +21,7 @@ Most route planners are cloud services. RouteShred is a server you run yourself:
 |---|---|---|---|---|
 | Self-hosted | ✅ | ❌ | ❌ | ✅ (limited) |
 | BRouter profiles | ✅ custom `.brf` | ❌ | ❌ | ✅ |
+| **AI roundtrip planner** | **✅ opt-in** | ❌ | ❌ | ❌ |
 | Terrain breakdown | ✅ surface % | paid | ❌ | ❌ |
 | Weather alerts | ✅ wind/rain/UV | ❌ | ❌ | ❌ |
 | Power-zone preview | ✅ FTP-based | ❌ | ❌ | ❌ |
@@ -41,7 +42,7 @@ RouteShred is for clubs, coaches, and technically-minded riders who want those c
 - **Waypoints** — add intermediate points, reorder, delete
 - **Return route** — calculate round-trip automatically
 - **GPX / FIT import** — load routes from Komoot, Strava, Garmin, etc.
-- **AI Roundtrip** — optional OpenAI-assisted round-trip planning (requires API key)
+- **AI Roundtrip** — pick a destination area, set a time budget, choose a persona; the planner proposes and calculates a fitting loop via OpenAI; opt-in via `AI_ROUNDTRIP_ENABLED=true`
 
 ### Analysis
 - **Elevation profile** — interactive chart with gain/loss and gradient

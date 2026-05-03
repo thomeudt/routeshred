@@ -8,13 +8,13 @@ Note: Komoot is a strong product. This positioning is based on differentiation, 
 
 ## Short Version (One-Liner)
 
-RouteShred is the self-hostable, customizable bike planner for riders and communities who want full control over routing, data, and integrations.
+RouteShred is the self-hostable, open-source bike planner with AI-assisted roundtrip planning, BRouter profiles, and full data control — for riders and communities who want more than a cloud platform.
 
 ## Positioning Statement
 
 For ambitious road and gravel riders, cycling clubs, and technically minded teams that need precise route planning while keeping data sovereignty,
-RouteShred is the open, self-hostable route planner with persona-based routing, BRouter profiles, and community workflows.
-Unlike Komoot, RouteShred is designed around control, extensibility, and team-ready self-hosted operation.
+RouteShred is the open, self-hostable route planner with AI-assisted roundtrip planning, persona-based routing, BRouter profiles, and community workflows.
+Unlike Komoot, RouteShred is designed around control, extensibility, and team-ready self-hosted operation — with no subscription and no data leaving your infrastructure.
 
 ## Target Audiences
 
@@ -27,9 +27,9 @@ Unlike Komoot, RouteShred is designed around control, extensibility, and team-re
 
 - RouteShred prioritizes data sovereignty through self-hosting instead of platform lock-in.
 - RouteShred provides bike-specific routing profiles (BRouter) with deep customization.
+- RouteShred includes an AI-assisted roundtrip planner: pick a destination area and time budget, and the planner proposes and calculates a fitting loop — no other self-hosted planner offers this.
 - RouteShred is built around road/gravel workflows and group-oriented community features.
-- RouteShred is an open-source stack: transparent, extensible, and auditable.
-- Komoot is strong in reach, awareness, and out-of-the-box onboarding; RouteShred wins on control and customization.
+- Komoot is strong in reach and out-of-the-box onboarding; RouteShred wins on control, customization, and AI-powered planning without platform lock-in.
 
 ## Comparison Matrix (Strategic)
 
@@ -38,13 +38,16 @@ Unlike Komoot, RouteShred is designed around control, extensibility, and team-re
 | Product model | Open source, self-hostable | Proprietary platform |
 | Data control | High (own instance, own policies) | Platform-bound |
 | Routing customization | High (BRouter profiles, technical configuration) | More curated, less technical depth |
+| AI roundtrip planning | ✅ opt-in (OpenAI key) | ❌ |
+| Weather + power zones | ✅ built-in | ❌ |
 | Integrations/extensibility | Developer-friendly, customizable | API/integrations within platform constraints |
-| End goal | Control, team operations, extensibility | Convenience, content, broad mainstream adoption |
+| End goal | Control, AI-assisted planning, team operations | Convenience, content, broad mainstream adoption |
 
 ## Where RouteShred Clearly Wins
 
 - When privacy, data location, and independence are critical
 - When routing logic needs fine-grained tuning (for example, gravel vs. road prioritization)
+- When riders want AI-assisted roundtrip planning (pick a destination area + time budget, get a calculated loop) without handing data to a platform
 - When clubs/communities need their own group-ride workflows
 - When route planning should be part of your own infrastructure
 
@@ -64,8 +67,9 @@ Unlike Komoot, RouteShred is designed around control, extensibility, and team-re
 
 ### Elevator Pitch (30 seconds)
 
-RouteShred is an open alternative to Komoot for people who do not just want to plan tours, but want real control over routing and data.
-With self-hosting, BRouter profiles, and team features like group rides, RouteShred adapts to your riding practice instead of forcing you into a fixed platform workflow.
+RouteShred is an open alternative to Komoot for riders who want real control over routing, data, and planning.
+Pick a destination area and time budget, and the AI planner proposes and calculates a fitting loop — on your own server.
+With BRouter profiles, weather alerts, power-zone previews, and group-ride workflows, RouteShred adapts to your riding practice instead of forcing you into a platform.
 
 ### Comparison Claim (Factual)
 
