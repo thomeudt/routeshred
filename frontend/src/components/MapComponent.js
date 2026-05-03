@@ -411,9 +411,9 @@ function MapComponent({ isMapVisible = true }) {
     }, 650);
   };
 
-  const showSocialSurface = isMapVisible && (activeTab === 'community' || activeTab === 'routes');
-  const showRoutesSurface = isMapVisible && activeTab === 'routes';
-  const showCommunitySurface = isMapVisible && activeTab === 'community';
+  const showSocialSurface = isMapVisible && !isFullscreen && (activeTab === 'community' || activeTab === 'routes');
+  const showRoutesSurface = isMapVisible && !isFullscreen && activeTab === 'routes';
+  const showCommunitySurface = isMapVisible && !isFullscreen && activeTab === 'community';
 
   return (
     <div className={`map-container${isMapVisible ? '' : ' map-hidden'}${showSocialSurface ? ' social-mode' : ''}`}>
@@ -620,10 +620,12 @@ function MapComponent({ isMapVisible = true }) {
         </section>
       )}
 
-      <div className={`controls-panel${showSocialSurface ? ' controls-hidden' : ''}`}>
-        <RouteControls socialSurfacesMoved={showSocialSurface} />
-        {route && !showSocialSurface && activeTab !== 'setup' && <ElevationProfile route={route} />}
-      </div>
+      {!isFullscreen && (
+        <div className={`controls-panel${showSocialSurface ? ' controls-hidden' : ''}`}>
+          <RouteControls socialSurfacesMoved={showSocialSurface} />
+          {route && !showSocialSurface && activeTab !== 'setup' && <ElevationProfile route={route} />}
+        </div>
+      )}
 
       {loading && <div className="loading">{t('route.calculating')}</div>}
     </div>
