@@ -3731,4 +3731,16 @@
   max-height: none;
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  gap: 14px;
+  padding: 2px 2px 14px;
+}
+
+.community-surface .group-ride-card {
+  position: relative;
+  isolation: isolate;
+}
+
+.community-surface .group-ride-card:hover {
+  transform: none;
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
+import { FiMaximize2, FiMinimize2 } from 'react-icons/fi';
 import { useRouteStore } from '../store/routeStore';
 import { t } from '../i18n';
 import RouteControls from './RouteControls';
@@ -70,8 +71,11 @@ function MapComponent({ isMapVisible = true }) {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [gpsTracking, setGpsTracking] = useState(false);
   const [gpsError, setGpsError] = useState('');
+  const [isNativeFullscreen, setIsNativeFullscreen] = useState(false);
+  const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
   const [activeTab, setActiveTab] = useState('plan');
   const mapRef = useRef();
+  const mapWrapperRef = useRef(null);
   const fittedRouteKeyRef = useRef(null);
   const snapFeedbackTimeoutRef = useRef(null);
   const routeDragRef = useRef(null);
@@ -92,6 +96,7 @@ function MapComponent({ isMapVisible = true }) {
     () => getWaypointAnchorsOnRoute(waypoints, routePositions),
     [waypoints, routePositions]
   );
+  const isFullscreen = isNativeFullscreen || isPseudoFullscreen;
 
   const handleMapClick = (e) => {
     if (suppressNextMapClickRef.current) {
@@ -301,6 +306,10 @@ function MapComponent({ isMapVisible = true }) {
 
   useEffect(() => {
     if (!isMapVisible) {
+      if (document.fullscreenElement === mapWrapperRef.current) {
+        document.exitFullscreen().catch(() => {});
+      }
+      setIsPseudoFullscreen(false);
       stopGpsTracking();
       setGpsError('');
     }
@@ -338,6 +347,58 @@ function MapComponent({ isMapVisible = true }) {
     }
   }, [route, routePositions, returnRoutePositions]);
 
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsNativeFullscreen(document.fullscreenElement === mapWrapperRef.current);
+      const map = mapRef.current;
+      if (map) {
+        setTimeout(() => map.invalidateSize(), 0);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    const mapWrapper = mapWrapperRef.current;
+    if (!mapWrapper) {
+      return;
+    }
+
+    const hasNativeFullscreen = Boolean(document.fullscreenEnabled && mapWrapper.requestFullscreen);
+
+    if (!hasNativeFullscreen) {
+      setIsPseudoFullscreen((prev) => !prev);
+      return;
+    }
+
+    try {
+      if (document.fullscreenElement === mapWrapper) {
+        await document.exitFullscreen();
+      } else {
+        await mapWrapper.requestFullscreen();
+      }
+    } catch (_) {
+      // Ignore fullscreen API errors (for example user gesture restrictions).
+    }
+  };
+
+  useEffect(() => {
+    if (isPseudoFullscreen) {
+      document.body.classList.add('map-pseudo-fullscreen');
+    } else {
+      document.body.classList.remove('map-pseudo-fullscreen');
+    }
+
+    const map = mapRef.current;
+    if (map) {
+      setTimeout(() => map.invalidateSize(), 0);
+    }
+
+    return () => document.body.classList.remove('map-pseudo-fullscreen');
+  }, [isPseudoFullscreen]);
+
   const showSnapFeedback = (point) => {
     if (snapFeedbackTimeoutRef.current) {
       clearTimeout(snapFeedbackTimeoutRef.current);
@@ -357,7 +418,10 @@ function MapComponent({ isMapVisible = true }) {
   return (
     <div className={`map-container${isMapVisible ? '' : ' map-hidden'}${showSocialSurface ? ' social-mode' : ''}`}>
       {isMapVisible && (
-        <div className={`map-wrapper${showSocialSurface ? ' map-compact' : ''}`}>
+        <div
+          ref={mapWrapperRef}
+          className={`map-wrapper${showSocialSurface && !isFullscreen ? ' map-compact' : ''}${isFullscreen ? ' is-fullscreen' : ''}`}
+        >
         <MapContainer
           center={mapCenter}
           zoom={6}
@@ -521,6 +585,15 @@ function MapComponent({ isMapVisible = true }) {
         </MapContainer>
 
         <div className="map-overlay-controls">
+          <button
+            type="button"
+            className={`fullscreen-toggle${isFullscreen ? ' is-active' : ''}`}
+            onClick={toggleFullscreen}
+            title={isFullscreen ? t('map.exitFullscreen') : t('map.enterFullscreen')}
+          >
+            {isFullscreen ? <FiMinimize2 /> : <FiMaximize2 />}
+            <span>{isFullscreen ? t('map.exitFullscreen') : t('map.enterFullscreen')}</span>
+          </button>
           <button
             type="button"
             className={`gps-toggle${gpsTracking ? ' is-active' : ''}`}

@@ -23,6 +23,23 @@
   border: 1px solid var(--border);
 }
 
+.map-wrapper.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  border: 0;
+  border-radius: 0;
+}
+
+.map-wrapper.is-fullscreen .leaflet-container {
+  height: 100dvh;
+  width: 100vw;
+}
+
+body.map-pseudo-fullscreen {
+  overflow: hidden;
+}
+
 .community-surface {
   flex: 1;
   display: flex;
@@ -172,6 +189,7 @@
   gap: 6px;
 }
 
+.fullscreen-toggle,
 .gps-toggle {
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface) 82%, transparent);
@@ -186,9 +204,29 @@
   cursor: pointer;
 }
 
+.fullscreen-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fullscreen-toggle svg {
+  font-size: 13px;
+}
+
+.fullscreen-toggle span {
+  line-height: 1;
+}
+
+.fullscreen-toggle:hover,
 .gps-toggle:hover {
   border-color: var(--primary);
   color: var(--primary);
+}
+
+.fullscreen-toggle.is-active {
+  border-color: #2f7dd1;
+  color: #2f7dd1;
 }
 
 .gps-toggle.is-active {

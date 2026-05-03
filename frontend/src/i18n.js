@@ -477,6 +477,8 @@ const translations = {
         publicRoutesTitle: 'Oeffentliche Routen',
         publicRoutesHint: 'Geteilte und oeffentliche Routen grossflaechig verwalten.'
       },
+      enterFullscreen: 'Vollbild',
+      exitFullscreen: 'Vollbild beenden',
       hideMap: 'Karte ausblenden',
       showMap: 'Karte einblenden'
     }
@@ -959,6 +961,8 @@ const translations = {
         publicRoutesTitle: 'Public routes',
         publicRoutesHint: 'Manage shared and public routes in a large surface.'
       },
+      enterFullscreen: 'Fullscreen',
+      exitFullscreen: 'Exit fullscreen',
       hideMap: 'Hide map',
       showMap: 'Show map'
     }
