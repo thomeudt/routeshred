@@ -64,7 +64,7 @@ The app consists of two areas:
 - **Plan** — Plan a route, elevation profile, export. Always visible.
 - **My Routes** — Saved routes. Only visible when logged in.
 - **Community** — Group rides. Only visible when logged in.
-- **Setup** — Bike profile, FTP, weight. Always visible.
+- **Setup** — Manage bike profiles, FTP, weight. Always visible.
 
 You can click anywhere on the map to set the start or destination. Right-clicking a marker provides additional editing options.
 
@@ -118,7 +118,7 @@ The **AI Roundtrip** in the Plan tab creates a compact loop based on:
 - **Start point** — must be set first
 - **Destination area** — e.g. "Black Forest", "café", "viewpoint". The destination area serves as an anchor for the loop, not necessarily as the first waypoint.
 - **Time budget** — approximate time available in minutes
-- **Bike profile** — current routing profile from the Setup tab
+- **Bike profile** — selected in the Plan tab for this route
 - **Ride persona** — Coffee, Bunch, Endurance, or Gravel
 
 OpenAI only generates structured loop ideas. The actual route is then calculated by the routing engine. If AI planning is too slow, RouteShred automatically falls back to a robust default loop so the process doesn't fail entirely.
@@ -150,7 +150,7 @@ Personas are one-click presets that set `ride type` and `preference` simultaneou
 
 ### Manual Parameters
 
-**Bike type** — Choose from available BRouter profiles (road, gravel, MTB, …) or your own custom profiles. The profile determines which road types BRouter prefers.
+**Bike profile** — Choose the bike/routing profile for this specific route directly in the Plan tab. The available options come from the built-in BRouter profiles and your custom profiles from Setup.
 
 **Route preference:**
 - **Fastest** — shortest time, prefers main roads
@@ -384,7 +384,7 @@ Only the creator can edit or delete a group ride. Click the pencil icon next to 
 
 *Setup tab with profile and bike settings.*
 
-The **Setup** tab is where you configure your rider profile. The values are used for the power zone preview and when saving routes.
+The **Setup** tab is where you configure your rider profile and manage custom bike profiles. The actual bike profile used for a planned route is selected in the **Plan** tab.
 
 ### FTP (Functional Threshold Power)
 
@@ -397,9 +397,9 @@ Your threshold power in watts — the power you can theoretically sustain for on
 
 Your body weight in kg. Currently stored for future W/kg calculations.
 
-### Bike Type
+### Bike Profiles
 
-Default bike type for new routes (road, gravel, MTB, …).
+Create, rename, edit, and delete custom BRouter profiles. These profiles then appear in the Plan tab where you choose the active bike for the route you are planning.
 
 ### Display Name
 

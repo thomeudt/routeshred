@@ -1156,6 +1156,35 @@ function RouteControls({ socialSurfacesMoved = false }) {
               </small>
             </summary>
             <div className="training-collapsible-body">
+              <div className={`control-group plan-bike-card setup-bike-${selectedBikeVisualKind} setup-team-${selectedBikeTeamStyle}`}>
+                <div className="plan-bike-card-backdrop" aria-hidden="true">
+                  <BikeProfileVisual kind={selectedBikeVisualKind} />
+                </div>
+                <div className="plan-bike-card-content">
+                  <div className="plan-bike-card-header">
+                    <label>{t('route.setupSections.bike')}</label>
+                    <span>{t('route.setupSections.bikePlanHint')}</span>
+                  </div>
+                  <div className="plan-bike-card-title">
+                    <strong>{selectedProfileLabel || selectedProfileId}</strong>
+                    <small>{wattsPerKg} W/kg</small>
+                  </div>
+                  <div className="bike-profile-select plan-bike-select">
+                    <select
+                      value={bikeType || selectedProfile.id}
+                      onChange={(event) => setBikeType(event.target.value)}
+                      disabled={!bikeProfiles.length}
+                    >
+                      {profileOptions.map((profile) => (
+                        <option key={profile.id} value={profile.id}>
+                          {formatProfileOptionLabel(profile)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <div className="control-group">
                 <label>{t('route.personas.title')}</label>
                 <div className="persona-buttons">
@@ -1564,14 +1593,14 @@ function RouteControls({ socialSurfacesMoved = false }) {
 
       {activeTab === 'setup' && (
         <>
-          <section className={`setup-hero setup-bike-${selectedBikeVisualKind} setup-team-${selectedBikeTeamStyle}`}>
-            <div className="setup-hero-bike" aria-hidden="true">
-              <BikeProfileVisual
-                kind={selectedBikeVisualKind}
-              />
+          <section className="setup-hero setup-garage-hero">
+            <div className="setup-garage-pattern" aria-hidden="true">
+              <span />
+              <span />
+              <span />
             </div>
             <div className="setup-hero-metrics">
-              <span>{selectedProfileLabel || selectedProfileId}</span>
+              <span>{t('route.setupSections.heroTitle')}</span>
               <strong>{wattsPerKg} W/kg</strong>
             </div>
           </section>
@@ -1580,23 +1609,6 @@ function RouteControls({ socialSurfacesMoved = false }) {
             <div className="setup-section-heading">
               <h3 className="setup-section-title">{t('route.setupSections.bike')}</h3>
               <p>{t('route.setupSections.bikeHint')}</p>
-            </div>
-
-            <div className="control-group setup-bike-card">
-              <label>{t('route.bike')}</label>
-              <div className="bike-profile-select">
-                <select
-                  value={bikeType || selectedProfile.id}
-                  onChange={(event) => setBikeType(event.target.value)}
-                  disabled={!bikeProfiles.length}
-                >
-                  {profileOptions.map((profile) => (
-                    <option key={profile.id} value={profile.id}>
-                      {formatProfileOptionLabel(profile)}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
 
             <details className="profile-tools">

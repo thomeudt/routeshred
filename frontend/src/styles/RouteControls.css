@@ -330,8 +330,84 @@
   --setup-bike-mid: #f5f5f0;
 }
 
+.setup-garage-hero {
+  --setup-bike-accent: #6b7280;
+  --setup-bike-accent-2: #e5e7eb;
+  --setup-bike-dark: #101820;
+  --setup-bike-mid: #233142;
+  background:
+    linear-gradient(118deg, transparent 0 55%, rgba(255,255,255,0.12) 55% 63%, transparent 63%),
+    linear-gradient(135deg, #101820 0%, #1f2937 62%, #334155 100%);
+}
+
 .setup-hero::after {
   display: none;
+}
+
+.setup-garage-pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.9;
+  z-index: 0;
+}
+
+.setup-garage-pattern::before,
+.setup-garage-pattern::after,
+.setup-garage-pattern span {
+  content: "";
+  position: absolute;
+  display: block;
+}
+
+.setup-garage-pattern::before {
+  left: -8%;
+  top: 22%;
+  width: 78%;
+  height: 20px;
+  background: linear-gradient(90deg, #94a3b8, #f8fafc);
+  transform: skewX(-28deg) rotate(-8deg);
+  opacity: 0.86;
+}
+
+.setup-garage-pattern::after {
+  right: -12%;
+  bottom: -42%;
+  width: 144px;
+  height: 144px;
+  border: 20px solid rgba(226, 232, 240, 0.18);
+  border-radius: 50%;
+}
+
+.setup-garage-pattern span:nth-child(1) {
+  left: 12%;
+  top: 54%;
+  width: 56%;
+  height: 52px;
+  border: 8px solid rgba(148, 163, 184, 0.52);
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 999px;
+  transform: rotate(-10deg);
+}
+
+.setup-garage-pattern span:nth-child(2) {
+  right: 9%;
+  top: 12%;
+  width: 36%;
+  height: 70px;
+  background:
+    linear-gradient(135deg, transparent 0 38%, rgba(248,250,252,0.58) 38% 50%, transparent 50%),
+    linear-gradient(135deg, transparent 0 58%, rgba(148,163,184,0.5) 58% 72%, transparent 72%);
+}
+
+.setup-garage-pattern span:nth-child(3) {
+  left: 12px;
+  bottom: 13px;
+  width: 82px;
+  height: 5px;
+  background: rgba(226, 232, 240, 0.58);
+  box-shadow: 0 13px 0 rgba(226, 232, 240, 0.32);
+  transform: skewX(-18deg);
 }
 
 .setup-hero-bike {
@@ -838,6 +914,264 @@
   color: var(--text-secondary);
   font-size: 11px;
   line-height: 1.4;
+}
+
+.plan-bike-card {
+  --setup-bike-accent: #38bdf8;
+  --setup-bike-accent-2: #ffffff;
+  --setup-bike-dark: #071522;
+  --setup-bike-mid: #12364f;
+  border: 0;
+  background:
+    linear-gradient(126deg, transparent 0 60%, color-mix(in srgb, var(--setup-bike-accent-2) 20%, transparent) 60% 68%, transparent 68%),
+    linear-gradient(125deg, color-mix(in srgb, var(--setup-bike-dark) 96%, black) 0%, color-mix(in srgb, var(--setup-bike-mid) 76%, black) 64%, color-mix(in srgb, var(--setup-bike-accent) 24%, transparent) 100%);
+  color: #fff;
+  min-height: 144px;
+  overflow: hidden;
+  padding: 12px;
+  position: relative;
+}
+
+.plan-bike-card.setup-bike-aero {
+  --setup-bike-accent: #ff6b1a;
+  --setup-bike-accent-2: #ffffff;
+  --setup-bike-dark: #05070a;
+  --setup-bike-mid: #111827;
+}
+
+.plan-bike-card.setup-bike-gravel {
+  --setup-bike-accent: #b7791f;
+  --setup-bike-accent-2: #e6c47a;
+  --setup-bike-dark: #1e160f;
+  --setup-bike-mid: #3b2a17;
+}
+
+.plan-bike-card.setup-bike-mtb {
+  --setup-bike-accent: #22c55e;
+  --setup-bike-accent-2: #bbf7d0;
+  --setup-bike-dark: #06150d;
+  --setup-bike-mid: #12351e;
+}
+
+.plan-bike-card.setup-bike-endurance {
+  --setup-bike-accent: #8b5cf6;
+  --setup-bike-accent-2: #67e8f9;
+  --setup-bike-dark: #0e0718;
+  --setup-bike-mid: #1f2b5c;
+}
+
+.plan-bike-card.setup-team-ineos {
+  --setup-bike-accent: #ff5a1f;
+  --setup-bike-accent-2: #c7ccd4;
+  --setup-bike-dark: #121820;
+  --setup-bike-mid: #3a424c;
+}
+
+.plan-bike-card.setup-team-visma {
+  --setup-bike-accent: #f6d70a;
+  --setup-bike-accent-2: #ffffff;
+  --setup-bike-dark: #050505;
+  --setup-bike-mid: #171717;
+}
+
+.plan-bike-card.setup-team-ef {
+  --setup-bike-accent: #ff4fa3;
+  --setup-bike-accent-2: #8cff7a;
+  --setup-bike-dark: #211126;
+  --setup-bike-mid: #4b1740;
+}
+
+.plan-bike-card.setup-team-lidl {
+  --setup-bike-accent: #e30613;
+  --setup-bike-accent-2: #0050a4;
+  --setup-bike-dark: #080a12;
+  --setup-bike-mid: #151c38;
+}
+
+.plan-bike-card.setup-team-uae {
+  --setup-bike-accent: #e11d48;
+  --setup-bike-accent-2: #ffffff;
+  --setup-bike-dark: #25060d;
+  --setup-bike-mid: #5d1221;
+}
+
+.plan-bike-card.setup-team-quickstep {
+  --setup-bike-accent: #2563eb;
+  --setup-bike-accent-2: #ef4444;
+  --setup-bike-dark: #071329;
+  --setup-bike-mid: #12376d;
+}
+
+.plan-bike-card.setup-team-alpecin {
+  --setup-bike-accent: #38bdf8;
+  --setup-bike-accent-2: #ef4444;
+  --setup-bike-dark: #071522;
+  --setup-bike-mid: #12364f;
+}
+
+.plan-bike-card.setup-team-israel {
+  --setup-bike-accent: #38bdf8;
+  --setup-bike-accent-2: #ffffff;
+  --setup-bike-dark: #061328;
+  --setup-bike-mid: #123f7a;
+}
+
+.plan-bike-card.setup-team-decathlon {
+  --setup-bike-accent: #22c55e;
+  --setup-bike-accent-2: #38bdf8;
+  --setup-bike-dark: #06150d;
+  --setup-bike-mid: #0f2f38;
+}
+
+.plan-bike-card.setup-team-lotto-intermarche {
+  --setup-bike-accent: #ef1c24;
+  --setup-bike-accent-2: #d7ff35;
+  --setup-bike-dark: #15070a;
+  --setup-bike-mid: #4a1017;
+}
+
+.plan-bike-card.setup-team-tricolore {
+  --setup-bike-accent: #009246;
+  --setup-bike-accent-2: #ce2b37;
+  --setup-bike-dark: #07130d;
+  --setup-bike-mid: #f5f5f0;
+}
+
+.plan-bike-card-backdrop {
+  inset: 0;
+  opacity: 0.82;
+  position: absolute;
+  z-index: 0;
+}
+
+.plan-bike-card-content {
+  position: relative;
+  z-index: 1;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+}
+
+.plan-bike-card .bike-profile-visual {
+  --bike-visual-accent: var(--setup-bike-accent);
+  background: transparent;
+  height: 100%;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.plan-bike-card .bike-profile-visual::before {
+  display: none;
+}
+
+.plan-bike-card .bike-visual-frame {
+  height: 118px;
+  width: min(92%, 280px);
+}
+
+.plan-bike-card .bike-visual-frame .wheel,
+.plan-bike-card .bike-visual-frame .tube,
+.plan-bike-card .bike-visual-frame .bar,
+.plan-bike-card .bike-visual-frame .saddle,
+.plan-bike-card .bike-visual-frame .crank {
+  display: none;
+}
+
+.plan-bike-card .bike-pattern {
+  display: block;
+  position: absolute;
+}
+
+.plan-bike-card .pattern-main {
+  left: 3%;
+  top: 28%;
+  width: 88%;
+  height: 18px;
+  background: linear-gradient(90deg, var(--setup-bike-accent-2), var(--bike-visual-accent));
+  box-shadow: 0 0 24px color-mix(in srgb, var(--bike-visual-accent) 30%, transparent);
+  transform: skewX(-28deg) rotate(-8deg);
+}
+
+.plan-bike-card .pattern-cut {
+  left: 12%;
+  top: 54%;
+  width: 74%;
+  height: 44px;
+  border: 8px solid color-mix(in srgb, var(--bike-visual-accent) 64%, var(--setup-bike-accent-2));
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 999px;
+  opacity: 0.72;
+  transform: rotate(-10deg);
+}
+
+.plan-bike-card .pattern-flash {
+  right: 6%;
+  top: 8%;
+  width: 34%;
+  height: 72px;
+  background:
+    linear-gradient(135deg, transparent 0 36%, color-mix(in srgb, var(--setup-bike-accent-2) 72%, transparent) 36% 52%, transparent 52%),
+    linear-gradient(135deg, transparent 0 54%, color-mix(in srgb, var(--bike-visual-accent) 76%, transparent) 54% 72%, transparent 72%);
+  opacity: 0.86;
+}
+
+.plan-bike-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.plan-bike-card-header label {
+  color: rgba(255,255,255,0.78);
+}
+
+.plan-bike-card-header span {
+  color: color-mix(in srgb, var(--setup-bike-accent-2) 82%, white);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+}
+
+.plan-bike-card-title {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  max-width: calc(100% - 16px);
+}
+
+.plan-bike-card-title strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.plan-bike-card-title small {
+  color: rgba(255,255,255,0.76);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.plan-bike-select {
+  margin-top: 10px;
+}
+
+.plan-bike-select select {
+  background: rgba(255,255,255,0.94);
+  border-color: rgba(255,255,255,0.36);
+  color: #111827;
 }
 
 .profile-tools {
