@@ -94,6 +94,8 @@ const translations = {
       delete: 'Route löschen',
       hints: {
         setPoints: 'Start und Ziel setzen um eine Route zu berechnen',
+        setStart: 'Start fehlt',
+        setEnd: 'Ziel fehlt',
         readyToCalculate: 'Route noch nicht berechnet'
       },
       aiRoundtrip: {
@@ -483,8 +485,16 @@ const translations = {
         publicRoutesTitle: 'Oeffentliche Routen',
         publicRoutesHint: 'Geteilte und oeffentliche Routen grossflaechig verwalten.'
       },
+      mobileSheet: {
+        label: 'Mobile Panelhöhe',
+        toggle: 'Panelgröße wechseln',
+        compact: 'Karte',
+        half: 'Plan',
+        full: 'Details'
+      },
       enterFullscreen: 'Vollbild',
       exitFullscreen: 'Vollbild beenden',
+      resizePanel: 'Karte und Panel aufteilen',
       hideMap: 'Karte ausblenden',
       showMap: 'Karte einblenden'
     }
@@ -584,6 +594,8 @@ const translations = {
       delete: 'Delete Route',
       hints: {
         setPoints: 'Set start and end to calculate a route',
+        setStart: 'Start missing',
+        setEnd: 'End missing',
         readyToCalculate: 'Route not yet calculated'
       },
       aiRoundtrip: {
@@ -973,8 +985,16 @@ const translations = {
         publicRoutesTitle: 'Public routes',
         publicRoutesHint: 'Manage shared and public routes in a large surface.'
       },
+      mobileSheet: {
+        label: 'Mobile panel height',
+        toggle: 'Change panel size',
+        compact: 'Map',
+        half: 'Plan',
+        full: 'Details'
+      },
       enterFullscreen: 'Fullscreen',
       exitFullscreen: 'Exit fullscreen',
+      resizePanel: 'Resize map and panel',
       hideMap: 'Hide map',
       showMap: 'Show map'
     }

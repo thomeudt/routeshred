@@ -10,6 +10,11 @@ import SavedRoutesPanel from './SavedRoutesPanel';
 import GroupRidesPanel from './GroupRidesPanel';
 import '../styles/Map.css';
 
+const SIDE_PANEL_WIDTH_STORAGE_KEY = 'routeshred.sidePanelWidth';
+const DEFAULT_SIDE_PANEL_WIDTH = 380;
+const MIN_SIDE_PANEL_WIDTH = 320;
+const MAX_SIDE_PANEL_WIDTH = 620;
+const MOBILE_SHEET_SNAPS = ['compact', 'half', 'full'];
 const TILE_URL = process.env.REACT_APP_TILE_URL
   || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_ATTRIBUTION = process.env.REACT_APP_TILE_ATTRIBUTION
@@ -74,6 +79,17 @@ function MapComponent({ isMapVisible = true }) {
   const [isNativeFullscreen, setIsNativeFullscreen] = useState(false);
   const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
   const [activeTab, setActiveTab] = useState('plan');
+  const [mobileSheetSnap, setMobileSheetSnap] = useState('half');
+  const [sidePanelWidth, setSidePanelWidth] = useState(() => {
+    if (typeof window === 'undefined') {
+      return DEFAULT_SIDE_PANEL_WIDTH;
+    }
+    const stored = Number(window.localStorage.getItem(SIDE_PANEL_WIDTH_STORAGE_KEY));
+    return Number.isFinite(stored)
+      ? Math.max(MIN_SIDE_PANEL_WIDTH, Math.min(MAX_SIDE_PANEL_WIDTH, stored))
+      : DEFAULT_SIDE_PANEL_WIDTH;
+  });
+  const mapContainerRef = useRef(null);
   const mapRef = useRef();
   const mapWrapperRef = useRef(null);
   const fittedRouteKeyRef = useRef(null);
@@ -300,11 +316,13 @@ function MapComponent({ isMapVisible = true }) {
 
     if (hasGroupRideLink) {
       setActiveTab('community');
+      setMobileSheetSnap('full');
       return;
     }
 
     if (hasSharedRouteLink) {
       setActiveTab('routes');
+      setMobileSheetSnap('full');
     }
   }, []);
 
@@ -312,6 +330,7 @@ function MapComponent({ isMapVisible = true }) {
     const onTabChanged = (event) => {
       const tab = String(event?.detail?.tab || '').trim() || 'plan';
       setActiveTab(tab);
+      setMobileSheetSnap(tab === 'plan' ? 'half' : 'full');
     };
 
     window.addEventListener('routeshred:tab-changed', onTabChanged);
@@ -488,6 +507,14 @@ function MapComponent({ isMapVisible = true }) {
     }
   }, [isMapVisible]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) {
+      return;
+    }
+    setTimeout(() => map.invalidateSize(), 120);
+  }, [mobileSheetSnap, activeTab]);
+
   const showSnapFeedback = (point) => {
     if (snapFeedbackTimeoutRef.current) {
       clearTimeout(snapFeedbackTimeoutRef.current);
@@ -503,9 +530,95 @@ function MapComponent({ isMapVisible = true }) {
   const showSocialSurface = isMapVisible && !isFullscreen && (activeTab === 'community' || activeTab === 'routes');
   const showRoutesSurface = isMapVisible && !isFullscreen && activeTab === 'routes';
   const showCommunitySurface = isMapVisible && !isFullscreen && activeTab === 'community';
+  const showSidePanel = isMapVisible && !isFullscreen;
+
+  const resizeSidePanel = (clientX) => {
+    const container = mapContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const rect = container.getBoundingClientRect();
+    const maxWidth = Math.min(MAX_SIDE_PANEL_WIDTH, Math.max(MIN_SIDE_PANEL_WIDTH, rect.width - 460));
+    const nextWidth = Math.max(
+      MIN_SIDE_PANEL_WIDTH,
+      Math.min(maxWidth, Math.round(rect.right - clientX - 16))
+    );
+
+    setSidePanelWidth(nextWidth);
+    window.localStorage.setItem(SIDE_PANEL_WIDTH_STORAGE_KEY, String(nextWidth));
+    if (mapRef.current) {
+      setTimeout(() => mapRef.current && mapRef.current.invalidateSize(), 0);
+    }
+  };
+
+  const beginSidePanelResize = (event) => {
+    if (window.matchMedia('(max-width: 768px)').matches) {
+      return;
+    }
+
+    event.preventDefault();
+    resizeSidePanel(event.clientX);
+    document.body.classList.add('is-resizing-map-layout');
+
+    const handlePointerMove = (moveEvent) => {
+      resizeSidePanel(moveEvent.clientX);
+    };
+    const handlePointerUp = () => {
+      document.body.classList.remove('is-resizing-map-layout');
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      if (mapRef.current) {
+        setTimeout(() => mapRef.current && mapRef.current.invalidateSize(), 80);
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp, { once: true });
+  };
+
+  const handleSidePanelResizeKey = (event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
+      return;
+    }
+
+    event.preventDefault();
+    const direction = event.key === 'ArrowLeft' ? 1 : -1;
+    const nextWidth = Math.max(
+      MIN_SIDE_PANEL_WIDTH,
+      Math.min(MAX_SIDE_PANEL_WIDTH, sidePanelWidth + (direction * 24))
+    );
+    setSidePanelWidth(nextWidth);
+    window.localStorage.setItem(SIDE_PANEL_WIDTH_STORAGE_KEY, String(nextWidth));
+    if (mapRef.current) {
+      setTimeout(() => mapRef.current && mapRef.current.invalidateSize(), 0);
+    }
+  };
+
+  const setNextMobileSheetSnap = () => {
+    const currentIndex = MOBILE_SHEET_SNAPS.indexOf(mobileSheetSnap);
+    const nextIndex = currentIndex === -1 ? 1 : (currentIndex + 1) % MOBILE_SHEET_SNAPS.length;
+    setMobileSheetSnap(MOBILE_SHEET_SNAPS[nextIndex]);
+  };
+
+  const renderMobileSheetControls = () => (
+    <div className="mobile-sheet-controls">
+      <button
+        type="button"
+        className="mobile-sheet-grip"
+        onClick={setNextMobileSheetSnap}
+        aria-label={t('map.mobileSheet.toggle')}
+        title={t('map.mobileSheet.toggle')}
+      />
+    </div>
+  );
 
   return (
-    <div className={`map-container${!isMapVisible ? ' map-hidden controls-only-mode' : ''}${showSocialSurface ? ' social-mode' : ''}`}>
+    <div
+      ref={mapContainerRef}
+      className={`map-container mobile-sheet-${mobileSheetSnap}${!isMapVisible ? ' map-hidden controls-only-mode' : ''}${showSocialSurface ? ' social-mode' : ''}`}
+      style={{ '--side-panel-width': `${sidePanelWidth}px` }}
+    >
       <div
           ref={mapWrapperRef}
           className={`map-wrapper${showSocialSurface && !isFullscreen ? ' map-compact' : ''}${isFullscreen ? ' is-fullscreen' : ''}${!isMapVisible ? ' map-wrapper-hidden' : ''}`}
@@ -695,20 +808,34 @@ function MapComponent({ isMapVisible = true }) {
         </div>
       </div>
 
+      {showSidePanel && (
+        <button
+          type="button"
+          className="map-layout-resizer"
+          onPointerDown={beginSidePanelResize}
+          onKeyDown={handleSidePanelResizeKey}
+          aria-label={t('map.resizePanel')}
+          title={t('map.resizePanel')}
+        />
+      )}
+
       {showRoutesSurface && (
         <section className="community-surface">
+          {renderMobileSheetControls()}
           <SavedRoutesPanel context="mixed" />
         </section>
       )}
 
       {showCommunitySurface && (
         <section className="community-surface">
+          {renderMobileSheetControls()}
           <GroupRidesPanel />
         </section>
       )}
 
       {!isFullscreen && (
         <div className={`controls-panel${showSocialSurface ? ' controls-hidden' : ''}`}>
+          {renderMobileSheetControls()}
           <RouteControls socialSurfacesMoved={showSocialSurface} />
           {route && !showSocialSurface && activeTab !== 'setup' && <ElevationProfile route={route} />}
         </div>

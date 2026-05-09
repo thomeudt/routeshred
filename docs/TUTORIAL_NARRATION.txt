@@ -2,7 +2,7 @@ Willkommen zu RouteShred.
 
 In diesem Tutorial siehst du den aktuellen Workflow: eine Route planen, mit deinem Profil abstimmen, analysieren und am Ende als GPX oder TCX exportieren.
 
-Links liegt die Planung mit den Tabs für Plan, Meine Routen, Community und Setup. Rechts bleibt die Karte im Blick und zeigt sofort, wie sich Start, Ziel und Zwischenziele auf die Strecke auswirken.
+Auf dem Desktop liegen Planung und Karte nebeneinander. Den Trenner kannst du verschieben, wenn du mehr Platz für die Karte oder mehr Raum für das aktive Panel brauchst. Auf dem Smartphone wird daraus eine Kartenansicht mit Bottom Sheet. Über Karte, Plan und Details wechselst du schnell zwischen großer Karte, Eingaben und vollständigem Panel.
 
 Start und Ziel kannst du über die Suche setzen, über einen Klick auf die Karte, oder direkt per GPS. Der GPS-Button funktioniert für Start, Ziel und jedes Zwischenziel, ohne die normale POI- und Adresssuche zu stören.
 

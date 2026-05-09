@@ -1376,6 +1376,18 @@ function RouteControls({ socialSurfacesMoved = false }) {
               onChange={handleImportRouteFile}
             />
             <div className="plan-primary-actions">
+              <div className="mobile-plan-summary" aria-live="polite">
+                <span>
+                  {startPoint ? t('route.locations.start') : t('route.hints.setStart')}
+                  {' '}
+                  {startPoint ? '✓' : '·'}
+                </span>
+                <span>
+                  {endPoint ? t('route.locations.end') : t('route.hints.setEnd')}
+                  {' '}
+                  {endPoint ? '✓' : '·'}
+                </span>
+              </div>
               <button
                 className={`btn-primary${startPoint && endPoint && !route && !loading ? ' calculate-ready' : ''}`}
                 onClick={handleCalculate}

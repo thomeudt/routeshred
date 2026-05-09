@@ -184,6 +184,10 @@
 }
 
 @media (max-width: 768px) {
+  .header-tabs {
+    display: none;
+  }
+
   .header {
     padding: 8px 10px 7px;
   }
@@ -254,10 +258,27 @@
 
 @media (max-width: 420px) {
   .header-content h1 {
-    font-size: 19px;
+    font-size: 18px;
   }
 
   .header-tabs {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  .header-tabs button {
+    height: 28px;
+    font-size: 7px;
+    line-height: 1.05;
+    white-space: normal;
+    padding: 0 2px;
+  }
+
+  .header-auth {
+    gap: 3px;
+  }
+
+  .header-icon-btn {
+    width: 28px;
   }
 }

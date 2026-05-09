@@ -1,0 +1,56 @@
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1100;
+    background: linear-gradient(135deg, #0f2235 0%, #17344f 58%, #1c405f 100%);
+    border-top: 1px solid color-mix(in srgb, var(--accent) 36%, #10263a);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 8px 4px;
+    min-height: 52px;
+    border: 0;
+    background: transparent;
+    color: color-mix(in srgb, white 50%, transparent);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+
+  .bottom-nav-item svg {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .bottom-nav-item.active {
+    color: var(--accent);
+  }
+
+  .bottom-nav-item.active svg {
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 55%, transparent));
+  }
+
+  /* Hide bottom nav when map is in pseudo-fullscreen */
+  body.map-pseudo-fullscreen .bottom-nav {
+    display: none;
+  }
+}

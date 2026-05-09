@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import MapComponent from './components/MapComponent';
 import Header from './components/Header';
+import BottomNav from './components/BottomNav';
 import { useRouteStore } from './store/routeStore';
 import { useAuth } from './auth/AuthProvider';
 import { t } from './i18n';
@@ -148,6 +149,7 @@ function App() {
       ) : (
         <MapComponent isMapVisible={isMapVisible} />
       )}
+      {!showLoginScreen && <BottomNav />}
     </div>
   );
 }

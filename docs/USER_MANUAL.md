@@ -48,7 +48,7 @@ RouteShred is a self-hosted bike route planner for road and gravel riders. It co
 
 *The main view with sidebar and map.*
 
-The app consists of two areas:
+On desktop, the app consists of two resizable areas:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -65,6 +65,10 @@ The app consists of two areas:
 - **My Routes** — Saved routes. Only visible when logged in.
 - **Community** — Group rides. Only visible when logged in.
 - **Setup** — Manage bike profiles, FTP, weight. Always visible.
+
+Drag the divider between map and side panel on desktop to give more space to either the map or the active tab. RouteShred remembers the chosen width locally in your browser.
+
+On phones and narrow tablets, RouteShred switches to a mobile layout: the map stays as the main visual surface and the active tab appears as a bottom sheet below it. The sheet has three quick heights — map focus, planning, and details — so you can keep the map large while still reaching route inputs, saved routes, and community tools. This keeps route planning touch-friendly without squeezing the desktop sidebar into a narrow column.
 
 You can click anywhere on the map to set the start or destination. Right-clicking a marker provides additional editing options.
 

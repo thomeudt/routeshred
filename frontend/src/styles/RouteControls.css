@@ -3735,6 +3735,10 @@
   gap: 8px;
 }
 
+.mobile-plan-summary {
+  display: none;
+}
+
 .plan-secondary-actions {
   display: flex;
   gap: 8px;
@@ -4013,11 +4017,47 @@
 
   .plan-action-bar {
     position: sticky;
-    bottom: -1px;
-    z-index: 20;
-    margin: 0 -4px;
-    padding: 10px 4px 6px;
+    bottom: calc(-1px + var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom));
+    z-index: 40;
+    margin: 0 -8px;
+    padding: 10px 8px calc(8px + env(safe-area-inset-bottom));
     background: linear-gradient(to top, var(--surface) 65%, rgba(255, 255, 255, 0));
+  }
+
+  .plan-primary-actions {
+    gap: 7px;
+  }
+
+  .mobile-plan-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .mobile-plan-summary span {
+    flex: 1 1 0;
+    min-width: 0;
+    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+    background: color-mix(in srgb, var(--surface-subtle) 76%, white);
+    padding: 7px 8px;
+    text-align: center;
+  }
+
+  .plan-primary-actions .btn-primary {
+    min-height: 52px;
+    font-size: 12px;
+    box-shadow: 0 10px 24px rgba(15, 34, 53, 0.16);
+  }
+
+  .plan-secondary-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .route-stats,
