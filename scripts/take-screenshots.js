@@ -8,13 +8,21 @@ const path = require('path');
 const fs = require('fs');
 
 const OUT_DIR = path.resolve(__dirname, '../docs/screenshots');
-const BASE = 'http://localhost:3000';
+const BASE = process.env.TUTORIAL_BASE || process.env.SCREENSHOT_BASE || 'http://localhost:3000';
 const KC_USER = process.env.KC_USER || '';
 const KC_PASS = process.env.KC_PASS || '';
 const AUTHENTICATED = Boolean(KC_USER && KC_PASS);
 
 const VP = { width: 1280, height: 800 };
 const VP_MOBILE = { width: 390, height: 844 };
+const DEMO_GEOLOCATION = {
+  latitude: Number(process.env.TUTORIAL_GEO_LAT || '48.5216'),
+  longitude: Number(process.env.TUTORIAL_GEO_LON || '9.0576')
+};
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 async function shot(page, name, label) {
   await page.screenshot({ path: path.join(OUT_DIR, `${name}.png`) });
@@ -43,7 +51,7 @@ async function login(page) {
     await userField.fill(KC_USER);
     await passField.fill(KC_PASS);
     await page.locator('[type="submit"], #kc-login').first().click();
-    await page.waitForURL(new RegExp(BASE.replace(':', '\\:') + '|localhost:3000'), { timeout: 10000 }).catch(() => {});
+    await page.waitForURL(new RegExp(escapeRegExp(BASE)), { timeout: 10000 }).catch(() => {});
     await page.waitForTimeout(1500);
     await waitForMap(page);
     console.log('  → logged in as', KC_USER);
@@ -74,6 +82,14 @@ async function clickTab(page, textRe) {
   if (await tab.isVisible({ timeout: 3000 }).catch(() => false)) {
     await tab.click();
     await page.waitForTimeout(700);
+  }
+}
+
+async function setMobileSheet(page, textRe) {
+  const button = page.locator('.mobile-sheet-snaps button').filter({ hasText: textRe }).first();
+  if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await button.click();
+    await page.waitForTimeout(600);
   }
 }
 
@@ -119,7 +135,12 @@ async function scrollSidebarTo(page, position) {
 
 // ─── fresh page factory ──────────────────────────────────────────────────────
 async function newPage(browser, viewport = VP) {
-  const page = await browser.newPage();
+  const context = await browser.newContext({
+    viewport,
+    permissions: ['geolocation'],
+    geolocation: DEMO_GEOLOCATION
+  });
+  const page = await context.newPage();
   await page.setViewportSize(viewport);
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await waitForMap(page);
@@ -146,8 +167,12 @@ async function main() {
     console.log('\n[01] Overview');
     {
       const page = await newPage(browser);
+      const resizer = page.locator('.map-layout-resizer').first();
+      if (await resizer.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await resizer.focus();
+      }
       await shot(page, '01-overview', 'App overview');
-      await page.close();
+      await page.context().close();
     }
 
     // 02 — Location input with autocomplete
@@ -160,16 +185,16 @@ async function main() {
       await input.type('Tübingen', { delay: 60 });
       await page.waitForTimeout(1200);
       await shot(page, '02-location-input', 'Address autocomplete');
-      await page.close();
+      await page.context().close();
     }
 
     // 03 — Personas visible (scroll sidebar)
     console.log('\n[03] Personas');
     {
       const page = await newPage(browser);
-      await scrollSidebarTo(page, 200);
-      await shot(page, '03-personas', 'Ride personas');
-      await page.close();
+      await scrollSidebarTo(page, 180);
+      await shot(page, '03-personas', 'Bike profile and ride personas');
+      await page.context().close();
     }
 
     // 04 — Calculated route
@@ -180,7 +205,7 @@ async function main() {
       await fillLocation(page, 1, 'Herrenberg');
       await clickCalculate(page);
       await shot(page, '04-route-calculated', 'Route on map with elevation');
-      await page.close();
+      await page.context().close();
     }
 
     // 05 — Elevation profile scrolled into view
@@ -209,7 +234,7 @@ async function main() {
       await scrollSidebarTo(page, 'bottom');
       await page.waitForTimeout(500);
       await shot(page, '06-export', 'Export buttons');
-      await page.close();
+      await page.context().close();
     }
 
     // 07 — Setup tab
@@ -218,7 +243,7 @@ async function main() {
       const page = await newPage(browser);
       await clickTab(page, /setup/i);
       await shot(page, '07-setup', 'Setup tab');
-      await page.close();
+      await page.context().close();
     }
 
     // Authenticated-only screenshots
@@ -228,9 +253,10 @@ async function main() {
       {
         const page = await newPage(browser);
         await clickTab(page, /routen|routes/i);
+        await page.locator('.map-layout-resizer').first().focus().catch(() => {});
         await page.waitForTimeout(1200);
         await shot(page, '08-saved-routes', 'Saved routes panel');
-        await page.close();
+        await page.context().close();
       }
 
       // 09 — Community tab
@@ -240,7 +266,7 @@ async function main() {
         await clickTab(page, /community/i);
         await page.waitForTimeout(1200);
         await shot(page, '09-community', 'Community / group rides');
-        await page.close();
+        await page.context().close();
       }
     }
 
@@ -259,8 +285,11 @@ async function main() {
     console.log('\n[11] Mobile');
     {
       const page = await newPage(browser, VP_MOBILE);
+      await setMobileSheet(page, /plan/i);
       await shot(page, '11-mobile', 'Mobile view');
-      await page.close();
+      await setMobileSheet(page, /details/i);
+      await shot(page, '12-mobile-details', 'Mobile bottom sheet details');
+      await page.context().close();
     }
 
   } finally {

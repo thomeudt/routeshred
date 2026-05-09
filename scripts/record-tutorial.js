@@ -256,6 +256,53 @@ async function scrollControls(page, position) {
   await page.waitForTimeout(delay(1800));
 }
 
+async function dragDesktopSplitter(page) {
+  const handle = page.locator('.map-layout-resizer').first();
+  if (!await handle.isVisible({ timeout: 2500 }).catch(() => false)) {
+    return;
+  }
+
+  const box = await handle.boundingBox();
+  if (!box) {
+    return;
+  }
+
+  await chapter(page, 'Desktop-Cockpit', 'Karte und Panel lassen sich mit dem Trenner passend zur Aufgabe gewichten.');
+  await hideChapter(page);
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - 150, y, { steps: 18 });
+  await page.waitForTimeout(delay(650));
+  await page.mouse.move(x + 70, y, { steps: 18 });
+  await page.mouse.up();
+  await page.waitForTimeout(delay(1200));
+}
+
+async function setMobileSheet(page, labelRe) {
+  const button = page.locator('.mobile-sheet-snaps button').filter({ hasText: labelRe }).first();
+  if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await button.click();
+    await page.waitForTimeout(delay(900));
+    return true;
+  }
+  return false;
+}
+
+async function demoMobileLayout(page) {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(delay(1200));
+  await chapter(page, 'Mobile Flow', 'Auf dem Smartphone bleibt die Karte groß, während das Bottom Sheet zwischen Karte, Plan und Details wechselt.');
+  await hideChapter(page);
+  await setMobileSheet(page, /karte|map/i);
+  await setMobileSheet(page, /plan/i);
+  await setMobileSheet(page, /details/i);
+  await page.waitForTimeout(delay(1200));
+  await page.setViewportSize(VP);
+  await page.waitForTimeout(delay(1000));
+}
+
 async function openDetails(page, selectorOrText) {
   const details = typeof selectorOrText === 'string' && selectorOrText.startsWith('.')
     ? page.locator(selectorOrText).first()
@@ -330,6 +377,7 @@ async function runTutorial(page) {
   await page.waitForTimeout(delay(1400));
   await page.mouse.move(1020, 420);
   await page.waitForTimeout(delay(1400));
+  await dragDesktopSplitter(page);
 
   await chapter(page, 'Start und Ziel setzen', 'Adressen, POIs, Kartenklicks oder GPS füllen Start, Ziel und Zwischenziele ohne Umwege.');
   await hideChapter(page);
@@ -341,8 +389,13 @@ async function runTutorial(page) {
   await page.waitForTimeout(delay(1200));
 
   await scrollControls(page, 220);
-  await chapter(page, 'Ride Persona wählen', 'Coffee, Bunch, Endurance und Gravel setzen passende Routing- und Leistungsparameter.');
+  await chapter(page, 'Bike-Profil und Persona', 'Das Bike-Profil wird direkt im Plan-Tab gewählt. Die Profilkarte zeigt, mit welchem Setup diese Route berechnet wird.');
   await hideChapter(page);
+  const bikeSelect = page.locator('.plan-bike-card select').first();
+  if (await bikeSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await bikeSelect.focus();
+    await page.waitForTimeout(delay(900));
+  }
   const persona = page.locator('button, label').filter({ hasText: /coffee|kaffee|endurance|gravel/i }).first();
   if (await persona.isVisible({ timeout: 3000 }).catch(() => false)) {
     await persona.click().catch(() => {});
@@ -392,6 +445,7 @@ async function runTutorial(page) {
   await chapter(page, 'Setup', 'FTP, Gewicht und Fahrradprofile bestimmen Wattbereiche und geben dem Planer dein Bike-Profil mit.');
   await hideChapter(page);
   await page.waitForTimeout(delay(2600));
+  await demoMobileLayout(page);
 }
 
 async function main() {

@@ -68,7 +68,7 @@ On desktop, the app consists of two resizable areas:
 
 Drag the divider between map and side panel on desktop to give more space to either the map or the active tab. RouteShred remembers the chosen width locally in your browser.
 
-On phones and narrow tablets, RouteShred switches to a mobile layout: the map stays as the main visual surface and the active tab appears as a bottom sheet below it. The sheet has three quick heights — map focus, planning, and details — so you can keep the map large while still reaching route inputs, saved routes, and community tools. This keeps route planning touch-friendly without squeezing the desktop sidebar into a narrow column.
+On phones and narrow tablets, RouteShred switches to a mobile layout: the map stays as the main visual surface and the active tab appears as a bottom sheet below it. At the very bottom of the screen, a fixed navigation bar provides one-tap access to all four tabs — the same tabs as the desktop header. The sheet has three quick heights (compact, half, full) that you cycle through by tapping the drag-handle grip at the top of the sheet. In **compact** mode the map is large and only the top of the sheet peeks up. **Half** gives roughly equal space to both. **Full** expands the sheet nearly to the top of the screen. The current size adjusts to give more space to either the map or the active content without losing your place.
 
 You can click anywhere on the map to set the start or destination. Right-clicking a marker provides additional editing options.
 
@@ -101,7 +101,7 @@ Select one of the four ride personas (Coffee, Bunch, Endurance, Gravel) or manua
 
 ### Step 3 — Calculate
 
-Click **Calculate**. RouteShred sends the request to the configured routing engine, fetches the elevation profile from Open-Meteo, and calculates weather alerts. The route appears as a blue line on the map with analysis below.
+Click **Calculate** (on mobile the button is pinned at the top of the bottom sheet, always reachable without scrolling). RouteShred sends the request to the configured routing engine, fetches the elevation profile from Open-Meteo, and calculates weather alerts. The route appears as a blue line on the map with analysis below.
 
 ![Calculated route on map](./screenshots/04-route-calculated.png)
 
@@ -292,7 +292,11 @@ The fastest way on mobile devices:
 
 ![Mobile view](./screenshots/11-mobile.png)
 
-*Mobile use including share flow to Wahoo.*
+*Mobile use with map-first bottom sheet navigation.*
+
+![Mobile details](./screenshots/12-mobile-details.png)
+
+*Expanded mobile sheet for full route details and actions.*
 
 ---
 

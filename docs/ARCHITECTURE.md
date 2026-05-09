@@ -35,7 +35,7 @@ In production (Proxmox stack) internal Caddy sits in front and routes `/`, `/api
 
 ### Navigation
 
-The header renders four tabs. The middle two (`routes`, `community`) are only shown when auth is enabled and the user is logged in.
+On desktop, the header renders four tabs. On mobile (≤ 768 px), a fixed bottom navigation bar (`BottomNav.js`) replaces the header tabs and communicates tab changes via custom DOM events (`routeshred:set-tab` / `routeshred:tab-changed`). The middle two tabs (`routes`, `community`) are only shown when auth is enabled and the user is logged in.
 
 | Tab | Content |
 |-----|---------|
@@ -82,7 +82,20 @@ Four personas act as quick-select presets. Selecting one sets `rideType` and `pr
 | `SavedRoutesPanel.js` | Saved route list: save, load, rename, share, delete, filter by name or start-region radius |
 | `GroupRidesPanel.js` | Group ride feed: create, edit, join, leave, participants, comments, linked route/Instagram actions |
 | `RouteDetail.js` | Full-page route detail view (deep-link target) |
+| `BottomNav.js` | Mobile bottom navigation bar — tab switching via custom events |
 | `RouteTypeStats.js` | Terrain surface breakdown visualization |
+
+### Mobile Layout
+
+On narrow screens (≤ 768 px) the map and the active panel are stacked vertically. The panel appears as a bottom sheet with rounded top corners that overlaps the map. A drag-handle grip at the top of the sheet cycles through three snap heights:
+
+| Snap | Sheet height | Map height |
+|------|-------------|------------|
+| `compact` | ~38 svh | ~56 dvh |
+| `half` | ~66 svh | ~38 svh |
+| `full` | 100 svh − header − nav | ~28 dvh |
+
+The snap state is stored in `MapComponent` local state (`mobileSheetSnap`). Tapping or dragging the grip advances through `compact → half → full → compact`.
 
 ### i18n
 
@@ -152,9 +165,12 @@ Both use `downsample()` for large coordinate arrays and `escapeXml()` for safe n
 
 ### Geocoding Service (`geocodingService.js`)
 
-- Address search: Nominatim
-- POI search: Overpass API with category shortcuts (cafés, bike shops, water, viewpoints, etc.)
-- Overpass results cached to disk
+Two endpoints serve the `LocationInput` two-phase search:
+
+- `GET /api/geocode/search/quick` — Nominatim only, results cached to disk, used at 150 ms debounce for instant address suggestions.
+- `GET /api/geocode/search` — Nominatim + Overpass POI enrichment. At 650 ms debounce; reuses the quick Nominatim result from disk cache to avoid a second Nominatim request (respecting the 1 req/s rate limit).
+
+POI categories include cafés, bike shops, water, viewpoints, and more. Overpass results are cached to disk. Geocoding cache TTL is configurable via `GEOCODING_CACHE_TTL_MS` (default: 30 days).
 
 ### Keycloak Service (`keycloakService.js`)
 

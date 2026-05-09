@@ -35,6 +35,7 @@ const ELEVENLABS_API_KEY = String(process.env.ELEVENLABS_API_KEY || '').trim();
 const ELEVENLABS_VOICE_ID = String(process.env.TUTORIAL_ELEVENLABS_VOICE_ID || '').trim();
 const ELEVENLABS_MODEL_ID = String(process.env.TUTORIAL_ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2').trim();
 const FINAL_FRAME_HOLD_SECONDS = Math.max(1, Number(process.env.TUTORIAL_FINAL_FRAME_HOLD_SECONDS || '90'));
+const FINAL_FRAME_HOLD_BUFFER_SECONDS = Math.max(0, Number(process.env.TUTORIAL_FINAL_FRAME_HOLD_BUFFER_SECONDS || '2'));
 
 function loadDotEnv(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -186,6 +187,25 @@ function getOpenAiResponseFormat(audioFile) {
   return getAudioExtension(audioFile).slice(1);
 }
 
+function getMediaDurationSeconds(filePath) {
+  if (!hasCommand('ffprobe')) {
+    return null;
+  }
+
+  try {
+    const result = runCommand('ffprobe', [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      filePath
+    ]);
+    const value = Number(String(result.stdout || '').trim());
+    return Number.isFinite(value) && value > 0 ? value : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 async function writeResponseToFile(response, filePath) {
   if (!response.ok) {
     const bodyText = await response.text().catch(() => '');
@@ -302,9 +322,23 @@ async function synthesizeAudio() {
   return { provider, audioFile };
 }
 
+function getFinalFrameHoldSeconds(audioFile) {
+  const audioDuration = getMediaDurationSeconds(audioFile);
+  const videoDuration = getMediaDurationSeconds(VIDEO_FILE);
+
+  if (!audioDuration || !videoDuration) {
+    return FINAL_FRAME_HOLD_SECONDS;
+  }
+
+  return Math.max(
+    1,
+    Math.ceil(Math.max(FINAL_FRAME_HOLD_SECONDS, audioDuration - videoDuration + FINAL_FRAME_HOLD_BUFFER_SECONDS))
+  );
+}
+
 function buildFfmpegMuxArgs(audioFile) {
   const ext = path.extname(FINAL_FILE).toLowerCase();
-  const videoPadFilter = `tpad=stop_mode=clone:stop_duration=${FINAL_FRAME_HOLD_SECONDS}`;
+  const videoPadFilter = `tpad=stop_mode=clone:stop_duration=${getFinalFrameHoldSeconds(audioFile)}`;
 
   if (ext === '.webm') {
     return [
@@ -374,6 +408,7 @@ function muxVideoAndAudio(audioFile) {
   }
 
   fs.mkdirSync(path.dirname(FINAL_FILE), { recursive: true });
+  console.log(`Final frame hold: ${getFinalFrameHoldSeconds(audioFile)}s`);
 
   runCommand('ffmpeg', buildFfmpegMuxArgs(audioFile));
 

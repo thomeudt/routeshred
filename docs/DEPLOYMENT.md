@@ -168,6 +168,7 @@ Back up `./data/routes` and the Keycloak DB volume to preserve user data.
 | `ROUTESHRED_CACHE_DIR` | `./data/cache` | Disk cache directory |
 | `ELEVATION_CACHE_TTL_MS` | `2592000000` (30 days) | Elevation cache TTL |
 | `OVERPASS_CACHE_TTL_MS` | `604800000` (7 days) | Overpass cache TTL |
+| `GEOCODING_CACHE_TTL_MS` | `2592000000` (30 days) | Geocoding (Nominatim + Overpass) cache TTL |
 | `ELEVATION_PROVIDER_ORDER` | `open-meteo,open-elevation` | Elevation API priority |
 | `AI_ROUNDTRIP_ENABLED` | `false` | Enables OpenAI-assisted roundtrip planning |
 | `OPENAI_API_KEY` | — | Server-side OpenAI API key; never exposed to frontend |

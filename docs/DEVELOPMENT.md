@@ -50,7 +50,8 @@ backend/src/
 
 frontend/src/
 ├── components/
-│   ├── Header.js            # App bar: tabs, auth buttons
+│   ├── Header.js            # App bar: tabs, auth buttons (desktop)
+│   ├── BottomNav.js         # Mobile fixed bottom navigation bar
 │   ├── MapComponent.js      # Leaflet map, markers, polyline, POI layer
 │   ├── RouteControls.js     # Full planning UI (personas, bike, export…)
 │   ├── ElevationProfile.js  # Recharts elevation chart
@@ -64,7 +65,8 @@ frontend/src/
 ├── styles/
 │   ├── RouteControls.css    # Primary stylesheet (panels, forms, buttons)
 │   ├── Header.css           # Header / tabs
-│   ├── Map.css              # Map container
+│   ├── Map.css              # Map container, mobile bottom sheet
+│   ├── BottomNav.css        # Mobile bottom navigation
 │   ├── ElevationProfile.css # Elevation panel
 │   └── RouteTypeStats.css   # Stats chart
 └── i18n.js                  # DE + EN translations
@@ -192,12 +194,18 @@ npm run build
 # Record/update the browser tutorial video
 ROUTESHRED_TUTORIAL_USER=... ROUTESHRED_TUTORIAL_PASSWORD=... npm run record:tutorial
 
+# Refresh manual screenshots
+TUTORIAL_BASE=http://localhost:3000 KC_USER=... KC_PASS=... node scripts/take-screenshots.js
+
 # Add narration and mux final MP4
 TUTORIAL_TTS_PROVIDER=openai OPENAI_API_KEY=... npm run narrate:tutorial
 
 # If the voiceover is longer than the recording, the last video frame is held automatically.
 # Increase this only for very long narration overruns:
 TUTORIAL_FINAL_FRAME_HOLD_SECONDS=180 npm run narrate:tutorial
+
+# Optional: add a small buffer after the narration before ffmpeg cuts the cloned final frame.
+TUTORIAL_FINAL_FRAME_HOLD_BUFFER_SECONDS=4 npm run narrate:tutorial
 ```
 
 ## Debugging

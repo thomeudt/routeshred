@@ -311,6 +311,7 @@ A product positioning guide for differentiation vs. Komoot is at [docs/POSITIONI
 
 ### Geocoding
 - `GET /api/geocode/search` — address / POI search
+- `GET /api/geocode/search/quick` — fast Nominatim-only address search (150 ms debounce path, cached)
 
 ### Users
 - `GET /api/users/search?q=<query>` — search users by name/email (auth)
