@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { FiMaximize2, FiMinimize2 } from 'react-icons/fi';
@@ -99,6 +99,7 @@ function MapComponent({ isMapVisible = true }) {
   const gpsWatchIdRef = useRef(null);
   const gpsHasCenteredRef = useRef(false);
   const prevMapVisibleRef = useRef(isMapVisible);
+  const sheetDragRef = useRef(null);
   const routePositions = route && route.geometry && Array.isArray(route.geometry.coordinates)
     ? route.geometry.coordinates
       .filter((coord) => Array.isArray(coord) && coord.length >= 2 && Number.isFinite(Number(coord[0])) && Number.isFinite(Number(coord[1])))
@@ -601,12 +602,62 @@ function MapComponent({ isMapVisible = true }) {
     setMobileSheetSnap(MOBILE_SHEET_SNAPS[nextIndex]);
   };
 
+  const onGripTouchStart = useCallback((e) => {
+    const container = mapContainerRef.current;
+    if (!container) return;
+    const panel = container.querySelector('.controls-panel:not(.controls-hidden), .community-surface');
+    if (!panel) return;
+
+    sheetDragRef.current = {
+      startY: e.touches[0].clientY,
+      startHeight: panel.getBoundingClientRect().height,
+      panel
+    };
+
+    const onMove = (ev) => {
+      const drag = sheetDragRef.current;
+      if (!drag) return;
+      ev.preventDefault();
+      const delta = drag.startY - ev.touches[0].clientY;
+      const newH = Math.max(80, Math.min(window.innerHeight * 0.94, drag.startHeight + delta));
+      drag.panel.style.maxHeight = `${newH}px`;
+      drag.panel.style.transition = 'none';
+    };
+
+    const onEnd = () => {
+      const drag = sheetDragRef.current;
+      sheetDragRef.current = null;
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      if (!drag) return;
+
+      const currentH = drag.panel.getBoundingClientRect().height;
+      const vh = window.innerHeight;
+      const snapHeights = { compact: vh * 0.38, half: vh * 0.63, full: vh - 148 };
+
+      let best = 'half';
+      let bestDist = Infinity;
+      for (const [snap, h] of Object.entries(snapHeights)) {
+        const d = Math.abs(currentH - h);
+        if (d < bestDist) { bestDist = d; best = snap; }
+      }
+
+      drag.panel.style.maxHeight = '';
+      drag.panel.style.transition = '';
+      setMobileSheetSnap(best);
+    };
+
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+  }, []);
+
   const renderMobileSheetControls = () => (
     <div className="mobile-sheet-controls">
       <button
         type="button"
         className="mobile-sheet-grip"
         onClick={setNextMobileSheetSnap}
+        onTouchStart={onGripTouchStart}
         aria-label={t('map.mobileSheet.toggle')}
         title={t('map.mobileSheet.toggle')}
       />

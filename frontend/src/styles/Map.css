@@ -477,6 +477,7 @@ body.is-resizing-map-layout .community-surface {
     box-shadow: 0 -18px 44px rgba(7, 18, 30, 0.24);
     position: relative;
     z-index: 20;
+    transition: max-height 0.28s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
   .community-surface {
@@ -492,6 +493,7 @@ body.is-resizing-map-layout .community-surface {
     position: relative;
     z-index: 20;
     box-shadow: 0 -18px 44px rgba(7, 18, 30, 0.24);
+    transition: max-height 0.28s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
   .mobile-sheet-controls {
