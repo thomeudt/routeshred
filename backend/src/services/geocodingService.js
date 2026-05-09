@@ -1,6 +1,8 @@
 const axios = require('axios');
 const { getCachedJson, setCachedJson } = require('../utils/diskCache');
 
+const inFlightNominatim = new Map();
+
 const NOMINATIM_API = process.env.NOMINATIM_API || 'https://nominatim.openstreetmap.org/search';
 const NOMINATIM_USER_AGENT = process.env.NOMINATIM_USER_AGENT || 'RouteShred/0.1 (+https://github.com/routeshred/routeshred)';
 const OVERPASS_API = process.env.OVERPASS_API || 'https://overpass-api.de/api/interpreter';
@@ -12,6 +14,34 @@ const POI_SEARCH_RADIUS_M = Number(process.env.GEOCODING_POI_RADIUS_M || 45000);
 const POI_PROVIDER = String(
   process.env.POI_PROVIDER || (GEOAPIFY_API_KEY ? 'geoapify' : 'overpass')
 ).trim().toLowerCase();
+
+async function searchPlacesQuick(query, options = {}) {
+  const normalizedQuery = String(query || '').trim();
+  if (normalizedQuery.length < 2) {
+    return [];
+  }
+
+  const limit = clamp(Number(options.limit) || 6, 1, 10);
+  const language = String(options.language || 'de').slice(0, 8);
+
+  // Serve from full cache when available — no need to fetch again
+  const fullCacheKey = { query: normalizedQuery.toLowerCase(), limit, language };
+  const fullCached = await getCachedJson('geocoding', fullCacheKey, GEOCODING_CACHE_TTL_MS);
+  if (Array.isArray(fullCached)) {
+    return fullCached;
+  }
+
+  const quickCacheKey = { query: normalizedQuery.toLowerCase(), limit, language, quick: true };
+  const quickCached = await getCachedJson('geocoding', quickCacheKey, GEOCODING_CACHE_TTL_MS);
+  if (Array.isArray(quickCached)) {
+    return quickCached;
+  }
+
+  const places = await searchNominatimPlaces(normalizedQuery, { language, limit: clamp(limit * 2, 2, 20) });
+  const result = dedupePlaces(places, limit);
+  await setCachedJson('geocoding', quickCacheKey, result);
+  return result;
+}
 
 async function searchPlaces(query, options = {}) {
   const normalizedQuery = String(query || '').trim();
@@ -27,19 +57,15 @@ async function searchPlaces(query, options = {}) {
     return cached;
   }
 
-  const nominatimPlaces = await searchNominatimPlaces(normalizedQuery, {
-    language,
-    limit: clamp(limit * 2, 2, 20)
-  });
+  // Reuse quick cache if available — avoids a second Nominatim call when quick already ran
+  const quickCacheKey = { query: normalizedQuery.toLowerCase(), limit, language, quick: true };
+  const quickCached = await getCachedJson('geocoding', quickCacheKey, GEOCODING_CACHE_TTL_MS);
+  const nominatimPlaces = Array.isArray(quickCached)
+    ? quickCached
+    : await searchNominatimPlaces(normalizedQuery, { language, limit: clamp(limit * 2, 2, 20) });
 
   const intent = detectPoiIntent(normalizedQuery);
-  const locationSeed = intent.locationQuery && intent.locationQuery !== normalizedQuery
-    ? await searchNominatimPlaces(intent.locationQuery, { language, limit: 1 })
-    : [];
-
-  const focusPoint = (locationSeed[0] && locationSeed[0].point)
-    || (nominatimPlaces[0] && nominatimPlaces[0].point)
-    || null;
+  const focusPoint = (nominatimPlaces[0] && nominatimPlaces[0].point) || null;
 
   const poiPlaces = focusPoint
     ? await searchPoiPlaces(normalizedQuery, { limit: clamp(limit * 2, 2, 20), language, focusPoint, intent })
@@ -60,6 +86,16 @@ async function searchPlaces(query, options = {}) {
 }
 
 async function searchNominatimPlaces(query, options = {}) {
+  const key = `${String(query).toLowerCase()}:${String(options.language || 'de')}:${clamp(Number(options.limit) || 8, 1, 20)}`;
+  if (inFlightNominatim.has(key)) {
+    return inFlightNominatim.get(key);
+  }
+  const promise = _fetchNominatimPlaces(query, options).finally(() => inFlightNominatim.delete(key));
+  inFlightNominatim.set(key, promise);
+  return promise;
+}
+
+async function _fetchNominatimPlaces(query, options = {}) {
   const response = await axios.get(NOMINATIM_API, {
     params: {
       q: String(query || '').trim(),
@@ -500,5 +536,6 @@ function clamp(value, min, max) {
 }
 
 module.exports = {
-  searchPlaces
+  searchPlaces,
+  searchPlacesQuick
 };

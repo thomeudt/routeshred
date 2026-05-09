@@ -23,6 +23,8 @@ function LocationInput({
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const skipSearchRef = useRef(false);
+  const quickControllerRef = useRef(null);
+  const fullControllerRef = useRef(null);
 
   useEffect(() => {
     setQuery(value || '');
@@ -39,37 +41,56 @@ function LocationInput({
     if (normalized.length < 3) {
       setResults([]);
       setOpen(false);
+      setLoading(false);
       return undefined;
     }
 
-    const controller = new AbortController();
-    const timeout = window.setTimeout(async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({
-          q: normalized,
-          limit: '6',
-          lang: activeLanguage
-        });
-        const response = await fetch(`${API_BASE}/geocode/search?${params}`, {
-          signal: controller.signal
-        });
-        const data = await response.json();
-        setResults(Array.isArray(data.places) ? data.places : []);
-        setOpen(true);
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          setResults([]);
-          setOpen(false);
+    if (quickControllerRef.current) quickControllerRef.current.abort();
+    if (fullControllerRef.current) fullControllerRef.current.abort();
+
+    const quickController = new AbortController();
+    const fullController = new AbortController();
+    quickControllerRef.current = quickController;
+    fullControllerRef.current = fullController;
+
+    const params = new URLSearchParams({ q: normalized, limit: '6', lang: activeLanguage });
+    setLoading(true);
+
+    // Phase 1: fast Nominatim-only results at 150ms
+    const quickTimeout = window.setTimeout(() => {
+      fetch(`${API_BASE}/geocode/search/quick?${params}`, {
+        signal: quickController.signal
+      }).then((r) => r.json()).then((data) => {
+        const places = Array.isArray(data.places) ? data.places : [];
+        if (places.length > 0) {
+          setResults(places);
+          setOpen(true);
+          setLoading(false);
         }
-      } finally {
+      }).catch((err) => {
+        if (err.name !== 'AbortError') setLoading(false);
+      });
+    }, 150);
+
+    // Phase 2: full results with POI at 650ms — by then quick cache is warm, avoiding duplicate Nominatim hit
+    const fullTimeout = window.setTimeout(() => {
+      fetch(`${API_BASE}/geocode/search?${params}`, {
+        signal: fullController.signal
+      }).then((r) => r.json()).then((data) => {
+        const places = Array.isArray(data.places) ? data.places : [];
+        setResults(places);
+        setOpen(true);
         setLoading(false);
-      }
-    }, 250);
+      }).catch((err) => {
+        if (err.name !== 'AbortError') setLoading(false);
+      });
+    }, 650);
 
     return () => {
-      window.clearTimeout(timeout);
-      controller.abort();
+      window.clearTimeout(quickTimeout);
+      window.clearTimeout(fullTimeout);
+      quickController.abort();
+      fullController.abort();
     };
   }, [query]);
 
@@ -77,6 +98,8 @@ function LocationInput({
     setQuery(place.label);
     setOpen(false);
     setResults([]);
+    if (quickControllerRef.current) quickControllerRef.current.abort();
+    if (fullControllerRef.current) fullControllerRef.current.abort();
     onSelect(place.point, place.label);
   };
 
@@ -84,6 +107,7 @@ function LocationInput({
     setQuery('');
     setResults([]);
     setOpen(false);
+    setLoading(false);
     onClear();
   };
 
@@ -131,7 +155,7 @@ function LocationInput({
           {!loading && results.length === 0 && (
             <div className="location-results__state">{t('route.locations.noResults')}</div>
           )}
-          {!loading && results.map((place) => (
+          {results.map((place) => (
             <button
               key={place.id}
               type="button"

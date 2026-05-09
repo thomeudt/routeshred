@@ -1142,6 +1142,60 @@ function RouteControls({ socialSurfacesMoved = false }) {
           </div>
           </details>
 
+          <div className="plan-action-bar">
+            <input
+              ref={gpxInputRef}
+              className="gpx-file-input"
+              type="file"
+              accept=".gpx,.fit,application/gpx+xml,application/xml,text/xml"
+              onChange={handleImportRouteFile}
+            />
+            <div className="plan-primary-actions">
+              <button
+                className={`btn-primary${startPoint && endPoint && !route && !loading ? ' calculate-ready' : ''}`}
+                onClick={handleCalculate}
+                disabled={!startPoint || !endPoint || loading}
+              >
+                <FiNavigation /> {t('route.calculate')}
+              </button>
+              <div className="plan-secondary-actions">
+                {route && authEnabled && authenticated && (
+                  <button
+                    className="btn-secondary"
+                    type="button"
+                    onClick={async () => {
+                      if (!routeName.trim()) {
+                        setNameEditMode(true);
+                        setTimeout(() => nameInputRef.current?.focus(), 50);
+                        return;
+                      }
+                      await saveCurrentRoute(token, routeName.trim());
+                    }}
+                    disabled={routeSaveState === 'saving'}
+                  >
+                    {routeSaveState === 'saving' ? <FiFolder /> : <FiSave />}
+                    {routeSaveState === 'saved'
+                      ? t('route.saved.saved')
+                      : routeName.trim()
+                        ? t('route.saved.save')
+                        : t('route.saved.saveName')}
+                  </button>
+                )}
+                {(startPoint || endPoint || route) && (
+                  <button
+                    className="btn-secondary btn-danger"
+                    onClick={handleResetRoute}
+                    disabled={loading}
+                  >
+                    <FiTrash2 /> {t('route.delete')}
+                  </button>
+                )}
+              </div>
+            </div>
+            {gpxImportSuccess && <small className="gpx-import-success">{gpxImportSuccess}</small>}
+            {gpxImportError && <small className="gpx-import-error">{gpxImportError}</small>}
+          </div>
+
           <details
             className="panel-collapsible training-collapsible"
             open={trainingOpen}
@@ -1366,73 +1420,6 @@ function RouteControls({ socialSurfacesMoved = false }) {
               )}
             </div>
           </details>
-
-          <div className="plan-action-bar">
-            <input
-              ref={gpxInputRef}
-              className="gpx-file-input"
-              type="file"
-              accept=".gpx,.fit,application/gpx+xml,application/xml,text/xml"
-              onChange={handleImportRouteFile}
-            />
-            <div className="plan-primary-actions">
-              <div className="mobile-plan-summary" aria-live="polite">
-                <span>
-                  {startPoint ? t('route.locations.start') : t('route.hints.setStart')}
-                  {' '}
-                  {startPoint ? '✓' : '·'}
-                </span>
-                <span>
-                  {endPoint ? t('route.locations.end') : t('route.hints.setEnd')}
-                  {' '}
-                  {endPoint ? '✓' : '·'}
-                </span>
-              </div>
-              <button
-                className={`btn-primary${startPoint && endPoint && !route && !loading ? ' calculate-ready' : ''}`}
-                onClick={handleCalculate}
-                disabled={!startPoint || !endPoint || loading}
-              >
-                <FiNavigation /> {t('route.calculate')}
-              </button>
-              <div className="plan-secondary-actions">
-                {route && authEnabled && authenticated && (
-                  <button
-                    className="btn-secondary"
-                    type="button"
-                    onClick={async () => {
-                      if (!routeName.trim()) {
-                        setNameEditMode(true);
-                        setTimeout(() => nameInputRef.current?.focus(), 50);
-                        return;
-                      }
-                      await saveCurrentRoute(token, routeName.trim());
-                    }}
-                    disabled={routeSaveState === 'saving'}
-                  >
-                    {routeSaveState === 'saving' ? <FiFolder /> : <FiSave />}
-                    {routeSaveState === 'saved'
-                      ? t('route.saved.saved')
-                      : routeName.trim()
-                        ? t('route.saved.save')
-                        : t('route.saved.saveName')}
-                  </button>
-                )}
-                {(startPoint || endPoint || route) && (
-                  <button
-                    className="btn-secondary btn-danger"
-                    onClick={handleResetRoute}
-                    disabled={loading}
-                  >
-                    <FiTrash2 /> {t('route.delete')}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {gpxImportSuccess && <small className="gpx-import-success">{gpxImportSuccess}</small>}
-            {gpxImportError && <small className="gpx-import-error">{gpxImportError}</small>}
-          </div>
 
           {!route && !loading && (
             <div className="route-plan-status">

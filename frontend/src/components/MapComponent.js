@@ -93,6 +93,7 @@ function MapComponent({ isMapVisible = true }) {
   const mapRef = useRef();
   const mapWrapperRef = useRef(null);
   const fittedRouteKeyRef = useRef(null);
+  const suppressNextFitRef = useRef(false);
   const snapFeedbackTimeoutRef = useRef(null);
   const routeDragRef = useRef(null);
   const suppressNextMapClickRef = useRef(false);
@@ -191,6 +192,7 @@ function MapComponent({ isMapVisible = true }) {
         : `${t('route.locations.waypoint')} 1`;
       updateWaypoint(draft.waypointId, snappedPoint, label).then(() => {
         if (startPoint && endPoint) {
+          suppressNextFitRef.current = true;
           calculateRoute();
         }
       });
@@ -198,6 +200,7 @@ function MapComponent({ isMapVisible = true }) {
       const insertIndex = getInsertWaypointIndexForHandle(snappedRouteIndex, waypointAnchors, waypoints.length);
       insertWaypoint(snappedPoint, `${t('route.locations.waypoint')} ${insertIndex + 1}`, insertIndex).then(() => {
         if (startPoint && endPoint) {
+          suppressNextFitRef.current = true;
           calculateRoute();
         }
       });
@@ -369,6 +372,13 @@ function MapComponent({ isMapVisible = true }) {
       return;
     }
 
+    fittedRouteKeyRef.current = route.timestamp;
+
+    if (suppressNextFitRef.current) {
+      suppressNextFitRef.current = false;
+      return;
+    }
+
     const map = mapRef.current;
     if (!map) {
       return;
@@ -386,7 +396,6 @@ function MapComponent({ isMapVisible = true }) {
         animate: true,
         duration: 0.45
       });
-      fittedRouteKeyRef.current = route.timestamp;
     }
   }, [route, routePositions, returnRoutePositions]);
 
@@ -703,6 +712,7 @@ function MapComponent({ isMapVisible = true }) {
                   const { lat, lng } = event.target.getLatLng();
                   await setStartPoint([lat, lng], t('route.locations.start'));
                   if (endPoint) {
+                    suppressNextFitRef.current = true;
                     await calculateRoute();
                   }
                 }
@@ -722,6 +732,7 @@ function MapComponent({ isMapVisible = true }) {
                   const { lat, lng } = event.target.getLatLng();
                   await setEndPoint([lat, lng], t('route.locations.end'));
                   if (startPoint) {
+                    suppressNextFitRef.current = true;
                     await calculateRoute();
                   }
                 }
@@ -741,6 +752,7 @@ function MapComponent({ isMapVisible = true }) {
                   const { lat, lng } = event.target.getLatLng();
                   await updateWaypoint(waypoint.id, [lat, lng], waypoint.label || `${t('route.locations.waypoint')} ${index + 1}`);
                   if (startPoint && endPoint) {
+                    suppressNextFitRef.current = true;
                     await calculateRoute();
                   }
                 }
